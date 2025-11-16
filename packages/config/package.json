@@ -12,6 +12,6 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "typescript": "workspace:*"
+    "typescript": "^5.4.2"
   }
 }

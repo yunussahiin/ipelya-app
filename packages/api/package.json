@@ -12,6 +12,6 @@
     "@ipelya/types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "workspace:*"
+    "typescript": "^5.4.2"
   }
 }

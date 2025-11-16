@@ -13,7 +13,7 @@
     "@ipelya/types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "workspace:*"
+    "typescript": "^5.4.2"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0"
