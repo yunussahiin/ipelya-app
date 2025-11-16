@@ -1,259 +1,251 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, ImageBackground, FlatList } from "react-native";
-import { StatCard } from "@/components/cards/StatCard";
-import { Button } from "@/components/ui/Button";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
-const heroCard = {
-  title: "Yaratıcı Modu",
-  description: "Shadow feed'de 3 içerik yayına hazır.",
-  cta: "Shadow Mode'u Başlat",
-  background:
-    "https://images.unsplash.com/photo-1685094488656-9231107be07f?auto=format&fit=crop&w=1740&q=80"
-};
-
-const quickActions = [
-  { label: "İçerik Yükle", detail: "PPV & zamanlama" },
-  { label: "Canlı Yayın", detail: "LiveKit token hazır" },
-  { label: "ASMR Paneli", detail: "Yeni hikaye oluştur" }
+const socialButtons = [
+  { key: "apple", label: "Apple ile devam et", icon: "logo-apple" as const },
+  { key: "google", label: "Google ile devam et", icon: "logo-google" as const }
 ];
 
-const creators = [
-  { id: "1", name: "Luna Shadow", metric: "+34% gelir", tone: "#f472b6" },
-  { id: "2", name: "Nova Flux", metric: "Shadow PIN aktif", tone: "#facc15" },
-  { id: "3", name: "Mira Echo", metric: "Live odası açık", tone: "#38bdf8" }
-];
-
-const insights = [
-  { label: "Bugünki Coin", value: "4.200", trend: "+18%" },
-  { label: "Aktif Shadow", value: "142", trend: "+6 yeni" },
-  { label: "DM Yanıt Süresi", value: "1.3dk", trend: "hedef altında" }
-];
-
-export default function HomeScreen() {
+export default function OnboardingScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <PageScreen>
+    <PageScreen
+      showNavigation={false}
+      scrollViewProps={{ scrollEnabled: false }}
+      contentStyle={() => [
+        styles.page,
+        {
+          paddingTop: 0,
+          paddingBottom: 0,
+          paddingHorizontal: 0,
+          gap: 0
+        }
+      ]}
+    >
       {({ layout }) => {
-        const cardRadius = layout.cardRadius;
-        const stackStats = layout.breakpoint === "xs";
-        const wrapStats = layout.breakpoint === "sm";
-        const stackQuick = layout.breakpoint === "xs";
-        const wrapQuick = layout.breakpoint === "sm";
-        const isWide = layout.breakpoint === "lg" || layout.breakpoint === "xl";
+        const topInset = layout.insets.top + 36;
+        const bottomInset = layout.insets.bottom + 30;
+        const horizontal = Math.max(layout.contentPaddingHorizontal, 28);
 
         return (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.label}>Genel Bakış</Text>
-              <Text style={styles.title}>Shadow Creator Paneli</Text>
-              <Text style={styles.subtitle}>
-                Shadow mode gelirlerini, canlı odaları ve DM deneyimini tek ekrandan yönetin.
-              </Text>
+          <View style={styles.fill}>
+            <LinearGradient
+              colors={["#ffd9ff", "#ff8fa3", "#812231"]}
+              locations={[0, 0.45, 1]}
+              start={{ x: 0.1, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View pointerEvents="none" style={styles.shapeLayer}>
+              <View style={[styles.shape, styles.shapeTop]} />
+              <View style={[styles.shape, styles.shapeMid]} />
+              <View style={[styles.shape, styles.shapeBottom]} />
             </View>
-
             <View
               style={[
-                styles.statsRow,
-                stackStats && styles.statsRowStack,
-                wrapStats && styles.statsRowWrap
+                styles.content,
+                {
+                  paddingTop: topInset,
+                  paddingBottom: bottomInset,
+                  paddingHorizontal: horizontal
+                }
               ]}
             >
-              {insights.map((item) => (
-                <View key={item.label} style={styles.statWrapper}>
-                  <StatCard label={item.label} value={item.value} />
-                  <Text style={styles.statTrend}>{item.trend}</Text>
+              <View style={styles.copy}>
+                <Text style={styles.script}>Haydi</Text>
+                <Text style={styles.headline}>
+                  <Text style={styles.accent}>seni</Text> gerçekten anlayan{"\n"}biriyle tanıştıralım.
+                </Text>
+                <Text style={styles.body}>
+                  Ortak değerler, ilgi alanları ve hedefler üzerine kurulu gerçek bağlar keşfet. İlk adım sadece bir dokunuş
+                  uzağında.
+                </Text>
+              </View>
+              <View style={styles.footer}>
+                <View style={styles.actions}>
+                  <Pressable
+                    style={({ pressed }) => [styles.primaryButton, pressed && styles.pressedState]}
+                    onPress={() => router.replace("/home")}
+                  >
+                    <Text style={styles.primaryLabel}>E-posta ile devam et</Text>
+                  </Pressable>
+                  <View style={styles.dividerRow}>
+                    <View style={styles.divider} />
+                    <Text style={styles.dividerLabel}>ya da şununla devam et</Text>
+                    <View style={styles.divider} />
+                  </View>
+                  {socialButtons.map((button) => (
+                    <Pressable
+                      key={button.key}
+                      style={({ pressed }) => [styles.socialButton, pressed && styles.pressedState]}
+                    >
+                      <Text style={styles.socialLabel}>{button.label}</Text>
+                      <View style={styles.socialIcon}>
+                        <Ionicons name={button.icon} size={18} color="#ffffff" />
+                      </View>
+                    </Pressable>
+                  ))}
                 </View>
-              ))}
-            </View>
-
-            <ImageBackground
-              source={{ uri: heroCard.background }}
-              style={[styles.heroCard, { borderRadius: cardRadius, height: stackStats ? 200 : 240 }]}
-              imageStyle={[styles.heroImage, { borderRadius: cardRadius }]}
-            >
-              <View style={styles.heroContent}>
-                <Text style={styles.heroTitle}>{heroCard.title}</Text>
-                <Text style={styles.heroDescription}>{heroCard.description}</Text>
-                <Button label={heroCard.cta} onPress={() => {}} style={styles.heroButton} />
-              </View>
-            </ImageBackground>
-
-            <View style={[styles.section, { gap: layout.sectionGap * 0.4 }]}>
-              <Text style={styles.sectionTitle}>Hızlı Aksiyonlar</Text>
-              <Text style={styles.sectionSubtitle}>Sık kullanılan akışları bir dokunuşla başlat.</Text>
-              <View
-                style={[
-                  styles.quickActions,
-                  stackQuick && styles.quickActionsStack,
-                  wrapQuick && styles.quickActionsWrap
-                ]}
-              >
-                {quickActions.map((action) => (
-                  <View key={action.label} style={[styles.quickCard, { borderRadius: cardRadius - 4 }]}>
-                    <Text style={styles.quickLabel}>{action.label}</Text>
-                    <Text style={styles.quickDetail}>{action.detail}</Text>
-                    <Text style={styles.quickTodo}>
-                      TODO: implement {action.label.toLowerCase()} flow.
-                    </Text>
-                  </View>
-                ))}
+                <Text style={styles.terms}>
+                  Devam ederek İpelya&apos;nın <Text style={styles.termsLink}>Kullanım Şartları</Text> ve{" "}
+                  <Text style={styles.termsLink}>Gizlilik Politikası</Text>&apos;nı kabul edersin.
+                </Text>
               </View>
             </View>
-
-            <View style={[styles.section, { gap: layout.sectionGap * 0.45 }]}>
-              <Text style={styles.sectionTitle}>Trend Creator'lar</Text>
-              <FlatList
-                horizontal
-                data={creators}
-                keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={[styles.creatorsList, isWide ? { paddingBottom: 4 } : null]}
-                renderItem={({ item }) => (
-                  <View style={[styles.creatorCard, { borderColor: item.tone, borderRadius: cardRadius - 2 }]}>
-                    <Text style={styles.creatorName}>{item.name}</Text>
-                    <Text style={styles.creatorMetric}>{item.metric}</Text>
-                    <Text style={styles.creatorHint}>TODO: canlı ön izleme mini player.</Text>
-                  </View>
-                )}
-              />
-            </View>
-          </>
+          </View>
         );
       }}
     </PageScreen>
   );
 }
 
-const createStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
-    header: {
-      gap: 8
+const createStyles = (colors: ThemeColors) => {
+  return StyleSheet.create({
+    page: {
+      flexGrow: 1
     },
-    label: {
-      color: colors.textSecondary,
-      textTransform: "uppercase",
-      fontSize: 12
+    fill: {
+      flex: 1
     },
-    title: {
-      fontSize: 28,
-      fontWeight: "700",
-      color: colors.textPrimary
+    shapeLayer: {
+      ...StyleSheet.absoluteFillObject
     },
-    subtitle: {
-      color: colors.textSecondary,
-      lineHeight: 20
+    shape: {
+      position: "absolute",
+      borderRadius: 260,
+      opacity: 0.45
     },
-    statsRow: {
-      flexDirection: "row",
-      gap: 16
+    shapeTop: {
+      width: 330,
+      height: 260,
+      top: -60,
+      right: -50,
+      backgroundColor: "rgba(255, 214, 255, 0.8)"
     },
-    statsRowStack: {
-      flexDirection: "column"
+    shapeMid: {
+      width: 380,
+      height: 300,
+      top: 120,
+      left: -80,
+      backgroundColor: "rgba(255, 130, 109, 0.55)",
+      transform: [{ rotate: "-12deg" }]
     },
-    statsRowWrap: {
-      flexWrap: "wrap"
+    shapeBottom: {
+      width: 520,
+      height: 360,
+      bottom: -200,
+      right: -60,
+      backgroundColor: "rgba(255, 140, 0, 0.45)"
     },
-    statWrapper: {
+    content: {
       flex: 1,
-      gap: 6
+      justifyContent: "space-between",
+      gap: 24
     },
-    statTrend: {
-      color: colors.success,
-      fontSize: 12
-    },
-    heroCard: {
-      overflow: "hidden",
-      height: 220
-    },
-    heroImage: {
-      borderRadius: 24
-    },
-    heroContent: {
-      flex: 1,
-      backgroundColor: colors.heroOverlay,
-      padding: 20,
-      justifyContent: "space-between"
-    },
-    heroTitle: {
-      color: colors.textPrimary,
-      fontSize: 24,
-      fontWeight: "700"
-    },
-    heroDescription: {
-      color: colors.textSecondary,
-      fontSize: 16
-    },
-    heroButton: {
-      width: "100%"
-    },
-    section: {
-      gap: 8
-    },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: "600",
-      color: colors.textPrimary
-    },
-    sectionSubtitle: {
-      color: colors.textSecondary
-    },
-    quickActions: {
-      flexDirection: "row",
+    copy: {
+      alignItems: "center",
       gap: 12
     },
-    quickActionsStack: {
-      flexDirection: "column"
+    script: {
+      color: "#ffe9ff",
+      fontSize: 30,
+      fontStyle: "italic"
     },
-    quickActionsWrap: {
-      flexWrap: "wrap"
+    headline: {
+      fontSize: 34,
+      lineHeight: 42,
+      color: "#ffffff",
+      textAlign: "center",
+      fontWeight: "500"
     },
-    quickCard: {
-      flex: 1,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 16,
-      backgroundColor: colors.surfaceAlt,
-      gap: 6
+    accent: {
+      color: "#ff9f3f",
+      fontStyle: "italic"
     },
-    quickLabel: {
-      color: colors.textPrimary,
-      fontWeight: "600",
-      fontSize: 16
+    body: {
+      textAlign: "center",
+      color: "rgba(255,255,255,0.88)",
+      fontSize: 15,
+      lineHeight: 22
     },
-    quickDetail: {
-      color: colors.textSecondary
+    footer: {
+      gap: 18
     },
-    quickTodo: {
-      color: colors.warning,
-      fontSize: 12,
-      marginTop: 10
-    },
-    creatorsList: {
+    actions: {
       gap: 16
     },
-    creatorCard: {
-      borderWidth: 1,
-      borderRadius: 20,
-      padding: 18,
-      width: 220,
-      backgroundColor: colors.surface,
-      gap: 10
+    primaryButton: {
+      borderRadius: 999,
+      backgroundColor: "#ffffff",
+      paddingVertical: 16,
+      alignItems: "center",
+      justifyContent: "center"
     },
-    creatorName: {
-      color: colors.textPrimary,
-      fontSize: 18,
+    primaryLabel: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#050505"
+    },
+    dividerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12
+    },
+    divider: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: "rgba(255,255,255,0.4)"
+    },
+    dividerLabel: {
+      fontSize: 11,
+      letterSpacing: 1.1,
+      color: "rgba(255,255,255,0.8)",
+      textTransform: "uppercase"
+    },
+    socialButton: {
+      borderRadius: 999,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.2)"
+    },
+    socialLabel: {
+      color: "#ffffff",
+      fontSize: 15,
       fontWeight: "600"
     },
-    creatorMetric: {
-      color: colors.highlight
+    socialIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "rgba(255,255,255,0.18)",
+      alignItems: "center",
+      justifyContent: "center"
     },
-    creatorHint: {
-      color: colors.warning,
-      fontSize: 12
+    terms: {
+      fontSize: 12,
+      color: "rgba(255,255,255,0.82)",
+      textAlign: "center",
+      lineHeight: 18
+    },
+    termsLink: {
+      color: colors.accent,
+      fontWeight: "600"
+    },
+    pressedState: {
+      opacity: 0.85
     }
   });
+};

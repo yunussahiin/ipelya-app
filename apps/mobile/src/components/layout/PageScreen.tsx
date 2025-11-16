@@ -12,6 +12,7 @@ type PageScreenProps = {
   children: ReactNode | ((helpers: { layout: Layout }) => ReactNode);
   contentStyle?: StylePropOrFactory;
   scrollViewProps?: Omit<ScrollViewProps, "contentContainerStyle">;
+  showNavigation?: boolean;
 };
 
 type StylePropOrFactory =
@@ -30,18 +31,19 @@ function resolveStyle(style: StylePropOrFactory, layout: Layout) {
   return style;
 }
 
-export function PageScreen({ children, contentStyle, scrollViewProps }: PageScreenProps) {
+export function PageScreen({ children, contentStyle, scrollViewProps, showNavigation = true }: PageScreenProps) {
   const layout = useDeviceLayout();
   const { colors, scheme } = useTheme();
   const { tabs, activeKey, onChange } = useTabsNavigation();
   const showGlows = scheme === "dark";
   const baseStyles = useMemo(() => createStyles(colors), [colors]);
+  const bottomPadding = showNavigation ? layout.navPadding : layout.bottomPadding;
 
   const contentContainerStyle = [
     baseStyles.scrollContent,
     {
       paddingTop: layout.topPadding,
-      paddingBottom: layout.navPadding,
+      paddingBottom: bottomPadding,
       paddingHorizontal: layout.contentPaddingHorizontal,
       gap: layout.sectionGap
     },
@@ -69,7 +71,7 @@ export function PageScreen({ children, contentStyle, scrollViewProps }: PageScre
         >
           {resolveChildren(children, layout)}
         </ScrollView>
-        <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} />
+        {showNavigation ? <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} /> : null}
       </View>
     </SafeAreaView>
   );
