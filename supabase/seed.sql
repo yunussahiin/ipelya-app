@@ -1,0 +1,2 @@
+-- Bu dosya Supabase başlangıç verilerini eklemek için yer tutucudur.
+-- TODO: örnek creator ve shadow kullanıcı seed'lerini ekle.

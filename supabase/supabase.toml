@@ -1,0 +1,5 @@
+# Bu dosya Supabase CLI yapılandırması için placeholder'dır.
+[project]
+ref = "ipelya-local"
+[functions]
+ignored_directories = ["node_modules"]
