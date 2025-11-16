@@ -1,24 +1,20 @@
 import { Stack } from "expo-router";
-import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-export default function RootLayout() {
-  useEffect(() => {
-    // TODO: implement splash screen ve auth bootstrap akışını bağla.
-  }, []);
+const appBackground = "#050505";
 
+export default function Layout() {
   return (
-    <View style={{ flex: 1, backgroundColor: "#050505" }}>
+    <SafeAreaProvider>
+      <StatusBar style="light" backgroundColor={appBackground} translucent animated />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: "#050505" }
+          animation: "fade",
+          contentStyle: { backgroundColor: appBackground }
         }}
-      >
-        <Stack.Screen name="index" />
-      </Stack>
-      <StatusBar style="light" />
-    </View>
+      />
+    </SafeAreaProvider>
   );
 }
