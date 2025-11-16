@@ -4,11 +4,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2020"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -22,24 +18,12 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@ipelya/types": [
-        "packages/types/src"
-      ],
-      "@ipelya/api": [
-        "packages/api/src"
-      ],
-      "@ipelya/hooks": [
-        "packages/hooks/src"
-      ],
-      "@ipelya/utils": [
-        "packages/utils/src"
-      ],
-      "@ipelya/config": [
-        "packages/config/src"
-      ],
-      "@ipelya/ui": [
-        "packages/ui/src"
-      ]
+      "@ipelya/types": ["packages/types/src"],
+      "@ipelya/api": ["packages/api/src"],
+      "@ipelya/hooks": ["packages/hooks/src"],
+      "@ipelya/utils": ["packages/utils/src"],
+      "@ipelya/config": ["packages/config/src"],
+      "@ipelya/ui": ["packages/ui/src"]
     }
   }
 }
