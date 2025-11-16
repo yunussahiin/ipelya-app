@@ -1,39 +1,20 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsx": "react-native",
+    "jsxImportSource": "react",
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@ipelya/types": [
-        "../../packages/types/src"
-      ],
-      "@ipelya/api": [
-        "../../packages/api/src"
-      ],
-      "@ipelya/hooks": [
-        "../../packages/hooks/src"
-      ],
-      "@ipelya/utils": [
-        "../../packages/utils/src"
-      ],
-      "@ipelya/config": [
-        "../../packages/config/src"
-      ],
-      "@ipelya/ui": [
-        "../../packages/ui/src"
-      ]
+      "@/*": ["src/*"],
+      "@ipelya/types": ["../../packages/types/src"],
+      "@ipelya/api": ["../../packages/api/src"],
+      "@ipelya/hooks": ["../../packages/hooks/src"],
+      "@ipelya/utils": ["../../packages/utils/src"],
+      "@ipelya/config": ["../../packages/config/src"],
+      "@ipelya/ui": ["../../packages/ui/src"]
     },
-    "types": [
-      "expo",
-      "expo-router"
-    ]
+    "types": ["expo", "expo-router"]
   },
-  "include": [
-    "app",
-    "src",
-    "index.ts"
-  ]
+  "include": ["app", "src", "index.ts"]
 }
