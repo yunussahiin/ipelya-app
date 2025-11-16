@@ -1,10 +1,7 @@
 import { useMemo } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ScrollView, View, Text, StyleSheet } from "react-native";
-import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { View, Text, StyleSheet } from "react-native";
 import { Button } from "@/components/ui/Button";
-import { useDeviceLayout } from "@/hooks/useDeviceLayout";
-import { useTabsNavigation } from "@/navigation/useTabsNavigation";
+import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
 const liveRooms = [
@@ -19,33 +16,13 @@ const toolkits = [
 ];
 
 export default function LiveScreen() {
-  const layout = useDeviceLayout();
-  const { tabs, activeKey, onChange } = useTabsNavigation();
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const showGlows = scheme === "dark";
-
-  const contentStyle = [
-    styles.scroll,
-    {
-      paddingTop: layout.topPadding,
-      paddingBottom: layout.navPadding,
-      paddingHorizontal: layout.contentPaddingHorizontal,
-      gap: layout.sectionGap
-    },
-    layout.contentWidth ? { width: layout.contentWidth, alignSelf: "center" } : null
-  ];
 
   return (
-    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
-      <View style={styles.chrome}>
-        {showGlows ? (
-          <>
-            <View pointerEvents="none" style={[styles.edgeGlow, styles.topGlow, { height: layout.insets.top + 80 }]} />
-            <View pointerEvents="none" style={[styles.edgeGlow, styles.bottomGlow, { height: layout.insets.bottom + 140 }]} />
-          </>
-        ) : null}
-        <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
+    <PageScreen>
+      {() => (
+        <>
           <View style={styles.header}>
             <Text style={styles.label}>Canlı Kontrol</Text>
             <Text style={styles.title}>Live Operasyon Merkezi</Text>
@@ -89,56 +66,14 @@ export default function LiveScreen() {
               <Button label="Token Yenile" onPress={() => {}} style={styles.actionButton} />
             </View>
           </View>
-        </ScrollView>
-        <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} />
-      </View>
-    </SafeAreaView>
+        </>
+      )}
+    </PageScreen>
   );
 }
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: colors.background
-    },
-    chrome: {
-      flex: 1,
-      position: "relative"
-    },
-    edgeGlow: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      zIndex: -1,
-      backgroundColor: colors.background
-    },
-    topGlow: {
-      top: 0,
-      shadowColor: colors.glowShadow,
-      shadowOffset: { height: 24, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 50,
-      elevation: 35
-    },
-    bottomGlow: {
-      bottom: 0,
-      shadowColor: colors.glowShadow,
-      shadowOffset: { height: -24, width: 0 },
-      shadowOpacity: 0.45,
-      shadowRadius: 60,
-      elevation: 40
-    },
-    scrollView: {
-      flex: 1
-    },
-    scroll: {
-      flexGrow: 1
-    },
-    topActions: {
-      alignItems: "flex-end",
-      marginBottom: 12
-    },
     header: {
       gap: 6
     },
@@ -165,7 +100,7 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: "600"
     },
     roomCard: {
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: colors.surface,
       borderRadius: 20,
       padding: 18,
       borderWidth: 1,
@@ -173,27 +108,25 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      gap: 16
+      gap: 12
     },
     roomTitle: {
       color: colors.textPrimary,
-      fontSize: 18,
-      fontWeight: "600"
+      fontWeight: "600",
+      fontSize: 16
     },
     roomMeta: {
-      color: colors.textSecondary,
-      marginTop: 4
+      color: colors.textMuted
     },
     roomMetrics: {
-      alignItems: "flex-end",
-      gap: 4
+      alignItems: "flex-end"
     },
     roomAudience: {
-      color: colors.success,
+      color: colors.textPrimary,
       fontWeight: "600"
     },
     roomQuality: {
-      color: colors.textSecondary
+      color: colors.highlight
     },
     toolRow: {
       flexDirection: "row",
@@ -201,19 +134,18 @@ const createStyles = (colors: ThemeColors) =>
     },
     toolCard: {
       flex: 1,
-      borderRadius: 16,
+      borderRadius: 18,
       borderWidth: 1,
       padding: 16,
-      backgroundColor: colors.surface,
-      gap: 6
+      backgroundColor: colors.surfaceAlt,
+      gap: 4
     },
     toolLabel: {
       color: colors.textPrimary,
       fontWeight: "600"
     },
     toolDetail: {
-      color: colors.textSecondary,
-      fontSize: 12
+      color: colors.textSecondary
     },
     actions: {
       flexDirection: "row",

@@ -1,11 +1,8 @@
 import { useMemo } from "react";
-import { ScrollView, View, Text, StyleSheet, ImageBackground, FlatList } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, ImageBackground, FlatList } from "react-native";
 import { StatCard } from "@/components/cards/StatCard";
 import { Button } from "@/components/ui/Button";
-import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { useDeviceLayout } from "@/hooks/useDeviceLayout";
-import { useTabsNavigation } from "@/navigation/useTabsNavigation";
+import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
 const heroCard = {
@@ -35,173 +32,104 @@ const insights = [
 ];
 
 export default function HomeScreen() {
-  const layout = useDeviceLayout();
-  const { tabs, activeKey, onChange } = useTabsNavigation();
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const showGlows = scheme === "dark";
-
-  const contentStyle = [
-    styles.scroll,
-    {
-      paddingTop: layout.topPadding,
-      paddingBottom: layout.navPadding,
-      paddingHorizontal: layout.contentPaddingHorizontal,
-      gap: layout.sectionGap
-    },
-    layout.isTablet
-      ? { paddingRight: layout.contentPaddingHorizontal + layout.sideNavigationOffset }
-      : null,
-    layout.contentWidth ? { width: layout.contentWidth, alignSelf: "center" } : null
-  ];
-
-  const cardRadius = layout.cardRadius;
-  const stackStats = layout.breakpoint === "xs";
-  const wrapStats = layout.breakpoint === "sm";
-  const stackQuick = layout.breakpoint === "xs";
-  const wrapQuick = layout.breakpoint === "sm";
-  const isWide = layout.breakpoint === "lg" || layout.breakpoint === "xl";
 
   return (
-    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
-      <View style={styles.chrome}>
-        {showGlows ? (
+    <PageScreen>
+      {({ layout }) => {
+        const cardRadius = layout.cardRadius;
+        const stackStats = layout.breakpoint === "xs";
+        const wrapStats = layout.breakpoint === "sm";
+        const stackQuick = layout.breakpoint === "xs";
+        const wrapQuick = layout.breakpoint === "sm";
+        const isWide = layout.breakpoint === "lg" || layout.breakpoint === "xl";
+
+        return (
           <>
-            <View pointerEvents="none" style={[styles.edgeGlow, styles.topGlow, { height: layout.insets.top + 80 }]} />
-            <View pointerEvents="none" style={[styles.edgeGlow, styles.bottomGlow, { height: layout.insets.bottom + 140 }]} />
-          </>
-        ) : null}
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={contentStyle}
-          showsVerticalScrollIndicator={false}
-          scrollIndicatorInsets={{ top: layout.insets.top, bottom: layout.insets.bottom + 12 }}
-          contentInsetAdjustmentBehavior="never"
-        >
-          <View style={styles.header}>
-            <Text style={styles.label}>Genel Bakış</Text>
-            <Text style={styles.title}>Shadow Creator Paneli</Text>
-            <Text style={styles.subtitle}>
-              Shadow mode gelirlerini, canlı odaları ve DM deneyimini tek ekrandan yönetin.
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statsRow,
-              stackStats && styles.statsRowStack,
-              wrapStats && styles.statsRowWrap
-            ]}
-          >
-            {insights.map((item) => (
-              <View key={item.label} style={styles.statWrapper}>
-                <StatCard label={item.label} value={item.value} />
-                <Text style={styles.statTrend}>{item.trend}</Text>
-              </View>
-            ))}
-          </View>
-
-          <ImageBackground
-            source={{ uri: heroCard.background }}
-            style={[styles.heroCard, { borderRadius: cardRadius, height: stackStats ? 200 : 240 }]}
-            imageStyle={[styles.heroImage, { borderRadius: cardRadius }]}
-          >
-            <View style={styles.heroContent}>
-              <Text style={styles.heroTitle}>{heroCard.title}</Text>
-              <Text style={styles.heroDescription}>{heroCard.description}</Text>
-              <Button label={heroCard.cta} onPress={() => {}} style={styles.heroButton} />
+            <View style={styles.header}>
+              <Text style={styles.label}>Genel Bakış</Text>
+              <Text style={styles.title}>Shadow Creator Paneli</Text>
+              <Text style={styles.subtitle}>
+                Shadow mode gelirlerini, canlı odaları ve DM deneyimini tek ekrandan yönetin.
+              </Text>
             </View>
-          </ImageBackground>
 
-          <View style={[styles.section, { gap: layout.sectionGap * 0.4 }]}>
-            <Text style={styles.sectionTitle}>Hızlı Aksiyonlar</Text>
-            <Text style={styles.sectionSubtitle}>Sık kullanılan akışları bir dokunuşla başlat.</Text>
             <View
               style={[
-                styles.quickActions,
-                stackQuick && styles.quickActionsStack,
-                wrapQuick && styles.quickActionsWrap
+                styles.statsRow,
+                stackStats && styles.statsRowStack,
+                wrapStats && styles.statsRowWrap
               ]}
             >
-              {quickActions.map((action) => (
-                <View key={action.label} style={[styles.quickCard, { borderRadius: cardRadius - 4 }]}>
-                  <Text style={styles.quickLabel}>{action.label}</Text>
-                  <Text style={styles.quickDetail}>{action.detail}</Text>
-                  <Text style={styles.quickTodo}>TODO: implement {action.label.toLowerCase()} flow.</Text>
+              {insights.map((item) => (
+                <View key={item.label} style={styles.statWrapper}>
+                  <StatCard label={item.label} value={item.value} />
+                  <Text style={styles.statTrend}>{item.trend}</Text>
                 </View>
               ))}
             </View>
-          </View>
 
-          <View style={[styles.section, { gap: layout.sectionGap * 0.45 }]}>
-            <Text style={styles.sectionTitle}>Trend Creator'lar</Text>
-            <FlatList
-              horizontal
-              data={creators}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.creatorsList, isWide ? { paddingBottom: 4 } : null]}
-              renderItem={({ item }) => (
-                <View
-                  style={[
-                    styles.creatorCard,
-                    { borderColor: item.tone, borderRadius: cardRadius - 2 }
-                  ]}
-                >
-                  <Text style={styles.creatorName}>{item.name}</Text>
-                  <Text style={styles.creatorMetric}>{item.metric}</Text>
-                  <Text style={styles.creatorHint}>TODO: canlı ön izleme mini player.</Text>
-                </View>
-              )}
-            />
-          </View>
-        </ScrollView>
+            <ImageBackground
+              source={{ uri: heroCard.background }}
+              style={[styles.heroCard, { borderRadius: cardRadius, height: stackStats ? 200 : 240 }]}
+              imageStyle={[styles.heroImage, { borderRadius: cardRadius }]}
+            >
+              <View style={styles.heroContent}>
+                <Text style={styles.heroTitle}>{heroCard.title}</Text>
+                <Text style={styles.heroDescription}>{heroCard.description}</Text>
+                <Button label={heroCard.cta} onPress={() => {}} style={styles.heroButton} />
+              </View>
+            </ImageBackground>
 
-        <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} />
-      </View>
-    </SafeAreaView>
+            <View style={[styles.section, { gap: layout.sectionGap * 0.4 }]}>
+              <Text style={styles.sectionTitle}>Hızlı Aksiyonlar</Text>
+              <Text style={styles.sectionSubtitle}>Sık kullanılan akışları bir dokunuşla başlat.</Text>
+              <View
+                style={[
+                  styles.quickActions,
+                  stackQuick && styles.quickActionsStack,
+                  wrapQuick && styles.quickActionsWrap
+                ]}
+              >
+                {quickActions.map((action) => (
+                  <View key={action.label} style={[styles.quickCard, { borderRadius: cardRadius - 4 }]}>
+                    <Text style={styles.quickLabel}>{action.label}</Text>
+                    <Text style={styles.quickDetail}>{action.detail}</Text>
+                    <Text style={styles.quickTodo}>
+                      TODO: implement {action.label.toLowerCase()} flow.
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={[styles.section, { gap: layout.sectionGap * 0.45 }]}>
+              <Text style={styles.sectionTitle}>Trend Creator'lar</Text>
+              <FlatList
+                horizontal
+                data={creators}
+                keyExtractor={(item) => item.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[styles.creatorsList, isWide ? { paddingBottom: 4 } : null]}
+                renderItem={({ item }) => (
+                  <View style={[styles.creatorCard, { borderColor: item.tone, borderRadius: cardRadius - 2 }]}>
+                    <Text style={styles.creatorName}>{item.name}</Text>
+                    <Text style={styles.creatorMetric}>{item.metric}</Text>
+                    <Text style={styles.creatorHint}>TODO: canlı ön izleme mini player.</Text>
+                  </View>
+                )}
+              />
+            </View>
+          </>
+        );
+      }}
+    </PageScreen>
   );
 }
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: colors.background
-    },
-    chrome: {
-      flex: 1,
-      position: "relative"
-    },
-    edgeGlow: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      zIndex: -1,
-      backgroundColor: colors.background
-    },
-    topGlow: {
-      top: 0,
-      shadowColor: colors.glowShadow,
-      shadowOffset: { height: 24, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 50,
-      elevation: 35
-    },
-    bottomGlow: {
-      bottom: 0,
-      shadowColor: colors.glowShadow,
-      shadowOffset: { height: -24, width: 0 },
-      shadowOpacity: 0.45,
-      shadowRadius: 60,
-      elevation: 40
-    },
-    scrollView: {
-      flex: 1
-    },
-    scroll: {
-      flexGrow: 1
-    },
     header: {
       gap: 8
     },
@@ -285,10 +213,11 @@ const createStyles = (colors: ThemeColors) =>
     },
     quickCard: {
       flex: 1,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderMuted,
       padding: 16,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceAlt,
       gap: 6
     },
     quickLabel: {
@@ -309,9 +238,10 @@ const createStyles = (colors: ThemeColors) =>
     },
     creatorCard: {
       borderWidth: 1,
+      borderRadius: 20,
       padding: 18,
       width: 220,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: colors.surface,
       gap: 10
     },
     creatorName: {

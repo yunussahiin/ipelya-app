@@ -84,6 +84,33 @@ Hem iOS hem Android için güvenilir safe-area değerleri.
 
 ---
 
+# 🧱 PageScreen: Tüm Ekranlar İçin Tek Şablon
+
+`apps/mobile/src/components/layout/PageScreen.tsx` hook çıktısını, safe-area yönetimini ve alt navigasyonu tek komponentte toplar. Böylece her ekran sadece içerik render'lar:
+
+```tsx title="apps/mobile/src/components/layout/PageScreen.tsx"
+<PageScreen>
+  {({ layout }) => (
+    <>
+      <View style={{ paddingTop: layout.sectionGap }}>
+        <Text>Başlık</Text>
+      </View>
+      {/* ... */}
+    </>
+  )}
+</PageScreen>
+```
+
+Bu komponent:
+* `useDeviceLayout` değerlerine göre padding / gap ayarlar
+* Dark mode aktifse glow overlay'lerini gösterir, light modda tamamen temiz bırakır
+* Scroll indicator insetlerini otomatik hesaplar
+* `BottomNavigation`'ı aynı hizaya getirir
+
+Yeni bir ekran eklerken sadece `PageScreen` içine render fonksiyonu yazman yeterli, geri kalan UI/UX tutarlılığı otomatik gelir.
+
+---
+
 # 📌 Bonus: iPhone Model Algılamaya Gerek Yok!
 Eskiden şöyle şeyler yapılıyordu:
 

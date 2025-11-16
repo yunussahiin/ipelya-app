@@ -1,10 +1,7 @@
 import { useMemo } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ScrollView, View, Text, StyleSheet, Pressable } from "react-native";
-import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { PageScreen } from "@/components/layout/PageScreen";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useDeviceLayout } from "@/hooks/useDeviceLayout";
-import { useTabsNavigation } from "@/navigation/useTabsNavigation";
 import { useTheme, type ThemeColors, type ThemeAccent } from "@/theme/ThemeProvider";
 
 const auditSections = [
@@ -20,33 +17,13 @@ const accentOptions: Array<{ key: ThemeAccent; label: string; description: strin
 ];
 
 export default function ProfileScreen() {
-  const layout = useDeviceLayout();
-  const { tabs, activeKey, onChange } = useTabsNavigation();
-  const { colors, accent, setAccent, scheme } = useTheme();
+  const { colors, accent, setAccent } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const showGlows = scheme === "dark";
-
-  const contentStyle = [
-    styles.scroll,
-    {
-      paddingTop: layout.topPadding,
-      paddingBottom: layout.navPadding,
-      paddingHorizontal: layout.contentPaddingHorizontal,
-      gap: layout.sectionGap
-    },
-    layout.contentWidth ? { width: layout.contentWidth, alignSelf: "center" } : null
-  ];
 
   return (
-    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
-      <View style={styles.chrome}>
-        {showGlows ? (
-          <>
-            <View pointerEvents="none" style={[styles.edgeGlow, styles.topGlow, { height: layout.insets.top + 80 }]} />
-            <View pointerEvents="none" style={[styles.edgeGlow, styles.bottomGlow, { height: layout.insets.bottom + 140 }]} />
-          </>
-        ) : null}
-        <ScrollView style={styles.scrollView} contentContainerStyle={contentStyle} showsVerticalScrollIndicator={false}>
+    <PageScreen>
+      {() => (
+        <>
           <View style={styles.header}>
             <Text style={styles.label}>Profil</Text>
             <Text style={styles.title}>Studio Hesabı</Text>
@@ -102,52 +79,14 @@ export default function ProfileScreen() {
               <Text style={styles.memberRole}>Full access · 3 MFA cihazı</Text>
             </View>
           </View>
-        </ScrollView>
-        <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} />
-      </View>
-    </SafeAreaView>
+        </>
+      )}
+    </PageScreen>
   );
 }
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: colors.background
-    },
-    chrome: {
-      flex: 1,
-      position: "relative"
-    },
-    edgeGlow: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      zIndex: -1,
-      backgroundColor: colors.background
-    },
-    topGlow: {
-      top: 0,
-      shadowColor: colors.glowShadow,
-      shadowOffset: { height: 24, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 50,
-      elevation: 35
-    },
-    bottomGlow: {
-      bottom: 0,
-      shadowColor: colors.glowShadow,
-      shadowOffset: { height: -24, width: 0 },
-      shadowOpacity: 0.45,
-      shadowRadius: 60,
-      elevation: 40
-    },
-    scrollView: {
-      flex: 1
-    },
-    scroll: {
-      flexGrow: 1
-    },
     header: {
       gap: 6
     },
@@ -177,6 +116,59 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
       fontSize: 13
     },
+    themeControlRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 16,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface
+    },
+    themeLabel: {
+      color: colors.textPrimary,
+      fontWeight: "600"
+    },
+    themeHint: {
+      color: colors.textSecondary,
+      fontSize: 12
+    },
+    accentRow: {
+      flexDirection: "row",
+      gap: 12
+    },
+    accentOption: {
+      flex: 1,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 14,
+      gap: 6
+    },
+    accentOptionActive: {
+      shadowColor: colors.accent,
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 10
+    },
+    accentSwatch: {
+      width: 24,
+      height: 24,
+      borderRadius: 12
+    },
+    accentLabel: {
+      color: colors.textSecondary,
+      fontWeight: "600"
+    },
+    accentLabelActive: {
+      color: colors.textPrimary
+    },
+    accentDescription: {
+      color: colors.textMuted,
+      fontSize: 12
+    },
     statRow: {
       flexDirection: "row",
       gap: 12
@@ -204,69 +196,18 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 12
     },
     memberCard: {
-      borderRadius: 18,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surface,
-      padding: 18
+      padding: 18,
+      gap: 6
     },
     memberName: {
       color: colors.textPrimary,
-      fontWeight: "600",
-      fontSize: 16
-    },
-    memberRole: {
-      color: colors.textSecondary,
-      marginTop: 6
-    },
-    themeControlRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginVertical: 8
-    },
-    themeLabel: {
-      color: colors.textPrimary,
-      fontWeight: "600",
-      fontSize: 14
-    },
-    themeHint: {
-      color: colors.textSecondary,
-      fontSize: 12
-    },
-    accentRow: {
-      flexDirection: "row",
-      gap: 12,
-      marginTop: 12
-    },
-    accentOption: {
-      flex: 1,
-      borderWidth: 1,
-      borderRadius: 16,
-      padding: 12,
-      backgroundColor: colors.surfaceAlt,
-      alignItems: "center",
-      gap: 6
-    },
-    accentOptionActive: {
-      shadowColor: colors.textPrimary,
-      shadowOpacity: 0.2,
-      shadowRadius: 8
-    },
-    accentSwatch: {
-      width: 28,
-      height: 28,
-      borderRadius: 14
-    },
-    accentLabel: {
-      color: colors.textSecondary,
       fontWeight: "600"
     },
-    accentLabelActive: {
-      color: colors.textPrimary
-    },
-    accentDescription: {
-      color: colors.textMuted,
-      fontSize: 11
+    memberRole: {
+      color: colors.textSecondary
     }
   });
