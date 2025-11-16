@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
 type ButtonProps = {
   label: string;
@@ -8,29 +10,35 @@ type ButtonProps = {
 };
 
 export function Button({ label, onPress, variant = "primary", style }: ButtonProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const labelColor = variant === "primary" ? colors.buttonPrimaryText : colors.textPrimary;
+
   return (
     <Pressable onPress={onPress} style={[styles.base, styles[variant], style]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: "center"
-  },
-  primary: {
-    backgroundColor: "#FF3B81"
-  },
-  ghost: {
-    borderWidth: 1,
-    borderColor: "#3f3f46"
-  },
-  label: {
-    color: "#ffffff",
-    fontWeight: "600"
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      alignItems: "center"
+    },
+    primary: {
+      backgroundColor: colors.accent
+    },
+    ghost: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceAlt
+    },
+    label: {
+      fontWeight: "600"
+    }
+  });

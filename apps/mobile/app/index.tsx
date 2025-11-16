@@ -1,24 +1,19 @@
-import { useState } from "react";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  ImageBackground,
-  FlatList,
-  Platform,
-  Pressable
-} from "react-native";
+import { useMemo } from "react";
+import { ScrollView, View, Text, StyleSheet, ImageBackground, FlatList } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { StatCard } from "@/components/cards/StatCard";
 import { Button } from "@/components/ui/Button";
+import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { useDeviceLayout } from "@/hooks/useDeviceLayout";
+import { useTabsNavigation } from "@/navigation/useTabsNavigation";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
 const heroCard = {
   title: "Yaratıcı Modu",
   description: "Shadow feed'de 3 içerik yayına hazır.",
   cta: "Shadow Mode'u Başlat",
   background:
-    "https://images.unsplash.com/photo-1529152392272-5e8e7830b6ce?auto=format&fit=crop&w=800&q=60"
+    "https://images.unsplash.com/photo-1685094488656-9231107be07f?auto=format&fit=crop&w=1740&q=80"
 };
 
 const quickActions = [
@@ -39,35 +34,48 @@ const insights = [
   { label: "DM Yanıt Süresi", value: "1.3dk", trend: "hedef altında" }
 ];
 
-const navigationItems = [
-  { key: "overview", label: "Panel", detail: "Genel" },
-  { key: "live", label: "Canlı", detail: "Rooms" },
-  { key: "flow", label: "Akış", detail: "Clips" },
-  { key: "profile", label: "Profil", detail: "Siz" }
-];
-
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
-  const [activeNav, setActiveNav] = useState(navigationItems[0].key);
-  const isIOS = Platform.OS === "ios";
-  const navPadding = (isIOS ? 110 : 90) + insets.bottom;
+  const layout = useDeviceLayout();
+  const { tabs, activeKey, onChange } = useTabsNavigation();
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const showGlows = scheme === "dark";
+
+  const contentStyle = [
+    styles.scroll,
+    {
+      paddingTop: layout.topPadding,
+      paddingBottom: layout.navPadding,
+      paddingHorizontal: layout.contentPaddingHorizontal,
+      gap: layout.sectionGap
+    },
+    layout.isTablet
+      ? { paddingRight: layout.contentPaddingHorizontal + layout.sideNavigationOffset }
+      : null,
+    layout.contentWidth ? { width: layout.contentWidth, alignSelf: "center" } : null
+  ];
+
+  const cardRadius = layout.cardRadius;
+  const stackStats = layout.breakpoint === "xs";
+  const wrapStats = layout.breakpoint === "sm";
+  const stackQuick = layout.breakpoint === "xs";
+  const wrapQuick = layout.breakpoint === "sm";
+  const isWide = layout.breakpoint === "lg" || layout.breakpoint === "xl";
 
   return (
     <SafeAreaView style={styles.safe} edges={["left", "right"]}>
       <View style={styles.chrome}>
-        <View pointerEvents="none" style={[styles.edgeGlow, styles.topGlow, { height: insets.top + 80 }]} />
-        <View pointerEvents="none" style={[styles.edgeGlow, styles.bottomGlow, { height: insets.bottom + 140 }]} />
+        {showGlows ? (
+          <>
+            <View pointerEvents="none" style={[styles.edgeGlow, styles.topGlow, { height: layout.insets.top + 80 }]} />
+            <View pointerEvents="none" style={[styles.edgeGlow, styles.bottomGlow, { height: layout.insets.bottom + 140 }]} />
+          </>
+        ) : null}
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scroll,
-            {
-              paddingTop: 24 + insets.top,
-              paddingBottom: navPadding
-            }
-          ]}
+          contentContainerStyle={contentStyle}
           showsVerticalScrollIndicator={false}
-          scrollIndicatorInsets={{ top: insets.top, bottom: insets.bottom + 12 }}
+          scrollIndicatorInsets={{ top: layout.insets.top, bottom: layout.insets.bottom + 12 }}
           contentInsetAdjustmentBehavior="never"
         >
           <View style={styles.header}>
@@ -78,7 +86,13 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          <View style={styles.statsRow}>
+          <View
+            style={[
+              styles.statsRow,
+              stackStats && styles.statsRowStack,
+              wrapStats && styles.statsRowWrap
+            ]}
+          >
             {insights.map((item) => (
               <View key={item.label} style={styles.statWrapper}>
                 <StatCard label={item.label} value={item.value} />
@@ -87,7 +101,11 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          <ImageBackground source={{ uri: heroCard.background }} style={styles.heroCard} imageStyle={styles.heroImage}>
+          <ImageBackground
+            source={{ uri: heroCard.background }}
+            style={[styles.heroCard, { borderRadius: cardRadius, height: stackStats ? 200 : 240 }]}
+            imageStyle={[styles.heroImage, { borderRadius: cardRadius }]}
+          >
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>{heroCard.title}</Text>
               <Text style={styles.heroDescription}>{heroCard.description}</Text>
@@ -95,12 +113,18 @@ export default function HomeScreen() {
             </View>
           </ImageBackground>
 
-          <View style={styles.section}>
+          <View style={[styles.section, { gap: layout.sectionGap * 0.4 }]}>
             <Text style={styles.sectionTitle}>Hızlı Aksiyonlar</Text>
             <Text style={styles.sectionSubtitle}>Sık kullanılan akışları bir dokunuşla başlat.</Text>
-            <View style={styles.quickActions}>
+            <View
+              style={[
+                styles.quickActions,
+                stackQuick && styles.quickActionsStack,
+                wrapQuick && styles.quickActionsWrap
+              ]}
+            >
               {quickActions.map((action) => (
-                <View key={action.label} style={styles.quickCard}>
+                <View key={action.label} style={[styles.quickCard, { borderRadius: cardRadius - 4 }]}>
                   <Text style={styles.quickLabel}>{action.label}</Text>
                   <Text style={styles.quickDetail}>{action.detail}</Text>
                   <Text style={styles.quickTodo}>TODO: implement {action.label.toLowerCase()} flow.</Text>
@@ -109,16 +133,21 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, { gap: layout.sectionGap * 0.45 }]}>
             <Text style={styles.sectionTitle}>Trend Creator'lar</Text>
             <FlatList
               horizontal
               data={creators}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.creatorsList}
+              contentContainerStyle={[styles.creatorsList, isWide ? { paddingBottom: 4 } : null]}
               renderItem={({ item }) => (
-                <View style={[styles.creatorCard, { borderColor: item.tone }]}>
+                <View
+                  style={[
+                    styles.creatorCard,
+                    { borderColor: item.tone, borderRadius: cardRadius - 2 }
+                  ]}
+                >
                   <Text style={styles.creatorName}>{item.name}</Text>
                   <Text style={styles.creatorMetric}>{item.metric}</Text>
                   <Text style={styles.creatorHint}>TODO: canlı ön izleme mini player.</Text>
@@ -128,268 +157,173 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        <View
-          style={[
-            styles.bottomNav,
-            isIOS ? styles.bottomNavIOS : styles.bottomNavAndroid,
-            { paddingBottom: 12 + insets.bottom }
-          ]}
-        >
-          {navigationItems.map((item) => {
-            const isActive = activeNav === item.key;
-            return (
-              <Pressable
-                key={item.key}
-                onPress={() => setActiveNav(item.key)}
-                style={({ pressed }) => [
-                  styles.navItem,
-                  isIOS ? styles.navItemIOS : styles.navItemAndroid,
-                  isActive && (isIOS ? styles.navItemIOSActive : styles.navItemAndroidActive),
-                  pressed && styles.navItemPressed
-                ]}
-              >
-                <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{item.label}</Text>
-                <Text style={[styles.navDetail, isActive && styles.navDetailActive]}>{item.detail}</Text>
-                {isActive && <View style={isIOS ? styles.navDotIOS : styles.navDotAndroid} />}
-              </Pressable>
-            );
-          })}
-        </View>
+        <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} />
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#050505"
-  },
-  chrome: {
-    flex: 1,
-    position: "relative"
-  },
-  edgeGlow: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    zIndex: -1,
-    backgroundColor: "#050505"
-  },
-  topGlow: {
-    top: 0,
-    shadowColor: "#000",
-    shadowOffset: { height: 24, width: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 35
-  },
-  bottomGlow: {
-    bottom: 0,
-    shadowColor: "#000",
-    shadowOffset: { height: -24, width: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 60,
-    elevation: 40
-  },
-  scrollView: {
-    flex: 1
-  },
-  scroll: {
-    paddingHorizontal: 20,
-    gap: 24
-  },
-  bottomNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: 8,
-    paddingHorizontal: 12
-  },
-  bottomNavIOS: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderRadius: 28,
-    backgroundColor: "rgba(16,16,16,0.94)",
-    borderWidth: 1,
-    borderColor: "#1f1f1f",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 30
-  },
-  bottomNavAndroid: {
-    borderTopWidth: 1,
-    borderColor: "#1c1c1c",
-    backgroundColor: "#0c0c0c"
-  },
-  navItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12
-  },
-  navItemIOS: {
-    borderRadius: 22
-  },
-  navItemAndroid: {
-    position: "relative"
-  },
-  navItemIOSActive: {
-    backgroundColor: "rgba(255,255,255,0.08)"
-  },
-  navItemAndroidActive: {
-    borderBottomWidth: 3,
-    borderBottomColor: "#FF3B81"
-  },
-  navItemPressed: {
-    opacity: 0.85
-  },
-  navLabel: {
-    color: "#8a8a8a",
-    fontSize: 12,
-    fontWeight: "600"
-  },
-  navLabelActive: {
-    color: "#ffffff"
-  },
-  navDetail: {
-    color: "#4a4a4a",
-    fontSize: 10,
-    marginTop: 2
-  },
-  navDetailActive: {
-    color: "#d4d4d8"
-  },
-  navDotIOS: {
-    position: "absolute",
-    bottom: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FF3B81"
-  },
-  navDotAndroid: {
-    position: "absolute",
-    top: 6,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FF3B81"
-  },
-  header: {
-    gap: 8
-  },
-  label: {
-    color: "#a1a1aa",
-    textTransform: "uppercase",
-    fontSize: 12
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#fff"
-  },
-  subtitle: {
-    color: "#d4d4d8",
-    lineHeight: 20
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 16
-  },
-  statWrapper: {
-    flex: 1,
-    gap: 6
-  },
-  statTrend: {
-    color: "#22c55e",
-    fontSize: 12
-  },
-  heroCard: {
-    borderRadius: 24,
-    overflow: "hidden",
-    height: 220
-  },
-  heroImage: {
-    borderRadius: 24
-  },
-  heroContent: {
-    flex: 1,
-    backgroundColor: "rgba(5,5,5,0.55)",
-    padding: 20,
-    justifyContent: "space-between"
-  },
-  heroTitle: {
-    color: "#f5f5f5",
-    fontSize: 24,
-    fontWeight: "700"
-  },
-  heroDescription: {
-    color: "#d4d4d8",
-    fontSize: 16
-  },
-  heroButton: {
-    width: "100%"
-  },
-  section: {
-    gap: 8
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#fff"
-  },
-  sectionSubtitle: {
-    color: "#a1a1aa"
-  },
-  quickActions: {
-    flexDirection: "row",
-    gap: 12
-  },
-  quickCard: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#262626",
-    padding: 16,
-    backgroundColor: "#111111",
-    gap: 6
-  },
-  quickLabel: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16
-  },
-  quickDetail: {
-    color: "#a1a1aa"
-  },
-  quickTodo: {
-    color: "#fbbf24",
-    fontSize: 12,
-    marginTop: 10
-  },
-  creatorsList: {
-    gap: 16
-  },
-  creatorCard: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 18,
-    width: 220,
-    backgroundColor: "#0a0a0a",
-    gap: 10
-  },
-  creatorName: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600"
-  },
-  creatorMetric: {
-    color: "#a78bfa"
-  },
-  creatorHint: {
-    color: "#eab308",
-    fontSize: 12
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background
+    },
+    chrome: {
+      flex: 1,
+      position: "relative"
+    },
+    edgeGlow: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      zIndex: -1,
+      backgroundColor: colors.background
+    },
+    topGlow: {
+      top: 0,
+      shadowColor: colors.glowShadow,
+      shadowOffset: { height: 24, width: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 50,
+      elevation: 35
+    },
+    bottomGlow: {
+      bottom: 0,
+      shadowColor: colors.glowShadow,
+      shadowOffset: { height: -24, width: 0 },
+      shadowOpacity: 0.45,
+      shadowRadius: 60,
+      elevation: 40
+    },
+    scrollView: {
+      flex: 1
+    },
+    scroll: {
+      flexGrow: 1
+    },
+    header: {
+      gap: 8
+    },
+    label: {
+      color: colors.textSecondary,
+      textTransform: "uppercase",
+      fontSize: 12
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: "700",
+      color: colors.textPrimary
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      lineHeight: 20
+    },
+    statsRow: {
+      flexDirection: "row",
+      gap: 16
+    },
+    statsRowStack: {
+      flexDirection: "column"
+    },
+    statsRowWrap: {
+      flexWrap: "wrap"
+    },
+    statWrapper: {
+      flex: 1,
+      gap: 6
+    },
+    statTrend: {
+      color: colors.success,
+      fontSize: 12
+    },
+    heroCard: {
+      overflow: "hidden",
+      height: 220
+    },
+    heroImage: {
+      borderRadius: 24
+    },
+    heroContent: {
+      flex: 1,
+      backgroundColor: colors.heroOverlay,
+      padding: 20,
+      justifyContent: "space-between"
+    },
+    heroTitle: {
+      color: colors.textPrimary,
+      fontSize: 24,
+      fontWeight: "700"
+    },
+    heroDescription: {
+      color: colors.textSecondary,
+      fontSize: 16
+    },
+    heroButton: {
+      width: "100%"
+    },
+    section: {
+      gap: 8
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: "600",
+      color: colors.textPrimary
+    },
+    sectionSubtitle: {
+      color: colors.textSecondary
+    },
+    quickActions: {
+      flexDirection: "row",
+      gap: 12
+    },
+    quickActionsStack: {
+      flexDirection: "column"
+    },
+    quickActionsWrap: {
+      flexWrap: "wrap"
+    },
+    quickCard: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      backgroundColor: colors.surface,
+      gap: 6
+    },
+    quickLabel: {
+      color: colors.textPrimary,
+      fontWeight: "600",
+      fontSize: 16
+    },
+    quickDetail: {
+      color: colors.textSecondary
+    },
+    quickTodo: {
+      color: colors.warning,
+      fontSize: 12,
+      marginTop: 10
+    },
+    creatorsList: {
+      gap: 16
+    },
+    creatorCard: {
+      borderWidth: 1,
+      padding: 18,
+      width: 220,
+      backgroundColor: colors.surfaceAlt,
+      gap: 10
+    },
+    creatorName: {
+      color: colors.textPrimary,
+      fontSize: 18,
+      fontWeight: "600"
+    },
+    creatorMetric: {
+      color: colors.highlight
+    },
+    creatorHint: {
+      color: colors.warning,
+      fontSize: 12
+    }
+  });

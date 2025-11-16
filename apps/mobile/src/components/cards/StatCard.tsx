@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
 type StatCardProps = {
   label: string;
@@ -6,6 +8,9 @@ type StatCardProps = {
 };
 
 export function StatCard({ label, value }: StatCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{label}</Text>
@@ -14,21 +19,24 @@ export function StatCard({ label, value }: StatCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: "#111111"
-  },
-  label: {
-    color: "#a1a1aa",
-    fontSize: 12,
-    textTransform: "uppercase",
-    marginBottom: 8
-  },
-  value: {
-    color: "#ffffff",
-    fontSize: 20,
-    fontWeight: "700"
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border
+    },
+    label: {
+      color: colors.textMuted,
+      fontSize: 12,
+      textTransform: "uppercase",
+      marginBottom: 8
+    },
+    value: {
+      color: colors.textPrimary,
+      fontSize: 20,
+      fontWeight: "700"
+    }
+  });

@@ -19,9 +19,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   assetBundlePatterns: ["**/*"],
   ios: {
-    supportsTablet: false
+    supportsTablet: false,
+    config: {
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+    }
   },
   android: {
+    config: {
+      googleMaps: {
+        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+      }
+    },
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#000000"
@@ -37,7 +45,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         icon: "./assets/notification-icon.png",
         color: "#ffffff"
       }
-    ]
+    ],
+    "expo-maps"
   ],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,

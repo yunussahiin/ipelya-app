@@ -1,20 +1,31 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
-const appBackground = "#050505";
+function AppStack() {
+  const { scheme, colors } = useTheme();
 
-export default function Layout() {
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" backgroundColor={appBackground} translucent animated />
+    <>
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={colors.background} translucent animated />
       <Stack
         screenOptions={{
           headerShown: false,
           animation: "fade",
-          contentStyle: { backgroundColor: appBackground }
+          contentStyle: { backgroundColor: colors.background }
         }}
       />
-    </SafeAreaProvider>
+    </>
+  );
+}
+
+export default function Layout() {
+  return (
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <AppStack />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
