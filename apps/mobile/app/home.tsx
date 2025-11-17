@@ -1,259 +1,742 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet, ImageBackground, FlatList } from "react-native";
-import { StatCard } from "@/components/cards/StatCard";
-import { Button } from "@/components/ui/Button";
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  FlatList,
+  ScrollView,
+  ImageBackground,
+  Dimensions
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { PageScreen } from "@/components/layout/PageScreen";
-import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
-const heroCard = {
-  title: "Yaratıcı Modu",
-  description: "Shadow feed'de 3 içerik yayına hazır.",
-  cta: "Shadow Mode'u Başlat",
-  background:
-    "https://images.unsplash.com/photo-1685094488656-9231107be07f?auto=format&fit=crop&w=1740&q=80"
-};
+const newsFeed = [
+  { id: "1", tag: "Futbol", title: "Derbiye 24 saat kala ilk 11 netleşti", meta: "Canlı skor: 2-1" },
+  { id: "2", tag: "Ekonomi", title: "Kripto piyasasında %8 yeşil kapanış", meta: "BTC 72.4K" },
+  { id: "3", tag: "Teknoloji", title: "Vision Pro Türkiye lansman tarihi sızdı", meta: "30 Kas 2024" }
+];
 
-const quickActions = [
-  { label: "İçerik Yükle", detail: "PPV & zamanlama" },
-  { label: "Canlı Yayın", detail: "LiveKit token hazır" },
-  { label: "ASMR Paneli", detail: "Yeni hikaye oluştur" }
+const interestCards = [
+  { id: "f1", label: "Fantasy Basket", icon: "basketball" },
+  { id: "f2", label: "Premier Lig", icon: "trophy" },
+  { id: "f3", label: "Start-up Radar", icon: "flask" },
+  { id: "f4", label: "Kripto Alarm", icon: "sparkles" }
+];
+
+const vibes = [
+  { id: "v1", label: "Masum", color: ["#ffd3f3", "#ffa9d7"] },
+  { id: "v2", label: "Dominant", color: ["#10142a", "#501437"] },
+  { id: "v3", label: "Girl Next Door", color: ["#f2f4ff", "#c5d3ff"] },
+  { id: "v4", label: "Romantik", color: ["#fff2da", "#ffb581"] },
+  { id: "v5", label: "Gizemli", color: ["#140a1b", "#34244a"] }
 ];
 
 const creators = [
-  { id: "1", name: "Luna Shadow", metric: "+34% gelir", tone: "#f472b6" },
-  { id: "2", name: "Nova Flux", metric: "Shadow PIN aktif", tone: "#facc15" },
-  { id: "3", name: "Mira Echo", metric: "Live odası açık", tone: "#38bdf8" }
+  {
+    id: "c1",
+    name: "Ivy Sol",
+    vibe: "Dominant",
+    subscribers: "4.2K",
+    online: true,
+    price: "89₺"
+  },
+  { id: "c2", name: "Mia Loon", vibe: "Masum", subscribers: "2.9K", online: false, price: "59₺" },
+  { id: "c3", name: "Rosa Vega", vibe: "Gizemli", subscribers: "5.8K", online: true, price: "99₺" }
 ];
 
-const insights = [
-  { label: "Bugünki Coin", value: "4.200", trend: "+18%" },
-  { label: "Aktif Shadow", value: "142", trend: "+6 yeni" },
-  { label: "DM Yanıt Süresi", value: "1.3dk", trend: "hedef altında" }
+const asmrMarket = [
+  { id: "a1", title: "Bu gece trend", description: "Gece yarısı fısıltıları", price: "25 tp" },
+  { id: "a2", title: "Roleplay sesleri", description: "Sanal sevgili modu", price: "35 tp" },
+  { id: "a3", title: "Uyku ASMR", description: "Delta dalga paketleri", price: "18 tp" },
+  { id: "a4", title: "Fantezi sesleri", description: "Dark romance", price: "42 tp" }
 ];
+
+const aiFantasy = {
+  title: "Bugünün Fantezi Paketi",
+  description: "“Cyber Geisha” temalı 4 sahne, 12 ses, 3 AI görsel",
+  avatar: "https://images.unsplash.com/photo-1552058544-f2b08422138a?auto=format&fit=crop&w=900&q=80",
+  cost: "20 Sap Coin"
+};
+
+const screenWidth = Dimensions.get("window").width;
+
+const styles = StyleSheet.create({
+  page: {
+    paddingHorizontal: 24
+  },
+  scrollContent: {
+    gap: 32
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  locationLabel: {
+    fontSize: 12,
+    color: "#6a5061",
+    textTransform: "uppercase",
+    letterSpacing: 1.5
+  },
+  locationRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)"
+  },
+  locationValue: {
+    fontWeight: "600",
+    color: "#2b1120"
+  },
+  balanceCard: {
+    flex: 1,
+    backgroundColor: "#2a0c23",
+    padding: 14,
+    borderRadius: 20
+  },
+  balanceLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12
+  },
+  balanceValue: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 22
+  },
+  tokens: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center"
+  },
+  tokenDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "rgba(0,0,0,0.1)"
+  },
+  tokenPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.06)"
+  },
+  tokenValue: {
+    color: "#2b1120",
+    fontWeight: "600"
+  },
+  profileSwitch: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center"
+  },
+  profilePill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.04)"
+  },
+  profilePillActive: {
+    backgroundColor: "#2a0c23"
+  },
+  profilePillLabel: {
+    fontWeight: "600",
+    color: "#2a0c23"
+  },
+  profilePillLabelActive: {
+    color: "#fff"
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12
+  },
+  toggleLabel: {
+    color: "#4b2d3f",
+    fontWeight: "600"
+  },
+  toggle: {
+    width: 80,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    padding: 4,
+    justifyContent: "center"
+  },
+  toggleActive: {
+    backgroundColor: "#1e0c18"
+  },
+  toggleThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    transform: [{ translateX: 0 }]
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 40 }]
+  },
+  section: {
+    gap: 18
+  },
+  sectionHeader: {
+    gap: 4
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#201424"
+  },
+  sectionSubtitle: {
+    color: "#6a5062"
+  },
+  newsCard: {
+    borderRadius: 22,
+    padding: 18,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
+    gap: 8
+  },
+  newsTag: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(209,124,255,0.1)"
+  },
+  newsTagText: {
+    color: "#d17cff",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  newsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a0d15"
+  },
+  newsMeta: {
+    color: "#7a6572"
+  },
+  interestRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  interestChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)"
+  },
+  interestLabel: {
+    fontWeight: "600",
+    color: "#1d0c18"
+  },
+  vibeCard: {
+    width: screenWidth * 0.55,
+    borderRadius: 28,
+    padding: 18,
+    justifyContent: "space-between"
+  },
+  vibeLabel: {
+    fontSize: 18,
+    color: "#1c0b16",
+    fontWeight: "700"
+  },
+  vibeButton: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.7)"
+  },
+  vibeButtonText: {
+    color: "#201424",
+    fontWeight: "700"
+  },
+  creatorHighlight: {
+    width: screenWidth * 0.6,
+    height: 220,
+    borderRadius: 28,
+    overflow: "hidden"
+  },
+  creatorHighlightImage: {
+    borderRadius: 28
+  },
+  creatorHighlightContent: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 18,
+    gap: 8
+  },
+  creatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  creatorHighlightName: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+    flex: 1
+  },
+  creatorStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5
+  },
+  creatorHighlightVibe: {
+    color: "rgba(255,255,255,0.8)"
+  },
+  creatorStatsRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  creatorStatPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.16)"
+  },
+  creatorStatText: {
+    color: "#fff",
+    fontWeight: "600"
+  },
+  asmrGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12
+  },
+  asmrCard: {
+    flexBasis: "48%",
+    borderRadius: 20,
+    padding: 16,
+    backgroundColor: "rgba(42,12,35,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(33,9,27,0.1)",
+    gap: 6
+  },
+  asmrBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#d569ff",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  asmrTitle: {
+    fontWeight: "700",
+    color: "#1b0814"
+  },
+  asmrDescription: {
+    color: "#6b4d61"
+  },
+  asmrPriceRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  asmrPrice: {
+    color: "#d569ff",
+    fontWeight: "700"
+  },
+  creatorDashboardCard: {
+    borderRadius: 26,
+    padding: 20,
+    backgroundColor: "rgba(42,12,35,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.08)",
+    gap: 10
+  },
+  dashboardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1a0b15"
+  },
+  dashboardBody: {
+    color: "#664a5a",
+    lineHeight: 20
+  },
+  dashboardButton: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#2a0c23"
+  },
+  dashboardButtonText: {
+    color: "#fff",
+    fontWeight: "600"
+  },
+  aiCard: {
+    height: 220,
+    borderRadius: 30,
+    overflow: "hidden"
+  },
+  aiImage: {
+    borderRadius: 30
+  },
+  aiContent: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "flex-end",
+    gap: 10
+  },
+  aiTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "700"
+  },
+  aiDescription: {
+    color: "rgba(255,255,255,0.85)"
+  },
+  aiButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#f8c7ff"
+  },
+  aiButtonText: {
+    color: "#12070d",
+    fontWeight: "700"
+  },
+  shadowCard: {
+    borderRadius: 26,
+    padding: 20,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    gap: 10
+  },
+  shadowCardActive: {
+    backgroundColor: "rgba(18,12,24,0.85)"
+  },
+  shadowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  shadowTitle: {
+    fontWeight: "700",
+    color: "#f8c7ff"
+  },
+  shadowDescription: {
+    color: "#d7bed8"
+  },
+  shadowButton: {
+    marginTop: 6,
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: "center",
+    backgroundColor: "rgba(248,199,255,0.2)"
+  },
+  shadowButtonText: {
+    color: "#f8c7ff",
+    fontWeight: "700"
+  }
+});
+
+type SectionProps = {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+};
+
+const Section = ({ title, subtitle, children }: SectionProps) => (
+  <View style={styles.section}>
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+    </View>
+    {children}
+  </View>
+);
+
+const NewsCard = ({ tag, title, meta }: { tag: string; title: string; meta: string }) => (
+  <View style={styles.newsCard}>
+    <View style={styles.newsTag}>
+      <Text style={styles.newsTagText}>{tag}</Text>
+    </View>
+    <Text style={styles.newsTitle}>{title}</Text>
+    <Text style={styles.newsMeta}>{meta}</Text>
+  </View>
+);
+
+const InterestChip = ({ label, icon }: { label: string; icon: string }) => (
+  <Pressable style={styles.interestChip}>
+    <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={16} color="#201424" />
+    <Text style={styles.interestLabel}>{label}</Text>
+  </Pressable>
+);
+
+const VibeCard = ({ label, color }: { label: string; color: [string, string] }) => (
+  <LinearGradient colors={color} style={styles.vibeCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+    <Text style={styles.vibeLabel}>{label}</Text>
+    <View style={styles.vibeButton}>
+      <Text style={styles.vibeButtonText}>Keşfet</Text>
+    </View>
+  </LinearGradient>
+);
+
+const CreatorCard = ({
+  name,
+  vibe,
+  subscribers,
+  online,
+  price
+}: {
+  name: string;
+  vibe: string;
+  subscribers: string;
+  online: boolean;
+  price: string;
+}) => (
+  <ImageBackground
+    source={{ uri: `https://source.unsplash.com/collection/94734566/400x600?${name}` }}
+    style={styles.creatorHighlight}
+    imageStyle={styles.creatorHighlightImage}
+  >
+    <LinearGradient colors={["transparent", "rgba(0,0,0,0.65)"]} style={StyleSheet.absoluteFillObject} />
+    <View style={styles.creatorHighlightContent}>
+      <View style={styles.creatorRow}>
+        <Text style={styles.creatorHighlightName}>{name}</Text>
+        <View style={[styles.creatorStatusDot, { backgroundColor: online ? "#31f27c" : "#d4d6de" }]} />
+      </View>
+      <Text style={styles.creatorHighlightVibe}>{vibe}</Text>
+      <View style={styles.creatorStatsRow}>
+        <View style={styles.creatorStatPill}>
+          <Ionicons name="people" size={14} color="#fff" />
+          <Text style={styles.creatorStatText}>{subscribers}</Text>
+        </View>
+        <View style={styles.creatorStatPill}>
+          <Ionicons name="cash-outline" size={14} color="#fff" />
+          <Text style={styles.creatorStatText}>{price}</Text>
+        </View>
+      </View>
+    </View>
+  </ImageBackground>
+);
+
+const ASMRCard = ({ title, description, price }: { title: string; description: string; price: string }) => (
+  <View style={styles.asmrCard}>
+    <View style={styles.asmrBadge}>
+      <Ionicons name="headset" size={16} color="#fff" />
+    </View>
+    <Text style={styles.asmrTitle}>{title}</Text>
+    <Text style={styles.asmrDescription}>{description}</Text>
+    <View style={styles.asmrPriceRow}>
+      <Text style={styles.asmrPrice}>{price}</Text>
+      <Ionicons name="add-circle" size={20} color="#d569ff" />
+    </View>
+  </View>
+);
+
+const AIFantasyCard = () => (
+  <ImageBackground source={{ uri: aiFantasy.avatar }} style={styles.aiCard} imageStyle={styles.aiImage}>
+    <LinearGradient colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)"]} style={StyleSheet.absoluteFillObject} />
+    <View style={styles.aiContent}>
+      <Text style={styles.aiTitle}>{aiFantasy.title}</Text>
+      <Text style={styles.aiDescription}>{aiFantasy.description}</Text>
+      <Pressable style={styles.aiButton}>
+        <Text style={styles.aiButtonText}>{aiFantasy.cost}</Text>
+        <Ionicons name="flash" size={16} color="#12070d" />
+      </Pressable>
+    </View>
+  </ImageBackground>
+);
+
+const ShadowModeCard = ({ active }: { active: boolean }) => (
+  <View style={[styles.shadowCard, active && styles.shadowCardActive]}>
+    <View style={styles.shadowHeader}>
+      <Ionicons name="moon" size={18} color="#f8c7ff" />
+      <Text style={styles.shadowTitle}>Shadow Mode</Text>
+    </View>
+    <Text style={styles.shadowDescription}>
+      {active
+        ? "SS/record engeli aktif. AI içerikler ve fantezi odaları açıldı."
+        : "Aktifleştirince haber akışı gizlenir, tamamen fantezi moduna geçersin."}
+    </Text>
+    <Pressable style={styles.shadowButton}>
+      <Text style={styles.shadowButtonText}>{active ? "Shadow feed açık" : "Shadow feed'e geç"}</Text>
+    </Pressable>
+  </View>
+);
 
 export default function HomeScreen() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [shadowMode, setShadowMode] = useState(false);
+  const [profileType, setProfileType] = useState<"male" | "female">("male");
 
   return (
-    <PageScreen>
-      {({ layout }) => {
-        const cardRadius = layout.cardRadius;
-        const stackStats = layout.breakpoint === "xs";
-        const wrapStats = layout.breakpoint === "sm";
-        const stackQuick = layout.breakpoint === "xs";
-        const wrapQuick = layout.breakpoint === "sm";
-        const isWide = layout.breakpoint === "lg" || layout.breakpoint === "xl";
-
-        return (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.label}>Genel Bakış</Text>
-              <Text style={styles.title}>Shadow Creator Paneli</Text>
-              <Text style={styles.subtitle}>
-                Shadow mode gelirlerini, canlı odaları ve DM deneyimini tek ekrandan yönetin.
-              </Text>
+    <PageScreen
+      contentStyle={() => [
+        styles.page,
+        {
+          paddingBottom: 0
+        }
+      ]}
+    >
+      {({ layout }) => (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: layout.insets.bottom + 60 }
+          ]}
+        >
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.locationLabel}>Lokasyon</Text>
+              <Pressable style={styles.locationRow}>
+                <Ionicons name="location" size={16} color="#351829" />
+                <Text style={styles.locationValue}>İstanbul, TR</Text>
+                <Ionicons name="chevron-down" size={14} color="#351829" />
+              </Pressable>
             </View>
-
-            <View
-              style={[
-                styles.statsRow,
-                stackStats && styles.statsRowStack,
-                wrapStats && styles.statsRowWrap
-              ]}
-            >
-              {insights.map((item) => (
-                <View key={item.label} style={styles.statWrapper}>
-                  <StatCard label={item.label} value={item.value} />
-                  <Text style={styles.statTrend}>{item.trend}</Text>
-                </View>
+            <Pressable style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>Sap Coin</Text>
+              <Text style={styles.balanceValue}>820</Text>
+            </Pressable>
+            <View style={styles.tokens}>
+              <View style={styles.tokenDivider} />
+              {[100, 300, 500].map((amount) => (
+                <Pressable key={amount} style={styles.tokenPill}>
+                  <Text style={styles.tokenValue}>{amount} tp</Text>
+                </Pressable>
               ))}
+              <View style={styles.tokenDivider} />
             </View>
-
-            <ImageBackground
-              source={{ uri: heroCard.background }}
-              style={[styles.heroCard, { borderRadius: cardRadius, height: stackStats ? 200 : 240 }]}
-              imageStyle={[styles.heroImage, { borderRadius: cardRadius }]}
-            >
-              <View style={styles.heroContent}>
-                <Text style={styles.heroTitle}>{heroCard.title}</Text>
-                <Text style={styles.heroDescription}>{heroCard.description}</Text>
-                <Button label={heroCard.cta} onPress={() => {}} style={styles.heroButton} />
-              </View>
-            </ImageBackground>
-
-            <View style={[styles.section, { gap: layout.sectionGap * 0.4 }]}>
-              <Text style={styles.sectionTitle}>Hızlı Aksiyonlar</Text>
-              <Text style={styles.sectionSubtitle}>Sık kullanılan akışları bir dokunuşla başlat.</Text>
-              <View
-                style={[
-                  styles.quickActions,
-                  stackQuick && styles.quickActionsStack,
-                  wrapQuick && styles.quickActionsWrap
-                ]}
+          </View>
+          <View style={styles.profileSwitch}>
+            {(["male", "female"] as const).map((type) => (
+              <Pressable
+                key={type}
+                onPress={() => setProfileType(type)}
+                style={[styles.profilePill, profileType === type && styles.profilePillActive]}
               >
-                {quickActions.map((action) => (
-                  <View key={action.label} style={[styles.quickCard, { borderRadius: cardRadius - 4 }]}>
-                    <Text style={styles.quickLabel}>{action.label}</Text>
-                    <Text style={styles.quickDetail}>{action.detail}</Text>
-                    <Text style={styles.quickTodo}>
-                      TODO: implement {action.label.toLowerCase()} flow.
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+                <Text
+                  style={[
+                    styles.profilePillLabel,
+                    profileType === type && styles.profilePillLabelActive
+                  ]}
+                >
+                  {type === "male" ? "Erkek kullanıcı" : "Creator (Kadın)"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-            <View style={[styles.section, { gap: layout.sectionGap * 0.45 }]}>
-              <Text style={styles.sectionTitle}>Trend Creator'lar</Text>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Shadow feed</Text>
+            <Pressable
+              style={[styles.toggle, shadowMode && styles.toggleActive]}
+              onPress={() => setShadowMode((prev) => !prev)}
+            >
+              <View style={[styles.toggleThumb, shadowMode && styles.toggleThumbActive]} />
+            </Pressable>
+            <Text style={styles.toggleLabel}>Real feed</Text>
+          </View>
+
+          {profileType === "male" && !shadowMode && (
+            <>
+              <Section title="Haber & İlgi Akışı" subtitle="Her sabah dopamine dokun.">
+                <FlatList
+                  data={newsFeed}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => <NewsCard {...item} />}
+                  scrollEnabled={false}
+                  ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+                />
+                <View style={styles.interestRow}>
+                  {interestCards.map((card) => (
+                    <InterestChip key={card.id} {...card} />
+                  ))}
+                </View>
+              </Section>
+
+              <Section title="Trend Vibe Match" subtitle="Bugün yükselen enerjiler">
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={vibes}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => <VibeCard {...item} />}
+                  ItemSeparatorComponent={() => <View style={{ width: 14 }} />}
+                />
+              </Section>
+            </>
+          )}
+
+          {profileType === "male" ? (
+            <Section title="Creator Highlight" subtitle="Bugün popüler olanlar">
               <FlatList
                 horizontal
+                showsHorizontalScrollIndicator={false}
                 data={creators}
                 keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={[styles.creatorsList, isWide ? { paddingBottom: 4 } : null]}
-                renderItem={({ item }) => (
-                  <View style={[styles.creatorCard, { borderColor: item.tone, borderRadius: cardRadius - 2 }]}>
-                    <Text style={styles.creatorName}>{item.name}</Text>
-                    <Text style={styles.creatorMetric}>{item.metric}</Text>
-                    <Text style={styles.creatorHint}>TODO: canlı ön izleme mini player.</Text>
-                  </View>
-                )}
+                renderItem={({ item }) => <CreatorCard {...item} />}
+                ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
               />
-            </View>
-          </>
-        );
-      }}
+            </Section>
+          ) : (
+            <Section title="Creator Dashboard" subtitle="Gelir + içerik + öneri tek ekranda">
+              <View style={styles.creatorDashboardCard}>
+                <Text style={styles.dashboardTitle}>Creator paneli henüz geliştirilmedi</Text>
+                <Text style={styles.dashboardBody}>
+                  Blueprint: Bugünkü kazanç, abone sayısı, PPV satışları, AI içerik önerisi, vibe önerileri ve hızlı içerik
+                  yükleme kısayolları burada gösterilecek.
+                </Text>
+                <Pressable style={styles.dashboardButton}>
+                  <Text style={styles.dashboardButtonText}>Planı görüntüle</Text>
+                </Pressable>
+              </View>
+            </Section>
+          )}
+
+          {profileType === "male" && !shadowMode && (
+            <Section title="ASMR / Audio Fantasy" subtitle="Yüksek dönüşümlü paketler">
+              <View style={styles.asmrGrid}>
+                {asmrMarket.map((item) => (
+                  <ASMRCard key={item.id} {...item} />
+                ))}
+              </View>
+            </Section>
+          )}
+
+          {profileType === "male" && (
+            <Section title="AI Fantasy Generator" subtitle="Para basan killer feature">
+              <AIFantasyCard />
+            </Section>
+          )}
+
+          <Section
+            title="Shadow Mode"
+            subtitle="Aktifleştirince tamamen farklı bir home layout açılır"
+          >
+            <ShadowModeCard active={shadowMode} />
+          </Section>
+        </ScrollView>
+      )}
     </PageScreen>
   );
 }
-
-const createStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
-    header: {
-      gap: 8
-    },
-    label: {
-      color: colors.textSecondary,
-      textTransform: "uppercase",
-      fontSize: 12
-    },
-    title: {
-      fontSize: 28,
-      fontWeight: "700",
-      color: colors.textPrimary
-    },
-    subtitle: {
-      color: colors.textSecondary,
-      lineHeight: 20
-    },
-    statsRow: {
-      flexDirection: "row",
-      gap: 16
-    },
-    statsRowStack: {
-      flexDirection: "column"
-    },
-    statsRowWrap: {
-      flexWrap: "wrap"
-    },
-    statWrapper: {
-      flex: 1,
-      gap: 6
-    },
-    statTrend: {
-      color: colors.success,
-      fontSize: 12
-    },
-    heroCard: {
-      overflow: "hidden",
-      height: 220
-    },
-    heroImage: {
-      borderRadius: 24
-    },
-    heroContent: {
-      flex: 1,
-      backgroundColor: colors.heroOverlay,
-      padding: 20,
-      justifyContent: "space-between"
-    },
-    heroTitle: {
-      color: colors.textPrimary,
-      fontSize: 24,
-      fontWeight: "700"
-    },
-    heroDescription: {
-      color: colors.textSecondary,
-      fontSize: 16
-    },
-    heroButton: {
-      width: "100%"
-    },
-    section: {
-      gap: 8
-    },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: "600",
-      color: colors.textPrimary
-    },
-    sectionSubtitle: {
-      color: colors.textSecondary
-    },
-    quickActions: {
-      flexDirection: "row",
-      gap: 12
-    },
-    quickActionsStack: {
-      flexDirection: "column"
-    },
-    quickActionsWrap: {
-      flexWrap: "wrap"
-    },
-    quickCard: {
-      flex: 1,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      padding: 16,
-      backgroundColor: colors.surfaceAlt,
-      gap: 6
-    },
-    quickLabel: {
-      color: colors.textPrimary,
-      fontWeight: "600",
-      fontSize: 16
-    },
-    quickDetail: {
-      color: colors.textSecondary
-    },
-    quickTodo: {
-      color: colors.warning,
-      fontSize: 12,
-      marginTop: 10
-    },
-    creatorsList: {
-      gap: 16
-    },
-    creatorCard: {
-      borderWidth: 1,
-      borderRadius: 20,
-      padding: 18,
-      width: 220,
-      backgroundColor: colors.surface,
-      gap: 10
-    },
-    creatorName: {
-      color: colors.textPrimary,
-      fontSize: 18,
-      fontWeight: "600"
-    },
-    creatorMetric: {
-      color: colors.highlight
-    },
-    creatorHint: {
-      color: colors.warning,
-      fontSize: 12
-    }
-  });

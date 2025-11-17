@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useMemo, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Image, TextInput } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -11,15 +11,17 @@ const socialButtons = [
   { key: "google", label: "Google ile devam et", icon: "logo-google" as const }
 ];
 
+const heroImage = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80&cs=tinysrgb";
+
 export default function OnboardingScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [form, setForm] = useState({ email: "", password: "" });
 
   return (
     <PageScreen
       showNavigation={false}
-      scrollViewProps={{ scrollEnabled: false }}
       contentStyle={() => [
         styles.page,
         {
@@ -38,10 +40,10 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.fill}>
             <LinearGradient
-              colors={["#ffd9ff", "#ff8fa3", "#812231"]}
-              locations={[0, 0.45, 1]}
+              colors={["#fdf6ff", "#fde1f1", "#f0b2ce"]}
+              locations={[0, 0.55, 1]}
               start={{ x: 0.1, y: 0 }}
-              end={{ x: 0.8, y: 1 }}
+              end={{ x: 0.9, y: 1 }}
               style={StyleSheet.absoluteFillObject}
             />
             <View pointerEvents="none" style={styles.shapeLayer}>
@@ -59,27 +61,77 @@ export default function OnboardingScreen() {
                 }
               ]}
             >
-              <View style={styles.copy}>
-                <Text style={styles.script}>Haydi</Text>
-                <Text style={styles.headline}>
-                  <Text style={styles.accent}>seni</Text> gerçekten anlayan{"\n"}biriyle tanıştıralım.
-                </Text>
-                <Text style={styles.body}>
-                  Ortak değerler, ilgi alanları ve hedefler üzerine kurulu gerçek bağlar keşfet. İlk adım sadece bir dokunuş
-                  uzağında.
-                </Text>
+              <View style={styles.hero}>
+                <Text style={styles.brand}>ipelya</Text>
+                <View style={styles.heroImageWrap}>
+                  <Image source={{ uri: heroImage }} style={styles.heroImage} />
+                  <LinearGradient
+                    colors={["transparent", "rgba(0,0,0,0.4)"]}
+                    style={styles.heroOverlay}
+                    start={{ x: 0.5, y: 0.2 }}
+                    end={{ x: 0.5, y: 1 }}
+                  />
+                  <View style={styles.heroBadge}>
+                    <Ionicons name="heart" color="#ff6aa0" size={14} />
+                    <Text style={styles.heroBadgeText}>40M+ eşleşme</Text>
+                  </View>
+                </View>
+                <Text style={styles.heroTitle}>Hoş geldin</Text>
+                <Text style={styles.heroSubtitle}>Kendin ol, doğru bağlantılar seni bulsun.</Text>
               </View>
-              <View style={styles.footer}>
+              <View style={styles.formCard}>
+                <View style={styles.formHeader}>
+                  <Text style={styles.formTitle}>Hemen giriş yap</Text>
+                  <Text style={styles.formSubtitle}>Hesabına e-posta ve şifrenle ulaş</Text>
+                </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.inputLabel}>E-posta</Text>
+                  <View style={styles.inputShell}>
+                    <Ionicons name="mail-outline" size={18} color="#7a6d76" />
+                    <TextInput
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      placeholder="ornek@ipelya.com"
+                      placeholderTextColor="rgba(0,0,0,0.4)"
+                      style={styles.input}
+                      value={form.email}
+                      onChangeText={(email) => setForm((prev) => ({ ...prev, email }))}
+                    />
+                  </View>
+                </View>
+                <View style={styles.fieldGroup}>
+                  <View style={styles.passwordRow}>
+                    <Text style={styles.inputLabel}>Şifre</Text>
+                    <Pressable>
+                      <Text style={styles.forgot}>Şifremi unuttum</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.inputShell}>
+                    <Ionicons name="lock-closed-outline" size={18} color="#7a6d76" />
+                    <TextInput
+                      secureTextEntry
+                      placeholder="••••••••"
+                      placeholderTextColor="rgba(0,0,0,0.4)"
+                      style={styles.input}
+                      value={form.password}
+                      onChangeText={(password) => setForm((prev) => ({ ...prev, password }))}
+                    />
+                    <Ionicons name="eye-outline" size={18} color="#7a6d76" />
+                  </View>
+                </View>
                 <View style={styles.actions}>
                   <Pressable
                     style={({ pressed }) => [styles.primaryButton, pressed && styles.pressedState]}
                     onPress={() => router.replace("/home")}
                   >
-                    <Text style={styles.primaryLabel}>E-posta ile devam et</Text>
+                    <Text style={styles.primaryLabel}>Giriş yap</Text>
+                  </Pressable>
+                  <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedState]}>
+                    <Text style={styles.secondaryLabel}>Hesap oluştur</Text>
                   </Pressable>
                   <View style={styles.dividerRow}>
                     <View style={styles.divider} />
-                    <Text style={styles.dividerLabel}>ya da şununla devam et</Text>
+                    <Text style={styles.dividerLabel}>veya</Text>
                     <View style={styles.divider} />
                   </View>
                   {socialButtons.map((button) => (
@@ -121,14 +173,14 @@ const createStyles = (colors: ThemeColors) => {
     shape: {
       position: "absolute",
       borderRadius: 260,
-      opacity: 0.45
+      opacity: 0.4
     },
     shapeTop: {
       width: 330,
       height: 260,
       top: -60,
       right: -50,
-      backgroundColor: "rgba(255, 214, 255, 0.8)"
+      backgroundColor: "rgba(255, 214, 255, 0.9)"
     },
     shapeMid: {
       width: 380,
@@ -147,52 +199,146 @@ const createStyles = (colors: ThemeColors) => {
     },
     content: {
       flex: 1,
-      justifyContent: "space-between",
-      gap: 24
+      gap: 28
     },
-    copy: {
+    hero: {
       alignItems: "center",
-      gap: 12
+      gap: 14
     },
-    script: {
-      color: "#ffe9ff",
+    brand: {
+      fontSize: 18,
+      letterSpacing: 6,
+      textTransform: "uppercase",
+      color: "#cc558b",
+      fontWeight: "700"
+    },
+    heroImageWrap: {
+      width: "100%",
+      borderRadius: 32,
+      overflow: "hidden",
+      position: "relative",
+      aspectRatio: 1.2,
+      backgroundColor: "#d0c3ff"
+    },
+    heroImage: {
+      width: "100%",
+      height: "100%"
+    },
+    heroOverlay: {
+      ...StyleSheet.absoluteFillObject
+    },
+    heroBadge: {
+      position: "absolute",
+      top: 16,
+      right: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: "#fff"
+    },
+    heroBadgeText: {
+      color: "#6d1d3c",
+      fontWeight: "600"
+    },
+    heroTitle: {
       fontSize: 30,
-      fontStyle: "italic"
+      color: "#2f1224",
+      fontWeight: "700"
     },
-    headline: {
-      fontSize: 34,
-      lineHeight: 42,
-      color: "#ffffff",
-      textAlign: "center",
-      fontWeight: "500"
-    },
-    accent: {
-      color: "#ff9f3f",
-      fontStyle: "italic"
-    },
-    body: {
-      textAlign: "center",
-      color: "rgba(255,255,255,0.88)",
+    heroSubtitle: {
+      color: "#5a3f4f",
       fontSize: 15,
-      lineHeight: 22
+      textAlign: "center"
     },
-    footer: {
-      gap: 18
+    formCard: {
+      borderRadius: 40,
+      padding: 28,
+      backgroundColor: "rgba(255,255,255,0.9)",
+      shadowColor: "#d57daa",
+      shadowOpacity: 0.25,
+      shadowRadius: 40
+    },
+    formHeader: {
+      gap: 6,
+      marginBottom: 18
+    },
+    formTitle: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: "#2a1121"
+    },
+    formSubtitle: {
+      color: "#6f4e5f",
+      fontSize: 14
+    },
+    fieldGroup: {
+      marginBottom: 18
+    },
+    inputLabel: {
+      color: "#321628",
+      fontWeight: "600",
+      marginBottom: 8
+    },
+    inputShell: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+      backgroundColor: "rgba(50,22,40,0.05)",
+      borderWidth: 1,
+      borderColor: "rgba(50,22,40,0.08)"
+    },
+    input: {
+      flex: 1,
+      paddingVertical: 14,
+      fontSize: 15,
+      color: "#1d0a16"
+    },
+    passwordRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between"
+    },
+    forgot: {
+      color: "#c24578",
+      fontWeight: "600",
+      fontSize: 12
     },
     actions: {
-      gap: 16
+      gap: 14
     },
     primaryButton: {
       borderRadius: 999,
-      backgroundColor: "#ffffff",
+      backgroundColor: "#22121f",
       paddingVertical: 16,
       alignItems: "center",
-      justifyContent: "center"
+      justifyContent: "center",
+      shadowColor: "#22121f",
+      shadowOpacity: 0.25,
+      shadowRadius: 20
     },
     primaryLabel: {
       fontSize: 16,
       fontWeight: "600",
-      color: "#050505"
+      color: "#ffffff"
+    },
+    secondaryButton: {
+      borderRadius: 999,
+      paddingVertical: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: "rgba(0,0,0,0.2)",
+      backgroundColor: "transparent"
+    },
+    secondaryLabel: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: "#201020"
     },
     dividerRow: {
       flexDirection: "row",

@@ -63,23 +63,20 @@ function NavItem({ item, active, isIOS, onPress, colors, scheme }: NavItemProps)
       ]}
       onPress={() => onPress(item.key)}
     >
-      <View style={styles.itemContent}>
+      <View style={styles.iconWrapper}>
         <Feather
           name={item.icon}
-          size={20}
+          size={22}
           color={active ? colors.textPrimary : colors.textSecondary}
-          style={{ marginBottom: 2 }}
         />
-        <Text style={[styles.label, { color: active ? colors.textPrimary : colors.textSecondary }]}>{item.label}</Text>
       </View>
-      {active && (
-        <View
-          style={[
-            isIOS ? styles.indicatorIOS : styles.indicatorAndroid,
-            { backgroundColor: isIOS ? colors.navIndicator : colors.navIndicatorAndroid }
-          ]}
-        />
-      )}
+      <View
+        style={[
+          styles.indicatorBase,
+          active ? styles.indicatorActive : styles.indicatorInactive,
+          { backgroundColor: active ? colors.navIndicator : "transparent", borderColor: colors.navIndicator }
+        ]}
+      />
     </AnimatedPressable>
   );
 }
@@ -126,14 +123,6 @@ function TabletSidebar({ items, activeKey, onChange, profile, colors }: TabletSi
   );
 }
 
-const iosBarWidthMap = {
-  xs: 296,
-  sm: 320,
-  md: 360,
-  lg: 400,
-  xl: 440
-} as const;
-
 function BottomNavigationComponent({ items, activeKey, onChange }: BottomNavigationProps) {
   const { colors, scheme } = useTheme();
   const profile = useDeviceProfile();
@@ -155,19 +144,17 @@ function BottomNavigationComponent({ items, activeKey, onChange }: BottomNavigat
 
   const needsExtraAndroidPadding = Platform.OS === "android" && profile.insets.bottom < 20;
   const safeBottom = needsExtraAndroidPadding ? 16 : Math.max(profile.insets.bottom, isIOS ? 12 : 8);
-  const baseHeight = profile.breakpoint === "xs" ? 58 : 64;
-  const extraPadding = profile.hasTallHomeIndicator ? 26 : profile.isFold ? 22 : 16;
-  const height = baseHeight + extraPadding + safeBottom;
-  const paddingHorizontal = profile.breakpoint === "xs" ? 10 : profile.isFold ? 24 : 14;
+  const baseHeight = profile.breakpoint === "xs" ? 48 : 52;
+  const extraPadding = profile.hasTallHomeIndicator ? 20 : profile.isFold ? 18 : 12;
+  const calculatedHeight = baseHeight + extraPadding + safeBottom;
+  const height = isIOS ? 64 : calculatedHeight;
+  const paddingHorizontal = profile.breakpoint === "xs" ? 16 : profile.isFold ? 24 : 18;
   const blurTint = colors.navBlurTint as BlurTint;
   const blurIntensity = isIOS ? 80 : 55;
   const BarComponent = isIOS ? BlurView : View;
-  const iosBarWidth = isIOS
-    ? Math.min(
-        iosBarWidthMap[profile.breakpoint],
-        Math.max(280, profile.window.width - profile.insets.left - profile.insets.right - paddingHorizontal * 2)
-      )
-    : undefined;
+  const iosDesignWidth = 327;
+  const iosAvailableWidth = profile.window.width - profile.insets.left - profile.insets.right - paddingHorizontal * 2;
+  const iosBarWidth = isIOS ? Math.max(280, Math.min(iosDesignWidth, iosAvailableWidth)) : undefined;
 
   return (
     <View style={[styles.wrapper, { paddingBottom: safeBottom, paddingHorizontal }]}>
@@ -225,9 +212,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderRadius: 26,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    borderRadius: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     overflow: "hidden",
     borderWidth: StyleSheet.hairlineWidth
   },
@@ -244,14 +231,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 4,
+    paddingVertical: 2,
     position: "relative"
   },
-  itemContent: {
+  iconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    marginBottom: 6
+    justifyContent: "center"
   },
   itemIOS: {
     borderRadius: 22
@@ -265,23 +253,19 @@ const styles = StyleSheet.create({
   itemActiveAndroid: {
     borderWidth: 0
   },
-  label: {
-    fontSize: 13,
-    fontWeight: "600"
-  },
-  indicatorIOS: {
+  indicatorBase: {
     position: "absolute",
-    bottom: 2,
-    width: 20,
-    height: 4,
-    borderRadius: 3
+    bottom: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4
   },
-  indicatorAndroid: {
-    position: "absolute",
-    bottom: 2,
-    width: 32,
-    height: 3,
-    borderRadius: 2
+  indicatorActive: {
+    opacity: 1
+  },
+  indicatorInactive: {
+    borderWidth: StyleSheet.hairlineWidth,
+    opacity: 0.4
   },
   sidebarWrapper: {
     position: "absolute",
