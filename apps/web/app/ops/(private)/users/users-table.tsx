@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { IconDots, IconEye, IconShield, IconTrash, IconUserOff } from "@tabler/icons-react";
 
@@ -33,46 +32,7 @@ interface UsersTableProps {
   filter: "all" | "users" | "creators" | "admins" | "banned";
 }
 
-export async function UsersTable({ filter }: UsersTableProps) {
-  const supabase = await createServerSupabaseClient();
-
-  // Filter'a göre query oluştur
-  let query = supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (filter === "users") {
-    query = query.eq("type", "user").eq("is_creator", false);
-  } else if (filter === "creators") {
-    query = query.eq("is_creator", true);
-  } else if (filter === "banned") {
-    query = query.eq("type", "banned");
-  }
-
-  const { data: profiles, error } = await query;
-
-  // Admin'leri ayrı çek
-  let adminProfiles = null;
-  if (filter === "admins" || filter === "all") {
-    const { data } = await supabase
-      .from("admin_profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
-    adminProfiles = data;
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">Kullanıcılar yüklenirken bir hata oluştu.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
+export function UsersTable({ profiles, adminProfiles, filter }: UsersTableProps) {
   // Admin filter'ı için sadece adminleri göster
   const displayData = filter === "admins" ? adminProfiles : profiles;
 

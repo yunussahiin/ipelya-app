@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { Suspense, useActionState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { IconInnerShadowTop, IconLoader2, IconLock, IconMail } from "@tabler/icons-react";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { loginAction } from "../actions";
 import { initialAuthState } from "../types";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [state, formAction, pending] = useActionState(loginAction, initialAuthState);
   const searchParams = useSearchParams();
   const msg = searchParams.get("msg");
@@ -114,5 +114,13 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

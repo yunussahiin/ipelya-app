@@ -1,5 +1,1 @@
-registry=https://registry.npmjs.org/
-fetch-retries=5
-fetch-retry-factor=10
-fetch-timeout=60000
-strict-peer-dependencies=false
+18
