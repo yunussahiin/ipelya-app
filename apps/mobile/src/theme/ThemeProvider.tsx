@@ -191,7 +191,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ThemeContextValue>(() => {
     const resolved = resolveScheme(scheme);
-    const accentPalette = accentPalettes[accent][resolved];
+    const safeAccent = accent || "magenta"; // Extra safety
+    const accentPalette = accentPalettes[safeAccent][resolved];
     const baseColors = palettes[resolved];
     return {
       scheme: resolved,
@@ -202,12 +203,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         navIndicator: accentPalette.navIndicator,
         navIndicatorAndroid: accentPalette.navIndicatorAndroid
       },
-      accent,
+      accent: safeAccent,
       toggleScheme,
       setScheme,
       setAccent
     };
-  }, [scheme, accent]);
+  }, [scheme, accent, toggleScheme, setScheme, setAccent]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
