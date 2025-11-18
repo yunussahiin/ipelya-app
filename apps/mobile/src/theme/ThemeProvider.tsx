@@ -1,6 +1,6 @@
 import { Appearance, ColorSchemeName } from "react-native";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { useSettingsStore, type ThemePreference, type ThemeAccent } from "@/store/settings.store";
+import { useSettingsStore, type ThemeAccent as StoreThemeAccent } from "@/store/settings.store";
 
 export type ThemeScheme = "light" | "dark";
 
@@ -161,12 +161,15 @@ function resolveScheme(value: ColorSchemeName | ThemeScheme | null | undefined):
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = useSettingsStore((state) => state.themeMode);
-  const accent = useSettingsStore((state) => state.accentColor);
+  const accentColor = useSettingsStore((state) => state.accentColor);
   const setThemeMode = useSettingsStore((state) => state.setThemeMode);
   const setAccentColor = useSettingsStore((state) => state.setAccentColor);
 
+  // Fallback to default if store not hydrated yet
+  const accent = accentColor || "magenta";
+
   const [scheme, setSchemeState] = useState<ThemeScheme>(() =>
-    themeMode === "system" ? resolveScheme(Appearance.getColorScheme()) : themeMode
+    themeMode === "system" || !themeMode ? resolveScheme(Appearance.getColorScheme()) : themeMode
   );
 
   useEffect(() => {

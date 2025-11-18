@@ -2,7 +2,6 @@
   "name": "ipelya",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@8.15.8",
   "workspaces": [
     "apps/*",
     "packages/*",
