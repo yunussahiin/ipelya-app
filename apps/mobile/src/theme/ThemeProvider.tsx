@@ -1,5 +1,6 @@
 import { Appearance, ColorSchemeName } from "react-native";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { useSettingsStore, type ThemePreference, type ThemeAccent } from "@/store/settings.store";
 
 export type ThemeScheme = "light" | "dark";
 
@@ -94,7 +95,10 @@ const palettes: Record<ThemeScheme, ThemeColors> = {
 };
 
 type AccentPalette = {
-  [K in ThemeScheme]: Pick<ThemeColors, "accent" | "accentSoft" | "navIndicator" | "navIndicatorAndroid">;
+  [K in ThemeScheme]: Pick<
+    ThemeColors,
+    "accent" | "accentSoft" | "navIndicator" | "navIndicatorAndroid"
+  >;
 };
 
 const accentPalettes: Record<ThemeAccent, AccentPalette> = {
@@ -156,19 +160,31 @@ function resolveScheme(value: ColorSchemeName | ThemeScheme | null | undefined):
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [scheme, setSchemeState] = useState<ThemeScheme>(() => resolveScheme(Appearance.getColorScheme()));
-  const [accent, setAccentState] = useState<ThemeAccent>("magenta");
+  const themeMode = useSettingsStore((state) => state.themeMode);
+  const accent = useSettingsStore((state) => state.accentColor);
+  const setThemeMode = useSettingsStore((state) => state.setThemeMode);
+  const setAccentColor = useSettingsStore((state) => state.setAccentColor);
+
+  const [scheme, setSchemeState] = useState<ThemeScheme>(() =>
+    themeMode === "system" ? resolveScheme(Appearance.getColorScheme()) : themeMode
+  );
 
   useEffect(() => {
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      setSchemeState(resolveScheme(colorScheme));
-    });
-    return () => subscription.remove();
-  }, []);
+    if (themeMode === "system") {
+      setSchemeState(resolveScheme(Appearance.getColorScheme()));
+      const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+        setSchemeState(resolveScheme(colorScheme));
+      });
+      return () => subscription.remove();
+    }
 
-  const setScheme = (next: ThemeScheme) => setSchemeState(next);
-  const toggleScheme = () => setSchemeState((prev) => (prev === "dark" ? "light" : "dark"));
-  const setAccent = (next: ThemeAccent) => setAccentState(next);
+    setSchemeState(themeMode);
+    return undefined;
+  }, [themeMode]);
+
+  const setScheme = (next: ThemeScheme) => setThemeMode(next);
+  const toggleScheme = () => setThemeMode(scheme === "dark" ? "light" : "dark");
+  const setAccent = (next: ThemeAccent) => setAccentColor(next);
 
   const value = useMemo<ThemeContextValue>(() => {
     const resolved = resolveScheme(scheme);

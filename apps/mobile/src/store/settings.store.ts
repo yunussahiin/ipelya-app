@@ -2,13 +2,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type ThemeMode = "light" | "dark" | "system";
-export type AccentColor = "pink" | "purple" | "blue" | "green" | "orange";
+export type ThemePreference = "light" | "dark" | "system";
+export type ThemeAccent = "magenta" | "aqua" | "amber";
 
 interface SettingsState {
   // Theme
-  themeMode: ThemeMode;
-  accentColor: AccentColor;
+  themeMode: ThemePreference;
+  accentColor: ThemeAccent;
   
   // Notifications (User & Creator)
   pushNotifications: boolean;
@@ -25,8 +25,8 @@ interface SettingsState {
   contentWatermark: boolean;
   
   // Actions
-  setThemeMode: (mode: ThemeMode) => void;
-  setAccentColor: (color: AccentColor) => void;
+  setThemeMode: (mode: ThemePreference) => void;
+  setAccentColor: (color: ThemeAccent) => void;
   togglePushNotifications: () => void;
   toggleEmailNotifications: () => void;
   toggleMessageNotifications: () => void;
@@ -39,8 +39,8 @@ interface SettingsState {
 }
 
 const defaultSettings = {
-  themeMode: "dark" as ThemeMode,
-  accentColor: "pink" as AccentColor,
+  themeMode: "system" as ThemePreference,
+  accentColor: "magenta" as ThemeAccent,
   pushNotifications: true,
   emailNotifications: true,
   messageNotifications: true,
