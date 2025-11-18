@@ -3,19 +3,15 @@
 import * as React from "react";
 import {
   IconCamera,
-  IconChartBar,
+  IconCoin,
   IconDashboard,
-  IconDatabase,
   IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
+  IconFileText,
   IconHelp,
   IconInnerShadowTop,
-  IconListDetails,
   IconReport,
-  IconSearch,
   IconSettings,
+  IconShield,
   IconUsers
 } from "@tabler/icons-react";
 
@@ -34,123 +30,148 @@ import {
 } from "@/components/ui/sidebar";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg"
-  },
   navMain: [
     {
-      title: "Dashboard",
-      url: "#",
+      title: "Ana Sayfa",
+      url: "/ops",
       icon: IconDashboard
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers
-    }
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
+      title: "Kullanıcılar",
+      url: "/ops/users",
+      icon: IconUsers,
       items: [
         {
-          title: "Active Proposals",
-          url: "#"
+          title: "Tüm Kullanıcılar",
+          url: "/ops/users"
         },
         {
-          title: "Archived",
-          url: "#"
+          title: "Creator'lar",
+          url: "/ops/users/creators"
+        },
+        {
+          title: "Yasaklılar",
+          url: "/ops/users/banned"
         }
       ]
     },
     {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
+      title: "İçerik",
+      url: "/ops/content",
+      icon: IconFileText,
       items: [
         {
-          title: "Active Proposals",
-          url: "#"
+          title: "Tüm İçerikler",
+          url: "/ops/content"
         },
         {
-          title: "Archived",
-          url: "#"
+          title: "Onay Bekleyenler",
+          url: "/ops/content/pending"
+        },
+        {
+          title: "Raporlananlar",
+          url: "/ops/content/reported"
         }
       ]
     },
     {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
+      title: "Güvenlik",
+      url: "/ops/security",
+      icon: IconShield,
       items: [
         {
-          title: "Active Proposals",
-          url: "#"
+          title: "Güvenlik Sistemi",
+          url: "/ops/security"
         },
         {
-          title: "Archived",
-          url: "#"
+          title: "Screenshot Logları",
+          url: "/ops/security/screenshots"
+        },
+        {
+          title: "Firewall",
+          url: "/ops/security/firewall"
+        },
+        {
+          title: "Fraud Detection",
+          url: "/ops/security/fraud"
+        }
+      ]
+    },
+    {
+      title: "Ekonomi",
+      url: "/ops/economy",
+      icon: IconCoin,
+      items: [
+        {
+          title: "İşlemler",
+          url: "/ops/economy/transactions"
+        },
+        {
+          title: "Ödemeler",
+          url: "/ops/economy/payouts"
+        },
+        {
+          title: "Raporlar",
+          url: "/ops/economy/reports"
         }
       ]
     }
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "#",
+      title: "DMCA",
+      url: "/ops/dmca",
+      icon: IconReport,
+      items: [
+        {
+          title: "Taramalar",
+          url: "/ops/dmca/scans"
+        },
+        {
+          title: "Raporlar",
+          url: "/ops/dmca/reports"
+        },
+        {
+          title: "Aksiyonlar",
+          url: "/ops/dmca/actions"
+        }
+      ]
+    },
+    {
+      title: "Live Sessions",
+      url: "/ops/live",
+      icon: IconCamera
+    },
+    {
+      title: "AI Engine",
+      url: "/ops/ai",
+      icon: IconFileAi
+    }
+  ],
+  navSettings: [
+    {
+      name: "Ayarlar",
+      url: "/ops/settings",
       icon: IconSettings
     },
     {
-      title: "Get Help",
-      url: "#",
+      name: "Yardım",
+      url: "/ops/help",
       icon: IconHelp
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch
-    }
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord
     }
   ]
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  user,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  user?: {
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+}) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -167,12 +188,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavDocuments items={data.navSettings} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
+      <SidebarFooter>{user && <NavUser user={user} />}</SidebarFooter>
     </Sidebar>
   );
 }

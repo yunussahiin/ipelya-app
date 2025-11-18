@@ -1,15 +1,20 @@
-import { createClient } from "@supabase/supabase-js";
+import "react-native-url-polyfill/auto";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // pnpm add @react-native-async-storage/async-storage
+import { createClient, processLock } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // TODO: güvenli bir şekilde environment değerlerini yükle.
+if (!supabaseUrl || !supabaseKey) {
   console.warn("Supabase environment değişkenleri eksik, client sınırlı çalışacak.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl ?? "", supabaseKey ?? "", {
   auth: {
-    persistSession: false
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    lock: processLock
   }
 });

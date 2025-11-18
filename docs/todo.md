@@ -11,3 +11,15 @@
 - [x] Scripts klasörüne temel shell script placeholderları ekle.
 - [x] Gerekli örnek placeholder dosyaları ve TODO notlarını ekle (ör: shadow mode flow).
 - [x] Yapılan tüm işlemleri kontrol edip bu todo listesini güncelle.
+
+## Yeni Yapılacaklar
+- [x] Ops yönetici paneli için Supabase auth sistemi kuruldu (login/register)
+- [x] Admin profilleri tablosu oluşturuldu (admin_profiles)
+- [x] Sadece adminlerin giriş yapabildiği ve ops dizinine erişebildiği sistem kuruldu
+- [x] Ops dashboard'da giriş yapan admin kullanıcının tüm bilgileri gösteriliyor
+- [x] TypeScript database tipleri generate edildi
+- [ ] Mobil uygulamada Supabase auth + React Query entegrasyonunu tamamla, session hydrate akışını `useAuthStore` ile bağla.
+- [ ] Shadow/Coin Zustand store'larını genişletip SecureStore senkronizasyonu ekle.
+- [ ] LiveKit token akışı ve dakika bazlı coin düşümü için edge functions + mobile client entegrasyonunu gerçekleştir.
+- [ ] AI Fantasy ve ASMR flow'larını edge functions ile uçtan uca bağlayıp UI'da sonuç dinlemeyi implemente et.
+- [ ] Shadcn tabanlı web creator dashboard ekranlarını (dashboard/content/schedule/earnings) oluştur.

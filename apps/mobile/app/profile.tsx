@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Settings } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme, type ThemeColors, type ThemeAccent } from "@/theme/ThemeProvider";
@@ -10,13 +12,19 @@ const auditSections = [
   { label: "DM", value: "1.1dk", status: "hedef" }
 ];
 
-const accentOptions: Array<{ key: ThemeAccent; label: string; description: string; swatch: string }> = [
+const accentOptions: Array<{
+  key: ThemeAccent;
+  label: string;
+  description: string;
+  swatch: string;
+}> = [
   { key: "magenta", label: "Neon", description: "Varsayılan", swatch: "#ff3b81" },
   { key: "aqua", label: "Aqua", description: "Minimal", swatch: "#22d3ee" },
   { key: "amber", label: "Amber", description: "Sunset", swatch: "#fbbf24" }
 ];
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { colors, accent, setAccent } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -25,14 +33,25 @@ export default function ProfileScreen() {
       {() => (
         <>
           <View style={styles.header}>
-            <Text style={styles.label}>Profil</Text>
-            <Text style={styles.title}>Studio Hesabı</Text>
-            <Text style={styles.subtitle}>Güvenlik, ekip izinleri ve gelir özetlerini tek bakışta kontrol et.</Text>
+            <View style={styles.headerTop}>
+              <View>
+                <Text style={styles.label}>Profil</Text>
+                <Text style={styles.title}>Studio Hesabı</Text>
+              </View>
+              <Pressable style={styles.settingsButton} onPress={() => router.push("/(settings)")}>
+                <Settings size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+            <Text style={styles.subtitle}>
+              Güvenlik, ekip izinleri ve gelir özetlerini tek bakışta kontrol et.
+            </Text>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tema Yönetimi</Text>
-            <Text style={styles.sectionSubtitle}>Demo alanında karanlık/aydınlık modunu ve vurgu rengini test et.</Text>
+            <Text style={styles.sectionSubtitle}>
+              Demo alanında karanlık/aydınlık modunu ve vurgu rengini test et.
+            </Text>
             <View style={styles.themeControlRow}>
               <View>
                 <Text style={styles.themeLabel}>Görünüm Modu</Text>
@@ -48,10 +67,16 @@ export default function ProfileScreen() {
                   <Pressable
                     key={option.key}
                     onPress={() => setAccent(option.key)}
-                    style={[styles.accentOption, isActive && styles.accentOptionActive, isActive && { borderColor: colors.textPrimary }]}
+                    style={[
+                      styles.accentOption,
+                      isActive && styles.accentOptionActive,
+                      isActive && { borderColor: colors.textPrimary }
+                    ]}
                   >
                     <View style={[styles.accentSwatch, { backgroundColor: option.swatch }]} />
-                    <Text style={[styles.accentLabel, isActive && styles.accentLabelActive]}>{option.label}</Text>
+                    <Text style={[styles.accentLabel, isActive && styles.accentLabelActive]}>
+                      {option.label}
+                    </Text>
                     <Text style={styles.accentDescription}>{option.description}</Text>
                   </Pressable>
                 );
@@ -89,6 +114,19 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     header: {
       gap: 6
+    },
+    headerTop: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: 6
+    },
+    settingsButton: {
+      padding: 8,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border
     },
     label: {
       color: colors.textSecondary,

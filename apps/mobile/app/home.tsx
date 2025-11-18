@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,44 @@ import {
   FlatList,
   ScrollView,
   ImageBackground,
-  Dimensions
+  Dimensions,
+  ActivityIndicator
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Moon,
+  Eye,
+  Heart,
+  Sparkles,
+  Headphones,
+  Wand2,
+  Users,
+  DollarSign,
+  PlusCircle,
+  Zap,
+  MapPin,
+  ChevronDown
+} from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuthStore } from "@/store/auth.store";
+import { clearSession } from "@/services/secure-store.service";
 
 const newsFeed = [
-  { id: "1", tag: "Futbol", title: "Derbiye 24 saat kala ilk 11 netleşti", meta: "Canlı skor: 2-1" },
+  {
+    id: "1",
+    tag: "Futbol",
+    title: "Derbiye 24 saat kala ilk 11 netleşti",
+    meta: "Canlı skor: 2-1"
+  },
   { id: "2", tag: "Ekonomi", title: "Kripto piyasasında %8 yeşil kapanış", meta: "BTC 72.4K" },
-  { id: "3", tag: "Teknoloji", title: "Vision Pro Türkiye lansman tarihi sızdı", meta: "30 Kas 2024" }
+  {
+    id: "3",
+    tag: "Teknoloji",
+    title: "Vision Pro Türkiye lansman tarihi sızdı",
+    meta: "30 Kas 2024"
+  }
 ];
 
 const interestCards = [
@@ -57,7 +85,8 @@ const asmrMarket = [
 const aiFantasy = {
   title: "Bugünün Fantezi Paketi",
   description: "“Cyber Geisha” temalı 4 sahne, 12 ses, 3 AI görsel",
-  avatar: "https://images.unsplash.com/photo-1552058544-f2b08422138a?auto=format&fit=crop&w=900&q=80",
+  avatar:
+    "https://images.unsplash.com/photo-1552058544-f2b08422138a?auto=format&fit=crop&w=900&q=80",
   cost: "20 Sap Coin"
 };
 
@@ -483,15 +512,20 @@ const NewsCard = ({ tag, title, meta }: { tag: string; title: string; meta: stri
   </View>
 );
 
-const InterestChip = ({ label, icon }: { label: string; icon: string }) => (
+const InterestChip = ({ label }: { label: string }) => (
   <Pressable style={styles.interestChip}>
-    <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={16} color="#201424" />
+    <Heart size={16} color="#201424" />
     <Text style={styles.interestLabel}>{label}</Text>
   </Pressable>
 );
 
 const VibeCard = ({ label, color }: { label: string; color: [string, string] }) => (
-  <LinearGradient colors={color} style={styles.vibeCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+  <LinearGradient
+    colors={color}
+    style={styles.vibeCard}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 1 }}
+  >
     <Text style={styles.vibeLabel}>{label}</Text>
     <View style={styles.vibeButton}>
       <Text style={styles.vibeButtonText}>Keşfet</Text>
@@ -517,20 +551,25 @@ const CreatorCard = ({
     style={styles.creatorHighlight}
     imageStyle={styles.creatorHighlightImage}
   >
-    <LinearGradient colors={["transparent", "rgba(0,0,0,0.65)"]} style={StyleSheet.absoluteFillObject} />
+    <LinearGradient
+      colors={["transparent", "rgba(0,0,0,0.65)"]}
+      style={StyleSheet.absoluteFillObject}
+    />
     <View style={styles.creatorHighlightContent}>
       <View style={styles.creatorRow}>
         <Text style={styles.creatorHighlightName}>{name}</Text>
-        <View style={[styles.creatorStatusDot, { backgroundColor: online ? "#31f27c" : "#d4d6de" }]} />
+        <View
+          style={[styles.creatorStatusDot, { backgroundColor: online ? "#31f27c" : "#d4d6de" }]}
+        />
       </View>
       <Text style={styles.creatorHighlightVibe}>{vibe}</Text>
       <View style={styles.creatorStatsRow}>
         <View style={styles.creatorStatPill}>
-          <Ionicons name="people" size={14} color="#fff" />
+          <Users size={14} color="#fff" />
           <Text style={styles.creatorStatText}>{subscribers}</Text>
         </View>
         <View style={styles.creatorStatPill}>
-          <Ionicons name="cash-outline" size={14} color="#fff" />
+          <DollarSign size={14} color="#fff" />
           <Text style={styles.creatorStatText}>{price}</Text>
         </View>
       </View>
@@ -538,29 +577,44 @@ const CreatorCard = ({
   </ImageBackground>
 );
 
-const ASMRCard = ({ title, description, price }: { title: string; description: string; price: string }) => (
+const ASMRCard = ({
+  title,
+  description,
+  price
+}: {
+  title: string;
+  description: string;
+  price: string;
+}) => (
   <View style={styles.asmrCard}>
     <View style={styles.asmrBadge}>
-      <Ionicons name="headset" size={16} color="#fff" />
+      <Headphones size={16} color="#fff" />
     </View>
     <Text style={styles.asmrTitle}>{title}</Text>
     <Text style={styles.asmrDescription}>{description}</Text>
     <View style={styles.asmrPriceRow}>
       <Text style={styles.asmrPrice}>{price}</Text>
-      <Ionicons name="add-circle" size={20} color="#d569ff" />
+      <PlusCircle size={20} color="#d569ff" />
     </View>
   </View>
 );
 
 const AIFantasyCard = () => (
-  <ImageBackground source={{ uri: aiFantasy.avatar }} style={styles.aiCard} imageStyle={styles.aiImage}>
-    <LinearGradient colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)"]} style={StyleSheet.absoluteFillObject} />
+  <ImageBackground
+    source={{ uri: aiFantasy.avatar }}
+    style={styles.aiCard}
+    imageStyle={styles.aiImage}
+  >
+    <LinearGradient
+      colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)"]}
+      style={StyleSheet.absoluteFillObject}
+    />
     <View style={styles.aiContent}>
       <Text style={styles.aiTitle}>{aiFantasy.title}</Text>
       <Text style={styles.aiDescription}>{aiFantasy.description}</Text>
       <Pressable style={styles.aiButton}>
         <Text style={styles.aiButtonText}>{aiFantasy.cost}</Text>
-        <Ionicons name="flash" size={16} color="#12070d" />
+        <Zap size={16} color="#12070d" />
       </Pressable>
     </View>
   </ImageBackground>
@@ -569,7 +623,7 @@ const AIFantasyCard = () => (
 const ShadowModeCard = ({ active }: { active: boolean }) => (
   <View style={[styles.shadowCard, active && styles.shadowCardActive]}>
     <View style={styles.shadowHeader}>
-      <Ionicons name="moon" size={18} color="#f8c7ff" />
+      <Moon size={18} color="#f8c7ff" />
       <Text style={styles.shadowTitle}>Shadow Mode</Text>
     </View>
     <Text style={styles.shadowDescription}>
@@ -578,14 +632,79 @@ const ShadowModeCard = ({ active }: { active: boolean }) => (
         : "Aktifleştirince haber akışı gizlenir, tamamen fantezi moduna geçersin."}
     </Text>
     <Pressable style={styles.shadowButton}>
-      <Text style={styles.shadowButtonText}>{active ? "Shadow feed açık" : "Shadow feed'e geç"}</Text>
+      <Text style={styles.shadowButtonText}>
+        {active ? "Shadow feed açık" : "Shadow feed'e geç"}
+      </Text>
     </Pressable>
   </View>
 );
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [shadowMode, setShadowMode] = useState(false);
   const [profileType, setProfileType] = useState<"male" | "female">("male");
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(false); // Başlangıçta false - arka planda yükle
+
+  useEffect(() => {
+    const fetchUserAndProfile = async () => {
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        setUser(userData.user);
+
+        // Profile bilgilerini çek
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", userData.user.id)
+          .eq("type", "real")
+          .single();
+
+        if (profileError) throw profileError;
+        setProfile(profileData);
+        setLoading(false);
+      } catch (err) {
+        console.error("User/Profile fetch error:", err);
+        // Auth hatası varsa (kullanıcı silinmiş/geçersiz token/profile yok), logout yap
+        const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
+        const isAuthError =
+          errorMessage.includes("does not exist") ||
+          errorMessage.includes("Auth session missing") ||
+          errorMessage.includes("PGRST116");
+
+        if (isAuthError) {
+          try {
+            await supabase.auth.signOut();
+            await clearSession();
+            useAuthStore.getState().clearSession();
+          } catch (cleanupErr) {
+            console.error("Cleanup error:", cleanupErr);
+          }
+          router.replace("/(auth)/login");
+        }
+      }
+    };
+
+    fetchUserAndProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#0b0710"
+        }}
+      >
+        <ActivityIndicator size="large" color="#f472b6" />
+        <Text style={{ color: "#94a3b8", marginTop: 12 }}>Kullanıcı bilgileri yükleniyor...</Text>
+      </View>
+    );
+  }
 
   return (
     <PageScreen
@@ -604,13 +723,142 @@ export default function HomeScreen() {
             { paddingBottom: layout.insets.bottom + 60 }
           ]}
         >
+          {user && profile && (
+            <View
+              style={{
+                backgroundColor: "rgba(244, 114, 182, 0.1)",
+                padding: 16,
+                borderRadius: 16,
+                marginBottom: 20
+              }}
+            >
+              <Text style={{ color: "#f472b6", fontWeight: "700", fontSize: 18, marginBottom: 12 }}>
+                ✓ Kullanıcı Bilgileri
+              </Text>
+
+              {/* Auth User Data */}
+              <View
+                style={{
+                  marginBottom: 12,
+                  paddingBottom: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "rgba(255,255,255,0.1)"
+                }}
+              >
+                <Text
+                  style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                >
+                  AUTH DATA
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>User ID:</Text> {user.id}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Email:</Text> {user.email}
+                </Text>
+                <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                  Kayıt: {new Date(user.created_at).toLocaleString("tr-TR")}
+                </Text>
+              </View>
+
+              {/* Profile Data */}
+              <View
+                style={{
+                  marginBottom: 12,
+                  paddingBottom: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "rgba(255,255,255,0.1)"
+                }}
+              >
+                <Text
+                  style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                >
+                  PROFILE DATA
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Profile ID:</Text> {profile.id}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Username:</Text> {profile.username}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Display Name:</Text> {profile.display_name}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Type:</Text> {profile.type}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Role:</Text> {profile.role || "user"}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Gender:</Text> {profile.gender}
+                </Text>
+                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text style={{ fontWeight: "600" }}>Creator:</Text>{" "}
+                  {profile.is_creator ? "Evet" : "Hayır"}
+                </Text>
+              </View>
+
+              {/* Device Info */}
+              {profile.last_device_info && (
+                <View
+                  style={{
+                    marginBottom: 12,
+                    paddingBottom: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "rgba(255,255,255,0.1)"
+                  }}
+                >
+                  <Text
+                    style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                  >
+                    DEVICE INFO
+                  </Text>
+                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                    <Text style={{ fontWeight: "600" }}>Platform:</Text>{" "}
+                    {profile.last_device_info.platform}
+                  </Text>
+                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                    <Text style={{ fontWeight: "600" }}>Model:</Text>{" "}
+                    {profile.last_device_info.model}
+                  </Text>
+                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                    <Text style={{ fontWeight: "600" }}>OS Version:</Text>{" "}
+                    {profile.last_device_info.os_version}
+                  </Text>
+                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                    <Text style={{ fontWeight: "600" }}>App Version:</Text>{" "}
+                    {profile.last_device_info.app_version}
+                  </Text>
+                  <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                    Son Giriş: {new Date(profile.last_login_at).toLocaleString("tr-TR")}
+                  </Text>
+                </View>
+              )}
+
+              {/* Timestamps */}
+              <View>
+                <Text
+                  style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                >
+                  TIMESTAMPS
+                </Text>
+                <Text style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>
+                  Profile Created: {new Date(profile.created_at).toLocaleString("tr-TR")}
+                </Text>
+                <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                  Profile Updated: {new Date(profile.updated_at).toLocaleString("tr-TR")}
+                </Text>
+              </View>
+            </View>
+          )}
           <View style={styles.header}>
             <View>
               <Text style={styles.locationLabel}>Lokasyon</Text>
               <Pressable style={styles.locationRow}>
-                <Ionicons name="location" size={16} color="#351829" />
+                <MapPin size={16} color="#351829" />
                 <Text style={styles.locationValue}>İstanbul, TR</Text>
-                <Ionicons name="chevron-down" size={14} color="#351829" />
+                <ChevronDown size={14} color="#351829" />
               </Pressable>
             </View>
             <Pressable style={styles.balanceCard}>
@@ -703,8 +951,8 @@ export default function HomeScreen() {
               <View style={styles.creatorDashboardCard}>
                 <Text style={styles.dashboardTitle}>Creator paneli henüz geliştirilmedi</Text>
                 <Text style={styles.dashboardBody}>
-                  Blueprint: Bugünkü kazanç, abone sayısı, PPV satışları, AI içerik önerisi, vibe önerileri ve hızlı içerik
-                  yükleme kısayolları burada gösterilecek.
+                  Blueprint: Bugünkü kazanç, abone sayısı, PPV satışları, AI içerik önerisi, vibe
+                  önerileri ve hızlı içerik yükleme kısayolları burada gösterilecek.
                 </Text>
                 <Pressable style={styles.dashboardButton}>
                   <Text style={styles.dashboardButtonText}>Planı görüntüle</Text>
