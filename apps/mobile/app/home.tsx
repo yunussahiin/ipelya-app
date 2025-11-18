@@ -8,7 +8,8 @@ import {
   ScrollView,
   ImageBackground,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
+  useColorScheme
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -645,7 +646,43 @@ export default function HomeScreen() {
   const [profileType, setProfileType] = useState<"male" | "female">("male");
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(false); // Başlangıçta false - arka planda yükle
+  const [loading, setLoading] = useState(true);
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === "dark";
+  const userInfoColors = isDarkMode
+    ? {
+        cardBg: "rgba(244, 114, 182, 0.1)",
+        border: "rgba(244, 114, 182, 0.2)",
+        title: "#f472b6",
+        buttonBorder: "rgba(244,114,182,0.4)",
+        buttonText: "#f472b6",
+        sectionLabel: "#c4b5fd",
+        textPrimary: "#e2e8f0",
+        textSecondary: "#94a3b8",
+        divider: "rgba(255,255,255,0.12)"
+      }
+    : {
+        cardBg: "rgba(244, 114, 182, 0.08)",
+        border: "rgba(244, 114, 182, 0.45)",
+        title: "#b83280",
+        buttonBorder: "rgba(184,50,128,0.35)",
+        buttonText: "#b83280",
+        sectionLabel: "#7c3aed",
+        textPrimary: "#1f2933",
+        textSecondary: "#475467",
+        divider: "rgba(15,23,42,0.08)"
+      };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      await clearSession();
+      useAuthStore.getState().clearSession();
+      router.replace("/(auth)/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -690,21 +727,16 @@ export default function HomeScreen() {
     fetchUserAndProfile();
   }, []);
 
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#0b0710"
-        }}
-      >
-        <ActivityIndicator size="large" color="#f472b6" />
-        <Text style={{ color: "#94a3b8", marginTop: 12 }}>Kullanıcı bilgileri yükleniyor...</Text>
-      </View>
-    );
-  }
+  const handleTestExit = async () => {
+    try {
+      await supabase.auth.signOut();
+      await clearSession();
+      useAuthStore.getState().clearSession();
+      router.replace("/(auth)/login");
+    } catch (err) {
+      console.error("Test exit error:", err);
+    }
+  };
 
   return (
     <PageScreen
@@ -726,15 +758,42 @@ export default function HomeScreen() {
           {user && profile && (
             <View
               style={{
-                backgroundColor: "rgba(244, 114, 182, 0.1)",
+                backgroundColor: userInfoColors.cardBg,
                 padding: 16,
                 borderRadius: 16,
-                marginBottom: 20
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: userInfoColors.border
               }}
             >
-              <Text style={{ color: "#f472b6", fontWeight: "700", fontSize: 18, marginBottom: 12 }}>
-                ✓ Kullanıcı Bilgileri
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12
+                }}
+              >
+                <Text style={{ color: userInfoColors.title, fontWeight: "700", fontSize: 18 }}>
+                  ✓ Kullanıcı Bilgileri
+                </Text>
+                <Pressable
+                  onPress={handleTestExit}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: userInfoColors.buttonBorder,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 999
+                  }}
+                >
+                  <Text
+                    style={{ color: userInfoColors.buttonText, fontWeight: "600", fontSize: 12 }}
+                  >
+                    Test Exit
+                  </Text>
+                </Pressable>
+              </View>
 
               {/* Auth User Data */}
               <View
@@ -742,21 +801,26 @@ export default function HomeScreen() {
                   marginBottom: 12,
                   paddingBottom: 12,
                   borderBottomWidth: 1,
-                  borderBottomColor: "rgba(255,255,255,0.1)"
+                  borderBottomColor: userInfoColors.divider
                 }}
               >
                 <Text
-                  style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                  style={{
+                    color: userInfoColors.sectionLabel,
+                    fontWeight: "600",
+                    fontSize: 13,
+                    marginBottom: 6
+                  }}
                 >
                   AUTH DATA
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>User ID:</Text> {user.id}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Email:</Text> {user.email}
                 </Text>
-                <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                <Text style={{ color: userInfoColors.textSecondary, fontSize: 12 }}>
                   Kayıt: {new Date(user.created_at).toLocaleString("tr-TR")}
                 </Text>
               </View>
@@ -767,37 +831,202 @@ export default function HomeScreen() {
                   marginBottom: 12,
                   paddingBottom: 12,
                   borderBottomWidth: 1,
-                  borderBottomColor: "rgba(255,255,255,0.1)"
+                  borderBottomColor: userInfoColors.divider
                 }}
               >
                 <Text
-                  style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                  style={{
+                    color: userInfoColors.sectionLabel,
+                    fontWeight: "600",
+                    fontSize: 13,
+                    marginBottom: 6
+                  }}
                 >
                   PROFILE DATA
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Profile ID:</Text> {profile.id}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Username:</Text> {profile.username}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Display Name:</Text> {profile.display_name}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Type:</Text> {profile.type}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Role:</Text> {profile.role || "user"}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Gender:</Text> {profile.gender}
                 </Text>
-                <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Creator:</Text>{" "}
                   {profile.is_creator ? "Evet" : "Hayır"}
                 </Text>
               </View>
+
+              {/* Contact & Verification */}
+              <View
+                style={{
+                  marginBottom: 12,
+                  paddingBottom: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: userInfoColors.divider
+                }}
+              >
+                <Text
+                  style={{
+                    color: userInfoColors.sectionLabel,
+                    fontWeight: "600",
+                    fontSize: 13,
+                    marginBottom: 6
+                  }}
+                >
+                  CONTACT & VERIFICATION
+                </Text>
+                {profile.email && (
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
+                    <Text style={{ fontWeight: "600" }}>Email:</Text> {profile.email}
+                  </Text>
+                )}
+                {profile.email_confirmed_at && (
+                  <Text
+                    style={{ color: userInfoColors.textSecondary, fontSize: 12, marginBottom: 3 }}
+                  >
+                    Email Doğrulama: {new Date(profile.email_confirmed_at).toLocaleString("tr-TR")}
+                  </Text>
+                )}
+                {profile.phone && (
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
+                    <Text style={{ fontWeight: "600" }}>Telefon:</Text> {profile.phone}
+                  </Text>
+                )}
+                {profile.phone_confirmed_at && (
+                  <Text
+                    style={{ color: userInfoColors.textSecondary, fontSize: 12, marginBottom: 3 }}
+                  >
+                    Telefon Doğrulama:{" "}
+                    {new Date(profile.phone_confirmed_at).toLocaleString("tr-TR")}
+                  </Text>
+                )}
+                {profile.last_ip_address && (
+                  <Text style={{ color: userInfoColors.textSecondary, fontSize: 12 }}>
+                    Son IP: {profile.last_ip_address}
+                  </Text>
+                )}
+              </View>
+
+              {/* Bio & Avatar */}
+              {(profile.bio || profile.avatar_url) && (
+                <View
+                  style={{
+                    marginBottom: 12,
+                    paddingBottom: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: userInfoColors.divider
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: userInfoColors.sectionLabel,
+                      fontWeight: "600",
+                      fontSize: 13,
+                      marginBottom: 6
+                    }}
+                  >
+                    PROFILE CONTENT
+                  </Text>
+                  {profile.avatar_url && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Avatar URL:</Text>
+                    </Text>
+                  )}
+                  {profile.avatar_url && (
+                    <Text
+                      style={{ color: userInfoColors.textSecondary, fontSize: 11, marginBottom: 6 }}
+                    >
+                      {profile.avatar_url.substring(0, 60)}...
+                    </Text>
+                  )}
+                  {profile.bio && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Bio:</Text>
+                    </Text>
+                  )}
+                  {profile.bio && (
+                    <Text style={{ color: userInfoColors.textSecondary, fontSize: 12 }}>
+                      {profile.bio}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* Shadow Mode & Security */}
+              {(profile.shadow_unlocked !== undefined || profile.banned_until) && (
+                <View
+                  style={{
+                    marginBottom: 12,
+                    paddingBottom: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: userInfoColors.divider
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: userInfoColors.sectionLabel,
+                      fontWeight: "600",
+                      fontSize: 13,
+                      marginBottom: 6
+                    }}
+                  >
+                    SECURITY & STATUS
+                  </Text>
+                  {profile.shadow_unlocked !== undefined && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Shadow Mode:</Text>{" "}
+                      {profile.shadow_unlocked ? "Açık" : "Kapalı"}
+                    </Text>
+                  )}
+                  {profile.banned_until && (
+                    <Text style={{ color: "#ef4444", fontSize: 13, marginBottom: 3 }}>
+                      <Text style={{ fontWeight: "600" }}>Yasaklı Hasta:</Text>{" "}
+                      {new Date(profile.banned_until).toLocaleString("tr-TR")}
+                    </Text>
+                  )}
+                  {profile.is_super_admin && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Super Admin:</Text> Evet
+                    </Text>
+                  )}
+                  {profile.is_sso_user && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>SSO Kullanıcı:</Text> Evet
+                    </Text>
+                  )}
+                  {profile.is_anonymous && (
+                    <Text style={{ color: userInfoColors.textPrimary, fontSize: 13 }}>
+                      <Text style={{ fontWeight: "600" }}>Anonim:</Text> Evet
+                    </Text>
+                  )}
+                </View>
+              )}
 
               {/* Device Info */}
               {profile.last_device_info && (
@@ -806,31 +1035,44 @@ export default function HomeScreen() {
                     marginBottom: 12,
                     paddingBottom: 12,
                     borderBottomWidth: 1,
-                    borderBottomColor: "rgba(255,255,255,0.1)"
+                    borderBottomColor: userInfoColors.divider
                   }}
                 >
                   <Text
-                    style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                    style={{
+                      color: userInfoColors.sectionLabel,
+                      fontWeight: "600",
+                      fontSize: 13,
+                      marginBottom: 6
+                    }}
                   >
                     DEVICE INFO
                   </Text>
-                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
                     <Text style={{ fontWeight: "600" }}>Platform:</Text>{" "}
                     {profile.last_device_info.platform}
                   </Text>
-                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
                     <Text style={{ fontWeight: "600" }}>Model:</Text>{" "}
                     {profile.last_device_info.model}
                   </Text>
-                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
                     <Text style={{ fontWeight: "600" }}>OS Version:</Text>{" "}
                     {profile.last_device_info.os_version}
                   </Text>
-                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 3 }}>
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
                     <Text style={{ fontWeight: "600" }}>App Version:</Text>{" "}
                     {profile.last_device_info.app_version}
                   </Text>
-                  <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                  <Text style={{ color: userInfoColors.textSecondary, fontSize: 12 }}>
                     Son Giriş: {new Date(profile.last_login_at).toLocaleString("tr-TR")}
                   </Text>
                 </View>
@@ -839,15 +1081,22 @@ export default function HomeScreen() {
               {/* Timestamps */}
               <View>
                 <Text
-                  style={{ color: "#a78bfa", fontWeight: "600", fontSize: 13, marginBottom: 6 }}
+                  style={{
+                    color: userInfoColors.sectionLabel,
+                    fontWeight: "600",
+                    fontSize: 13,
+                    marginBottom: 6
+                  }}
                 >
                   TIMESTAMPS
                 </Text>
-                <Text style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>
+                <Text
+                  style={{ color: userInfoColors.textSecondary, fontSize: 12, marginBottom: 2 }}
+                >
                   Profile Created: {new Date(profile.created_at).toLocaleString("tr-TR")}
                 </Text>
-                <Text style={{ color: "#94a3b8", fontSize: 12 }}>
-                  Profile Updated: {new Date(profile.updated_at).toLocaleString("tr-TR")}
+                <Text style={{ color: userInfoColors.textSecondary, fontSize: 12 }}>
+                  Updated: {new Date(profile.updated_at).toLocaleString("tr-TR")}
                 </Text>
               </View>
             </View>

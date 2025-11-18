@@ -1,11 +1,13 @@
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "expo-router";
+import { useTheme } from "@/theme/ThemeProvider";
 import { AuthScreen } from "@/components/layout/AuthScreen";
 import { AuthTextField } from "@/components/forms/AuthTextField";
 import { useAuthActions } from "@/hooks/useAuthActions";
+import { LAYOUT_CONSTANTS } from "@/theme/layout";
 
 const schema = z.object({
   email: z.string().email("Geçerli bir e-posta gir"),
@@ -15,24 +17,28 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
   const { signIn, isLoading, error, setError } = useAuthActions();
-  const { control, handleSubmit } = useForm<FormValues>({
+  const { control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" }
+    defaultValues: { email: "", password: "" },
+    mode: "onBlur"
   });
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     await signIn(email, password);
   });
 
+  const styles = createStyles(colors);
+
   return (
     <AuthScreen
       title="Tekrar hoş geldin"
       subtitle="Shadow mode ve token ekonomisine kaldığın yerden devam et."
       footer={
-        <Text style={{ color: "#94a3b8" }}>
+        <Text style={styles.footerText}>
           Hesabın yok mu?{" "}
-          <Link href="/(auth)/register" style={{ color: "#f472b6", fontWeight: "600" }}>
+          <Link href="/(auth)/register" style={styles.signupLink}>
             Kayıt ol
           </Link>
         </Text>
@@ -56,9 +62,11 @@ export default function LoginScreen() {
             icon="mail-outline"
             error={fieldState.error?.message}
             placeholder="ornek@ipelya.com"
+            editable={!isLoading}
           />
         )}
       />
+
       <Controller
         control={control}
         name="password"
@@ -75,32 +83,102 @@ export default function LoginScreen() {
             icon="lock-closed-outline"
             error={fieldState.error?.message}
             placeholder="••••••••"
+            editable={!isLoading}
           />
         )}
       />
-      <Pressable>
-        <Text style={{ color: "#c084fc", textAlign: "right" }}>Şifremi unuttum</Text>
+
+      <Pressable
+        disabled={isLoading}
+        accessible={true}
+        accessibilityLabel="Şifremi unuttum"
+        accessibilityRole="link"
+      >
+        <Text style={styles.forgotPassword}>Şifremi unuttum</Text>
       </Pressable>
-      {error ? <Text style={{ color: "#f87171" }}>{error}</Text> : null}
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       <Pressable
         onPress={onSubmit}
-        disabled={isLoading}
+        disabled={isLoading || !formState.isValid}
         style={({ pressed }) => [
+          styles.loginButton,
           {
-            backgroundColor: "#f472b6",
-            borderRadius: 16,
-            paddingVertical: 16,
-            alignItems: "center",
-            opacity: isLoading || pressed ? 0.7 : 1
+            opacity: isLoading || !formState.isValid || pressed ? 0.7 : 1
           }
         ]}
+        accessible={true}
+        accessibilityLabel="Giriş yap"
+        accessibilityHint="E-posta ve şifreyi girdikten sonra tıkla"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isLoading || !formState.isValid }}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.buttonPrimaryText} size="small" />
         ) : (
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Giriş yap</Text>
+          <Text style={styles.loginButtonText}>Giriş yap</Text>
         )}
       </Pressable>
     </AuthScreen>
   );
+}
+
+function createStyles(colors: any) {
+  return StyleSheet.create({
+    forgotPassword: {
+      color: colors.accentSoft,
+      textAlign: "right",
+      fontSize: 14,
+      fontWeight: "500",
+      paddingVertical: 8,
+      lineHeight: 20
+    },
+    errorContainer: {
+      backgroundColor: "rgba(239, 68, 68, 0.1)",
+      borderRadius: LAYOUT_CONSTANTS.radiusMedium,
+      padding: 12,
+      borderLeftWidth: 3,
+      borderLeftColor: "#ef4444"
+    },
+    errorText: {
+      color: "#fca5a5",
+      fontSize: 14,
+      fontWeight: "500",
+      lineHeight: 20
+    },
+    loginButton: {
+      backgroundColor: colors.accent,
+      borderRadius: LAYOUT_CONSTANTS.radiusMedium,
+      paddingVertical: Platform.OS === "android" ? 14 : 16,
+      paddingHorizontal: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: LAYOUT_CONSTANTS.buttonMinHeight,
+      marginTop: 8,
+      // Android specific
+      ...(Platform.OS === "android" && {
+        elevation: 3
+      })
+    },
+    loginButtonText: {
+      color: colors.buttonPrimaryText,
+      fontWeight: "700",
+      fontSize: 16,
+      lineHeight: 24
+    },
+    footerText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20
+    },
+    signupLink: {
+      color: colors.accentSoft,
+      fontWeight: "600"
+    }
+  });
 }

@@ -1,10 +1,18 @@
 import { ReactNode, useMemo } from "react";
-import { ScrollView, StyleSheet, View, ViewStyle, ScrollViewProps } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  ViewStyle,
+  ScrollViewProps,
+  useWindowDimensions
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { useDeviceLayout } from "@/hooks/useDeviceLayout";
 import { useTabsNavigation } from "@/navigation/useTabsNavigation";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
+import { LAYOUT_CONSTANTS } from "@/theme/layout";
 
 type Layout = ReturnType<typeof useDeviceLayout>;
 
@@ -31,47 +39,72 @@ function resolveStyle(style: StylePropOrFactory, layout: Layout) {
   return style;
 }
 
-export function PageScreen({ children, contentStyle, scrollViewProps, showNavigation = true }: PageScreenProps) {
+export function PageScreen({
+  children,
+  contentStyle,
+  scrollViewProps,
+  showNavigation = true
+}: PageScreenProps) {
   const layout = useDeviceLayout();
+  const { height: windowHeight } = useWindowDimensions();
   const { colors, scheme } = useTheme();
   const { tabs, activeKey, onChange } = useTabsNavigation();
   const showGlows = scheme === "dark";
   const baseStyles = useMemo(() => createStyles(colors), [colors]);
-  const bottomPadding = showNavigation ? layout.navPadding : layout.bottomPadding;
+  const bottomPadding = showNavigation
+    ? LAYOUT_CONSTANTS.screenPaddingBottom + LAYOUT_CONSTANTS.navHeight
+    : LAYOUT_CONSTANTS.screenPaddingBottom;
 
-  const contentContainerStyle = [
-    baseStyles.scrollContent,
-    {
-      paddingTop: layout.topPadding,
-      paddingBottom: bottomPadding,
-      paddingHorizontal: layout.contentPaddingHorizontal,
-      gap: layout.sectionGap
-    },
-    layout.isTablet ? { paddingRight: layout.contentPaddingHorizontal + layout.sideNavigationOffset } : null,
-    layout.contentWidth ? { width: layout.contentWidth, alignSelf: "center" } : null,
-    resolveStyle(contentStyle, layout)
-  ];
+  const defaultContentStyle: ViewStyle = {
+    ...baseStyles.scrollContent,
+    paddingTop: LAYOUT_CONSTANTS.screenPaddingTop,
+    paddingBottom: bottomPadding,
+    paddingHorizontal: LAYOUT_CONSTANTS.screenPaddingHorizontal,
+    gap: LAYOUT_CONSTANTS.sectionGap,
+    minHeight: windowHeight
+  };
+
+  const resolvedContentStyle = resolveStyle(contentStyle, layout);
+  const contentContainerStyle = resolvedContentStyle
+    ? [defaultContentStyle, resolvedContentStyle]
+    : defaultContentStyle;
 
   return (
-    <SafeAreaView style={[baseStyles.safe, { backgroundColor: colors.background }]} edges={["left", "right"]}>
+    <SafeAreaView
+      style={[baseStyles.safe, { backgroundColor: colors.background }]}
+      edges={["top", "bottom", "left", "right"]}
+    >
       <View style={baseStyles.chrome}>
         {showGlows ? (
           <>
-            <View pointerEvents="none" style={[baseStyles.edgeGlow, baseStyles.topGlow, { height: layout.insets.top + 80 }]} />
-            <View pointerEvents="none" style={[baseStyles.edgeGlow, baseStyles.bottomGlow, { height: layout.insets.bottom + 140 }]} />
+            <View
+              pointerEvents="none"
+              style={[baseStyles.edgeGlow, baseStyles.topGlow, { height: layout.insets.top + 80 }]}
+            />
+            <View
+              pointerEvents="none"
+              style={[
+                baseStyles.edgeGlow,
+                baseStyles.bottomGlow,
+                { height: layout.insets.bottom + 140 }
+              ]}
+            />
           </>
         ) : null}
         <ScrollView
-          style={baseStyles.scrollView}
+          style={[baseStyles.scrollView, { backgroundColor: colors.background }]}
           contentContainerStyle={contentContainerStyle}
           showsVerticalScrollIndicator={false}
           scrollIndicatorInsets={{ top: layout.insets.top, bottom: layout.insets.bottom + 12 }}
           contentInsetAdjustmentBehavior="never"
+          scrollEventThrottle={16}
           {...scrollViewProps}
         >
           {resolveChildren(children, layout)}
         </ScrollView>
-        {showNavigation ? <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} /> : null}
+        {showNavigation ? (
+          <BottomNavigation items={tabs} activeKey={activeKey} onChange={onChange} />
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -84,7 +117,8 @@ function createStyles(colors: ThemeColors) {
     },
     chrome: {
       flex: 1,
-      position: "relative"
+      position: "relative",
+      backgroundColor: colors.background
     },
     edgeGlow: {
       position: "absolute",

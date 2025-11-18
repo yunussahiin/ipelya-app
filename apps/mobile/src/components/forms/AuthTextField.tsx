@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
-import { View, Text, TextInput, StyleSheet, TextInputProps } from "react-native";
+import { View, Text, TextInput, StyleSheet, TextInputProps, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface AuthTextFieldProps extends TextInputProps {
   label: string;
@@ -12,53 +13,81 @@ export const AuthTextField = forwardRef<TextInput, AuthTextFieldProps>(function 
   { label, error, icon, ...props },
   ref
 ) {
+  const { colors } = useTheme();
+  const dynamicStyles = createStyles(colors);
+
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputShell, error && styles.errorShell]}>
-        {icon ? <Ionicons name={icon} size={18} color="#a78bfa" /> : null}
+    <View style={dynamicStyles.wrapper}>
+      <Text style={dynamicStyles.label}>{label}</Text>
+      <View style={[dynamicStyles.inputShell, error && dynamicStyles.errorShell]}>
+        {icon ? (
+          <Ionicons name={icon} size={18} color={colors.accentSoft} style={dynamicStyles.icon} />
+        ) : null}
         <TextInput
           ref={ref}
-          placeholderTextColor="rgba(255,255,255,0.4)"
-          style={styles.input}
+          placeholderTextColor={colors.textMuted}
+          style={dynamicStyles.input}
+          allowFontScaling={true}
+          maxFontSizeMultiplier={1.3}
           {...props}
         />
       </View>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={dynamicStyles.errorText}>{error}</Text> : null}
     </View>
   );
 });
 
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: 6
-  },
-  label: {
-    color: "#e2e8f0",
-    fontWeight: "600",
-    fontSize: 14
-  },
-  inputShell: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(15,7,20,0.6)"
-  },
-  errorShell: {
-    borderColor: "#f87171"
-  },
-  input: {
-    flex: 1,
-    color: "#fff",
-    fontSize: 16
-  },
-  errorText: {
-    color: "#f87171",
-    fontSize: 12
-  }
-});
+function createStyles(colors: any) {
+  return StyleSheet.create({
+    wrapper: {
+      gap: 6
+    },
+    label: {
+      color: colors.textSecondary,
+      fontWeight: "600",
+      fontSize: 14,
+      lineHeight: 20
+    },
+    inputShell: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: Platform.OS === "android" ? 12 : 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderMuted,
+      backgroundColor: colors.surfaceAlt,
+      minHeight: 48,
+      // Android specific fixes
+      ...(Platform.OS === "android" && {
+        paddingVertical: 10
+      })
+    },
+    errorShell: {
+      borderColor: "#ef4444",
+      borderWidth: 1.5
+    },
+    icon: {
+      marginRight: 4
+    },
+    input: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: 16,
+      fontWeight: "400",
+      lineHeight: 24,
+      padding: 0,
+      // Android specific
+      ...(Platform.OS === "android" && {
+        paddingVertical: 0
+      })
+    },
+    errorText: {
+      color: "#fca5a5",
+      fontSize: 12,
+      fontWeight: "500",
+      lineHeight: 16
+    }
+  });
+}

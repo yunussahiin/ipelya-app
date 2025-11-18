@@ -1,5 +1,16 @@
 {
   "expo": {
+    "plugins": [
+      [
+        "react-native-edge-to-edge",
+        {
+          "android": {
+            "parentTheme": "Material3",
+            "enforceNavigationBarContrast": false
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "ef2464e9-74a9-4b09-9ff6-a936e9cdc65a"

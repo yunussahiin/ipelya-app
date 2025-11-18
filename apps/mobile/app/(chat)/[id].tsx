@@ -1,6 +1,6 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 import {
-  Animated,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,7 +11,6 @@ import {
   TextInput,
   View
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,10 +41,10 @@ type ChatProfile = {
 type ChatProfilePreset = Omit<ChatProfile, "messages">;
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const quickActions: { id: string; label: string; icon: IconName }[] = [
-  { id: "coins", label: "20 tp gönder", icon: "flash" },
-  { id: "voice", label: "Sesli not aç", icon: "mic-outline" },
-  { id: "gift", label: "Sürpriz gönder", icon: "gift-outline" }
+const quickActions: { id: string; label: string; icon: IconName; subtitle: string }[] = [
+  { id: "coins", label: "20 tp gönder", icon: "flash", subtitle: "Hızlı destek" },
+  { id: "voice", label: "Sesli not aç", icon: "mic-outline", subtitle: "Sesli kayda geç" },
+  { id: "gift", label: "Sürpriz gönder", icon: "gift-outline", subtitle: "Mini hediye kutusu" }
 ];
 
 const smartPrompts = ["AI foto iste", "Mini oyun daveti", "Konum paylaş", "Gizli mod aç"];
@@ -228,179 +227,171 @@ export default function ChatDetailScreen() {
   const { colors } = useTheme();
   const layout = useDeviceLayout();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const heroScale = scrollY.interpolate({
-    inputRange: [0, 160],
-    outputRange: [1, 0.9],
-    extrapolate: "clamp"
-  });
-  const heroTranslate = scrollY.interpolate({
-    inputRange: [0, 160],
-    outputRange: [0, -40],
-    extrapolate: "clamp"
-  });
-  const heroRadius = scrollY.interpolate({
-    inputRange: [0, 160],
-    outputRange: [32, 18],
-    extrapolate: "clamp"
-  });
-  const AnimatedLinearGradient = useMemo(() => Animated.createAnimatedComponent(LinearGradient), []);
-  const horizontal = Math.max(layout.contentPaddingHorizontal, 20);
-  const heroPaddingTop = layout.topPadding;
-  const keyboardOffset = layout.topPadding + 32;
-  const bubbleMaxWidth = layout.isTablet ? "62%" : layout.isFold ? "70%" : "82%";
-  const composerInset = layout.bottomPadding;
-  const promptBarHeight = 58;
-  const promptSpacing = 12;
-  const composerHeight = 86;
-  const composerSpacing = 16;
-  const scrollBottomInset =
-    promptBarHeight + promptSpacing + composerHeight + composerInset + composerSpacing;
-  const heroAnimatedStyle = {
-    transform: [{ translateY: heroTranslate }, { scale: heroScale }],
-    borderBottomLeftRadius: heroRadius,
-    borderBottomRightRadius: heroRadius
-  };
+  const [inputText, setInputText] = useState("");
+  const [showActions, setShowActions] = useState(false);
+  const bubbleMaxWidth = layout.isTablet ? "65%" : "75%";
 
-  const renderMessage = (message: Message) => {
-    if (message.from === "system") {
+  const renderMessage = ({ item }: { item: Message }) => {
+    if (item.from === "system") {
       return (
-        <View key={message.id} style={styles.systemRow}>
-          <Text style={styles.systemText}>{message.text}</Text>
+        <View style={styles.systemRow}>
+          <Text style={styles.systemText}>{item.text}</Text>
         </View>
       );
     }
 
-    const isMe = message.from === "me";
+    const isMe = item.from === "me";
     return (
-      <View key={message.id} style={[styles.messageRow, isMe && styles.messageRowMe]}>
-        {!isMe ? <Image source={{ uri: profile.avatar }} style={styles.messageAvatar} /> : null}
-        <View style={[styles.bubbleWrapper, { maxWidth: bubbleMaxWidth }, isMe && styles.bubbleWrapperMe]}>
+      <View style={[styles.messageRow, isMe && styles.messageRowMe]}>
+        {!isMe && <Image source={{ uri: profile.avatar }} style={styles.messageAvatar} />}
+        <View style={[styles.bubbleWrapper, { maxWidth: bubbleMaxWidth }]}>
           <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-            <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{message.text}</Text>
+            <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.text}</Text>
           </View>
-          <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>{message.time}</Text>
+          {item.time && (
+            <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>{item.time}</Text>
+          )}
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["left", "right"]}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={keyboardOffset}
-      >
-        <View style={styles.flex}>
-          <Animated.ScrollView
-            style={styles.scrollArea}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            scrollEventThrottle={16}
-            onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-              useNativeDriver: false
-            })}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomInset }]}
-          >
-            <AnimatedLinearGradient
-              colors={profile.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.hero, { paddingTop: heroPaddingTop, paddingHorizontal: horizontal }, heroAnimatedStyle]}
-            >
-              <View style={styles.heroBody}>
-                <Pressable style={styles.heroBackButton} onPress={() => router.back()}>
-                  <Ionicons name="chevron-back" size={18} color="#fff" />
-                </Pressable>
-                <View style={styles.avatarWrapper}>
-                  <Image source={{ uri: profile.avatar }} style={styles.heroAvatar} />
-                  <View style={styles.verifyBadge}>
-                    <Ionicons name="checkmark" size={12} color="#fff" />
-                  </View>
-                </View>
-                <View style={styles.heroInfo}>
-                  <View style={styles.heroTitleRow}>
-                    <Text style={styles.heroName}>{profile.name}</Text>
-                  </View>
-                  <Text style={styles.heroMeta}>
-                    {profile.vibe} • {profile.city}
-                  </Text>
-                  <Text style={styles.heroStatus}>{profile.status}</Text>
-                </View>
-              </View>
-              <View style={styles.heroStats}>
-                <View>
-                  <Text style={styles.statLabel}>Yanıt süresi</Text>
-                  <Text style={styles.statValue}>{profile.response}</Text>
-                </View>
-                <View style={styles.heroBadge}>
-                  <Ionicons name="sparkles" size={14} color="#fff" />
-                  <Text style={styles.heroBadgeText}>{profile.rate}</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View>
-                  <Text style={styles.statLabel}>Ses vibes</Text>
-                  <Text style={styles.statValue}>{profile.voiceTag}</Text>
-                </View>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.heroQuickScroll}
-                contentContainerStyle={[styles.heroQuickRow, { paddingHorizontal: horizontal }]}
-              >
-                {quickActions.map((action) => (
-                  <Pressable key={action.id} style={styles.quickPill}>
-                    <Ionicons name={action.icon} size={16} color="#fff" />
-                    <Text style={styles.quickLabel}>{action.label}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </AnimatedLinearGradient>
-
-            <View style={[styles.threadCard, { marginHorizontal: horizontal }]}>{profile.messages.map(renderMessage)}</View>
-          </Animated.ScrollView>
-
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <Image source={{ uri: profile.avatar }} style={styles.headerAvatar} />
+          <View style={styles.headerInfo}>
+            <Text style={[styles.headerName, { color: colors.textPrimary }]}>{profile.name}</Text>
+            <Text style={[styles.headerStatus, { color: colors.textSecondary }]}>
+              {profile.response}
+            </Text>
+          </View>
+          <Pressable style={styles.headerAction}>
+            <Ionicons name="call-outline" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable style={styles.headerAction}>
+            <Ionicons name="videocam-outline" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable style={styles.headerAction} onPress={() => setShowActions((prev) => !prev)}>
+            <Ionicons
+              name={showActions ? "close" : "ellipsis-horizontal"}
+              size={22}
+              color={colors.textPrimary}
+            />
+          </Pressable>
+        </View>
+        {showActions ? (
           <View
             style={[
-              styles.inputWrapper,
+              styles.actionsCard,
+              { borderColor: colors.border, backgroundColor: colors.surface }
+            ]}
+          >
+            {quickActions.map((action) => (
+              <Pressable
+                key={action.id}
+                style={styles.actionRow}
+                onPress={() => setShowActions(false)}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: colors.surfaceAlt }]}>
+                  <Ionicons name={action.icon} size={18} color={colors.accent} />
+                </View>
+                <View style={styles.actionInfo}>
+                  <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>
+                    {action.label}
+                  </Text>
+                  <Text style={[styles.actionHint, { color: colors.textSecondary }]}>
+                    {action.subtitle}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Messages */}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        >
+          <FlatList
+            data={profile.messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[
+              styles.messagesList,
               {
-                paddingHorizontal: horizontal,
-                paddingBottom: composerInset,
-                paddingTop: composerSpacing
+                paddingHorizontal: layout.contentPaddingHorizontal
+              }
+            ]}
+            ListFooterComponent={<View style={{ height: layout.sectionGap }} />}
+            showsVerticalScrollIndicator={false}
+            inverted={false}
+          />
+
+          {/* Input Bar */}
+          <View
+            style={[
+              styles.inputContainer,
+              {
+                paddingHorizontal: layout.contentPaddingHorizontal,
+                paddingBottom: layout.bottomPadding,
+                borderTopColor: colors.border
               }
             ]}
           >
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.promptRow, { minHeight: promptBarHeight }]}
+              contentContainerStyle={styles.promptRow}
             >
               {smartPrompts.map((prompt) => (
-                <Pressable key={prompt} style={styles.promptChip}>
+                <Pressable
+                  key={prompt}
+                  style={[styles.promptChip, { backgroundColor: colors.surface }]}
+                >
                   <Ionicons name="flash" size={14} color={colors.accent} />
-                  <Text style={styles.promptText}>{prompt}</Text>
+                  <Text style={[styles.promptText, { color: colors.textPrimary }]}>{prompt}</Text>
                 </Pressable>
               ))}
             </ScrollView>
-            <View style={[styles.inputSection, { minHeight: composerHeight }]}>
-              <Pressable style={styles.inputIcon}>
-                <Ionicons name="add" size={20} color={colors.textPrimary} />
+            <View style={styles.inputRow}>
+              <Pressable style={[styles.attachButton, { backgroundColor: colors.surface }]}>
+                <Ionicons name="add" size={24} color={colors.textSecondary} />
               </Pressable>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Mesajını yaz..."
-                placeholderTextColor={colors.textMuted}
-                multiline
-              />
-              <Pressable style={styles.sendButton}>
-                <Ionicons name="send" size={18} color="#fff" />
+              <View style={[styles.inputWrapper, { backgroundColor: colors.surface }]}>
+                <TextInput
+                  style={[styles.input, { color: colors.textPrimary }]}
+                  placeholder="Mesaj yaz..."
+                  placeholderTextColor={colors.textMuted}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  multiline
+                  maxLength={500}
+                />
+                <Pressable style={styles.emojiButton}>
+                  <Ionicons name="happy-outline" size={22} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Pressable
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: inputText.trim() ? colors.accent : colors.surfaceAlt }
+                ]}
+              >
+                <Ionicons name="send" size={20} color="#fff" />
               </Pressable>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -410,280 +401,212 @@ function createStyles(colors: ThemeColors) {
     safe: {
       flex: 1
     },
-    flex: {
-      flex: 1,
-      backgroundColor: colors.background
-    },
-    scrollArea: {
+    container: {
       flex: 1
     },
-    scrollContent: {
-      gap: 14,
-      flexGrow: 1
+    flex: {
+      flex: 1
     },
-    hero: {
-      paddingBottom: 14,
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32,
-      gap: 16
-    },
-    heroBody: {
+    // Header
+    header: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 12
-    },
-    heroBackButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.3)",
-      backgroundColor: "rgba(0,0,0,0.18)",
-      alignItems: "center",
-      justifyContent: "center"
-    },
-    heroIconButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.3)",
-      backgroundColor: "rgba(0,0,0,0.12)",
-      alignItems: "center",
-      justifyContent: "center"
-    },
-    avatarWrapper: {
-      position: "relative"
-    },
-    heroAvatar: {
-      width: 70,
-      height: 70,
-      borderRadius: 28
-    },
-    verifyBadge: {
-      position: "absolute",
-      right: -2,
-      bottom: -2,
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.accent,
-      borderWidth: 2,
-      borderColor: colors.surface
-    },
-    heroInfo: {
-      flex: 1,
-      gap: 4
-    },
-    heroTitleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10
-    },
-    heroName: {
-      color: "#fff",
-      fontSize: 24,
-      fontWeight: "700"
-    },
-    heroMeta: {
-      color: "rgba(255,255,255,0.75)"
-    },
-    heroStatus: {
-      color: "#fef3c7",
-      fontWeight: "700",
-      marginTop: 4
-    },
-    heroBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      backgroundColor: "rgba(255,255,255,0.2)",
-      borderRadius: 999,
-      flexDirection: "row",
-      gap: 6,
-      alignItems: "center"
-    },
-    heroBadgeText: {
-      color: "#fff",
-      fontWeight: "600"
-    },
-    heroStats: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between"
-    },
-    statLabel: {
-      color: "rgba(255,255,255,0.8)",
-      fontSize: 12
-    },
-    statValue: {
-      color: "#fff",
-      fontWeight: "600",
-      marginTop: 6
-    },
-    statDivider: {
-      width: 1,
-      height: 32,
-      backgroundColor: "rgba(255,255,255,0.3)"
-    },
-    heroQuickScroll: {
-      alignSelf: "stretch"
-    },
-    heroQuickRow: {
-      paddingVertical: 8,
-      gap: 10,
-      flexGrow: 1,
-      minWidth: "100%"
-    },
-    quickPill: {
-      flexDirection: "row",
-      gap: 8,
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingVertical: 9,
-      borderRadius: 999,
-      backgroundColor: "rgba(255,255,255,0.18)",
-      borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.25)"
+      paddingVertical: 12,
+      gap: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      backgroundColor: colors.background
     },
-    quickLabel: {
-      color: "#fff",
-      fontWeight: "600",
-      fontSize: 13
+    backButton: {
+      width: 36,
+      height: 36,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: -4
     },
-    threadCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 26,
-      paddingHorizontal: 18,
-      paddingVertical: 20,
-      gap: 16,
-      shadowColor: colors.navShadow,
-      shadowOpacity: 0.12,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 14 },
-      elevation: 4,
-      marginTop: -28
+    headerAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20
+    },
+    headerInfo: {
+      flex: 1
+    },
+    headerName: {
+      fontSize: 16,
+      fontWeight: "600"
+    },
+    headerStatus: {
+      fontSize: 12,
+      marginTop: 2
+    },
+    headerAction: {
+      width: 36,
+      height: 36,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    actionsCard: {
+      marginHorizontal: 16,
+      marginTop: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 20,
+      paddingVertical: 8
+    },
+    actionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 12
+    },
+    actionIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    actionInfo: {
+      flex: 1
+    },
+    actionLabel: {
+      fontSize: 15,
+      fontWeight: "600"
+    },
+    actionHint: {
+      fontSize: 12,
+      marginTop: 2
+    },
+    // Messages
+    messagesList: {
+      paddingVertical: 16,
+      gap: 12
     },
     messageRow: {
       flexDirection: "row",
       alignItems: "flex-end",
-      gap: 10
+      gap: 8,
+      marginBottom: 4
     },
     messageRowMe: {
-      justifyContent: "flex-end"
+      flexDirection: "row-reverse"
     },
     messageAvatar: {
-      width: 34,
-      height: 34,
-      borderRadius: 14
+      width: 32,
+      height: 32,
+      borderRadius: 16
     },
-    bubbleWrapper: {},
-    bubbleWrapperMe: {
-      alignItems: "flex-end"
+    bubbleWrapper: {
+      gap: 4
     },
     bubble: {
-      borderRadius: 24,
-      paddingHorizontal: 16,
-      paddingVertical: 12
+      borderRadius: 18,
+      paddingHorizontal: 14,
+      paddingVertical: 10
     },
     bubbleMe: {
-      backgroundColor: colors.accent
+      backgroundColor: colors.accent,
+      borderBottomRightRadius: 4
     },
     bubbleThem: {
-      backgroundColor: colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: colors.border
+      backgroundColor: colors.surface,
+      borderBottomLeftRadius: 4
     },
     messageText: {
+      fontSize: 15,
+      lineHeight: 20,
       color: colors.textPrimary
     },
     messageTextMe: {
       color: "#fff"
     },
     messageTime: {
-      marginTop: 6,
-      fontSize: 12,
-      color: colors.textMuted
+      fontSize: 11,
+      color: colors.textMuted,
+      paddingHorizontal: 4
     },
     messageTimeMe: {
       textAlign: "right"
     },
     systemRow: {
-      alignItems: "center"
+      alignItems: "center",
+      marginVertical: 8
     },
     systemText: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceAlt,
       fontSize: 12,
-      color: colors.textMuted
+      color: colors.textMuted,
+      backgroundColor: colors.surfaceAlt,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12
+    },
+    // Input
+    inputContainer: {
+      gap: 10,
+      paddingTop: 12,
+      backgroundColor: colors.background,
+      borderTopWidth: StyleSheet.hairlineWidth
     },
     promptRow: {
-      paddingVertical: 6,
       gap: 10,
-      marginBottom: 12
+      paddingVertical: 4
     },
     promptChip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      backgroundColor: colors.surface,
+      gap: 6,
       borderRadius: 999,
-      borderWidth: 1,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border
     },
     promptText: {
-      color: colors.textPrimary,
+      fontSize: 13,
       fontWeight: "600"
     },
-    inputWrapper: {
-      backgroundColor: colors.background,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.border
-    },
-    inputSection: {
+    inputRow: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      paddingTop: 12,
-      paddingBottom: 16
+      alignItems: "flex-end",
+      gap: 8
     },
-    inputIcon: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      borderWidth: 1,
-      borderColor: colors.border,
+    attachButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    inputWrapper: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "flex-end",
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      minHeight: 40,
+      maxHeight: 100
+    },
+    input: {
+      flex: 1,
+      fontSize: 15,
+      lineHeight: 20,
+      paddingVertical: 2
+    },
+    emojiButton: {
+      width: 28,
+      height: 28,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface
-    },
-    textInput: {
-      flex: 1,
-      minHeight: 46,
-      maxHeight: 120,
-      borderRadius: 28,
-      backgroundColor: colors.surface,
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      color: colors.textPrimary
+      marginLeft: 4
     },
     sendButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.accent,
-      shadowColor: colors.accent,
-      shadowOpacity: 0.25,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 4
+      justifyContent: "center"
     }
   });
 }
