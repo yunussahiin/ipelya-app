@@ -139,14 +139,14 @@ function createStyles(colors: any) {
       lineHeight: 20
     },
     errorContainer: {
-      backgroundColor: "rgba(239, 68, 68, 0.1)",
+      backgroundColor: `${colors.warning}15`,
       borderRadius: LAYOUT_CONSTANTS.radiusMedium,
       padding: 12,
       borderLeftWidth: 3,
-      borderLeftColor: "#ef4444"
+      borderLeftColor: colors.warning
     },
     errorText: {
-      color: "#fca5a5",
+      color: colors.warning,
       fontSize: 14,
       fontWeight: "500",
       lineHeight: 20

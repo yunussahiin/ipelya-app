@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SystemBars } from "react-native-edge-to-edge";
 import { View } from "react-native";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
@@ -9,6 +10,7 @@ function AppStack() {
 
   return (
     <>
+      <SystemBars style={scheme === "dark" ? "light" : "dark"} hidden={{ navigationBar: false }} />
       <StatusBar
         style={scheme === "dark" ? "light" : "dark"}
         backgroundColor={colors.background}

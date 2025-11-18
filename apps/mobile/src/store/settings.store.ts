@@ -39,7 +39,7 @@ interface SettingsState {
 }
 
 const defaultSettings = {
-  themeMode: "system" as ThemePreference,
+  themeMode: "dark" as ThemePreference,
   accentColor: "magenta" as ThemeAccent,
   pushNotifications: true,
   emailNotifications: true,

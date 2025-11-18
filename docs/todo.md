@@ -23,3 +23,4 @@
 - [ ] LiveKit token akışı ve dakika bazlı coin düşümü için edge functions + mobile client entegrasyonunu gerçekleştir.
 - [ ] AI Fantasy ve ASMR flow'larını edge functions ile uçtan uca bağlayıp UI'da sonuç dinlemeyi implemente et.
 - [ ] Shadcn tabanlı web creator dashboard ekranlarını (dashboard/content/schedule/earnings) oluştur.
+- [x] Vercel deploy'unda pnpm ERR_INVALID_THIS hatasını analiz edip package manager / engines yapılandırmasıyla çöz.

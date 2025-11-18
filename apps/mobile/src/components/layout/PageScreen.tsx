@@ -113,7 +113,8 @@ export function PageScreen({
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     safe: {
-      flex: 1
+      flex: 1,
+      backgroundColor: colors.background
     },
     chrome: {
       flex: 1,

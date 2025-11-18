@@ -1,11 +1,13 @@
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text, StyleSheet } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "expo-router";
+import { useTheme } from "@/theme/ThemeProvider";
 import { AuthScreen } from "@/components/layout/AuthScreen";
 import { AuthTextField } from "@/components/forms/AuthTextField";
 import { useAuthActions } from "@/hooks/useAuthActions";
+import { LAYOUT_CONSTANTS } from "@/theme/layout";
 
 const schema = z
   .object({
@@ -21,6 +23,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 export default function RegisterScreen() {
+  const { colors } = useTheme();
   const { signUp, isLoading, error, setError } = useAuthActions();
   const { control, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -31,14 +34,16 @@ export default function RegisterScreen() {
     await signUp(email, password);
   });
 
+  const styles = createStyles(colors);
+
   return (
     <AuthScreen
       title="Yeni bir gerçeklik başlat"
       subtitle="Shadow profilini ve gerçek kimliğini aynı anda yönet."
       footer={
-        <Text style={{ color: "#94a3b8" }}>
-          Hesabın var mı? {" "}
-          <Link href="/(auth)/login" style={{ color: "#f472b6", fontWeight: "600" }}>
+        <Text style={styles.footerText}>
+          Hesabın var mı?{" "}
+          <Link href="/(auth)/login" style={styles.loginLink}>
             Giriş yap
           </Link>
         </Text>

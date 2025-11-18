@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PageScreen } from "@/components/layout/PageScreen";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/theme/ThemeProvider";
 import { LAYOUT_CONSTANTS } from "@/theme/layout";
 
 interface AuthScreenProps {
@@ -13,39 +13,40 @@ interface AuthScreenProps {
 }
 
 export function AuthScreen({ title, subtitle, footer, children }: AuthScreenProps) {
-  const { width } = useWindowDimensions();
+  const { width, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
-  // Responsive padding
   const isSmallPhone = width < 375;
   const isPhone = width < 768;
   const horizontalPadding = isPhone ? LAYOUT_CONSTANTS.screenPaddingHorizontal : 32;
   const topPadding = isSmallPhone ? 16 : 24;
   const bottomPadding = isSmallPhone ? 24 : 32;
 
-  const dynamicStyles = createStyles(horizontalPadding, topPadding, bottomPadding, insets);
+  const dynamicStyles = createStyles(horizontalPadding, topPadding, bottomPadding, insets, colors);
 
   return (
-    <PageScreen showNavigation={false} contentStyle={() => [dynamicStyles.page]}>
-      {() => (
-        <LinearGradient colors={["#120817", "#1a1023", "#120817"]} style={dynamicStyles.gradient}>
-          <ScrollView
-            contentContainerStyle={dynamicStyles.content}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-          >
-            <View style={dynamicStyles.header}>
-              <Text style={dynamicStyles.brand}>ipelya</Text>
-              <Text style={dynamicStyles.title}>{title}</Text>
-              {subtitle ? <Text style={dynamicStyles.subtitle}>{subtitle}</Text> : null}
-            </View>
-            <View style={dynamicStyles.card}>{children}</View>
-            {footer ? <View style={dynamicStyles.footer}>{footer}</View> : null}
-          </ScrollView>
-        </LinearGradient>
-      )}
-    </PageScreen>
+    <SafeAreaView
+      style={[dynamicStyles.safe, { backgroundColor: colors.background }]}
+      edges={["top", "bottom", "left", "right"]}
+    >
+      <LinearGradient colors={["#050505", "#050505", "#050505"]} style={dynamicStyles.gradient}>
+        <ScrollView
+          contentContainerStyle={[dynamicStyles.content, { minHeight: windowHeight }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+        >
+          <View style={dynamicStyles.header}>
+            <Text style={dynamicStyles.brand}>ipelya</Text>
+            <Text style={dynamicStyles.title}>{title}</Text>
+            {subtitle ? <Text style={dynamicStyles.subtitle}>{subtitle}</Text> : null}
+          </View>
+          <View style={dynamicStyles.card}>{children}</View>
+          {footer ? <View style={dynamicStyles.footer}>{footer}</View> : null}
+        </ScrollView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
@@ -53,12 +54,13 @@ function createStyles(
   horizontalPadding: number,
   topPadding: number,
   bottomPadding: number,
-  insets: any
+  insets: any,
+  colors: any
 ) {
   return StyleSheet.create({
-    page: {
+    safe: {
       flex: 1,
-      padding: 0
+      backgroundColor: colors.background
     },
     gradient: {
       flex: 1,
@@ -74,30 +76,30 @@ function createStyles(
       gap: 8
     },
     brand: {
-      color: "#f472b6",
+      color: colors.accentSoft,
       fontSize: 16,
       letterSpacing: 4,
       textTransform: "uppercase",
       fontWeight: "600"
     },
     title: {
-      color: "#fff",
+      color: colors.textPrimary,
       fontSize: 32,
       fontWeight: "700",
       lineHeight: 40
     },
     subtitle: {
-      color: "#d1d5db",
+      color: colors.textSecondary,
       fontSize: 16,
       lineHeight: 24
     },
     card: {
-      backgroundColor: "rgba(18, 8, 23, 0.85)",
+      backgroundColor: colors.surface,
       borderRadius: LAYOUT_CONSTANTS.radiusXXL,
       padding: horizontalPadding,
       gap: LAYOUT_CONSTANTS.inputGap,
       borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.05)"
+      borderColor: colors.border
     },
     footer: {
       alignItems: "center",
