@@ -190,9 +190,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setAccent = (next: ThemeAccent) => setAccentColor(next);
 
   const value = useMemo<ThemeContextValue>(() => {
-    const resolved = resolveScheme(scheme);
-    const safeAccent = accent || "magenta"; // Extra safety
-    const accentPalette = accentPalettes[safeAccent][resolved];
+    const safeScheme = scheme || "dark"; // Extra safety for scheme
+    const resolved = resolveScheme(safeScheme);
+    const safeAccent = accent || "magenta"; // Extra safety for accent
+    const accentPalette =
+      accentPalettes[safeAccent]?.[resolved] || accentPalettes["magenta"]["dark"];
     const baseColors = palettes[resolved];
     return {
       scheme: resolved,
