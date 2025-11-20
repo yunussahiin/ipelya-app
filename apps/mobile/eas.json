@@ -21,8 +21,7 @@
       "ios": {
         "simulator": true
       },
-      "environment": "development",
-      "prebuildCommand": "corepack enable && pnpm install"
+      "environment": "development"
     }
   },
   "submit": {
