@@ -2,5 +2,6 @@
   "buildCommand": "turbo run build --filter=web",
   "installCommand": "corepack enable && corepack prepare pnpm@9.12.3 --activate && pnpm install --no-frozen-lockfile",
   "framework": "nextjs",
-  "outputDirectory": "apps/web/.next"
+  "outputDirectory": "apps/web/.next",
+  "rootDirectory": "."
 }
