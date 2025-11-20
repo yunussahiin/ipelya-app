@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Image, ActivityIndicator } from "rea
 import { Settings, Edit2, Users, Heart, Ban } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
 import { useFollowersRealtime } from "@/hooks/useFollowersRealtime";
@@ -90,15 +91,18 @@ export default function ProfileScreen() {
           <View style={styles.header}>
             <View style={styles.headerTop}>
               <Text style={styles.title}>Profil</Text>
-              <Pressable
-                style={styles.settingsButton}
-                onPress={() => router.push("/(settings)")}
-                accessible={true}
-                accessibilityLabel="Ayarlar"
-                accessibilityRole="button"
-              >
-                <Settings size={24} color={colors.textPrimary} />
-              </Pressable>
+              <View style={styles.headerActions}>
+                <NotificationBell />
+                <Pressable
+                  style={styles.settingsButton}
+                  onPress={() => router.push("/(settings)")}
+                  accessible={true}
+                  accessibilityLabel="Ayarlar"
+                  accessibilityRole="button"
+                >
+                  <Settings size={24} color={colors.textPrimary} />
+                </Pressable>
+              </View>
             </View>
           </View>
 
@@ -216,6 +220,11 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textPrimary,
       fontSize: 28,
       fontWeight: "700"
+    },
+    headerActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12
     },
     settingsButton: {
       padding: 12,

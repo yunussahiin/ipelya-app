@@ -5,14 +5,21 @@
     "requireCommit": false
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "environment": "development"
+    },
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
         "simulator": true
       },
-      "environment": "development",
-      "node": "20.x"
+      "environment": "development"
     },
     "preview": {
       "extends": "production",

@@ -39,6 +39,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "ipelya",
     "plugins": [
       [
         "expo-notifications",
@@ -46,9 +47,7 @@
           "icon": "./assets/notification-icon.png",
           "color": "#FF6B35",
           "defaultChannel": "default",
-          "sounds": [
-            "./assets/notification-sound.wav"
-          ],
+          "sounds": ["./assets/notification-sound.wav"],
           "enableBackgroundRemoteNotifications": true
         }
       ]

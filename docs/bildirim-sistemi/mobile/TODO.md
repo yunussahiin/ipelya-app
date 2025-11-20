@@ -218,57 +218,100 @@
 
 ---
 
-## Phase 6: Notification Types Implementation (Hafta 3)
+## Phase 5.5: Notification Preferences Screen Testing (Hafta 2-3)
 
-### 6.1 Social Notifications
-- [ ] new_follower bildirim tetikle
-- [ ] follow_back bildirim tetikle
-- [ ] profile_mention bildirim tetikle
-- [ ] user_blocked bildirim tetikle
+### 5.5.1 Push Notifications Permission
+- [ ] Permission request flow test
+- [ ] Permission status saved to `notification_preferences.push_enabled`
+- [ ] Simulator graceful handling (warning only, no error)
+- [ ] Physical device permission handling
 
-### 6.2 Messaging Notifications
-- [ ] new_message bildirim tetikle
-- [ ] message_like bildirim tetikle
-- [ ] message_reply bildirim tetikle
+### 5.5.2 Notification Preferences Screen
+- [ ] Push toggle çalışıyor mu?
+- [ ] Email toggle çalışıyor mu?
+- [ ] Notification type toggles çalışıyor mu?
+- [ ] Quiet hours ayarlanabiliyor mu?
+- [ ] Otomatik kaydetme çalışıyor mu?
+- [ ] Error handling (network, permissions)
+- [ ] Loading states gösteriliyor mu?
+- [ ] Back button çalışıyor mu?
 
-### 6.3 Content Notifications
-- [ ] content_like bildirim tetikle
-- [ ] content_comment bildirim tetikle
-- [ ] content_share bildirim tetikle
-- [ ] content_update bildirim tetikle
-
-### 6.4 System Notifications
-- [ ] system_alert bildirim tetikle
-- [ ] maintenance bildirim tetikle
-- [ ] security_alert bildirim tetikle
-- [ ] account_activity bildirim tetikle
+### 5.5.3 Settings Screen
+- [ ] Back button eklendi ✅
+- [ ] Theme toggle çalışıyor mu?
+- [ ] Accent color seçimi çalışıyor mu?
+- [ ] Logout button çalışıyor mu?
 
 **Dosyalar:**
-- Edge Functions (Supabase tarafında)
+- `apps/mobile/app/(settings)/notifications.tsx`
+- `apps/mobile/app/(settings)/index.tsx`
 
 ---
 
-## Phase 7: Deep Linking (Hafta 3)
+## Phase 6: Notification Types Implementation (Hafta 3) ✅
 
-### 7.1 Deep Link Routes
-- [ ] `/profile/{userId}` route
-- [ ] `/messages/{userId}` route
-- [ ] `/content/{contentId}` route
-- [ ] `/settings/security` route
+### 6.1 Database Triggers
+- [x] new_follower trigger oluştur
+- [x] follow_back trigger oluştur
+- [x] profile_mention trigger oluştur
+- [x] user_blocked trigger oluştur
+- [x] new_message trigger oluştur
+- [x] message_like trigger oluştur
+- [x] message_reply trigger oluştur
+- [x] content_like trigger oluştur
+- [x] content_comment trigger oluştur
+- [x] content_share trigger oluştur
+- [x] content_update trigger oluştur
+- [x] system_alert function oluştur
+- [x] maintenance function oluştur
+- [x] security_alert function oluştur
+- [x] account_activity function oluştur
 
-### 7.2 Notification Data Mapping
-- [ ] new_follower → `/profile/{actor_id}`
-- [ ] new_message → `/messages/{actor_id}`
-- [ ] content_like → `/content/{content_id}`
-- [ ] security_alert → `/settings/security`
+### 6.2 Edge Function
+- [x] send-notification Edge Function oluştur
+- [x] EXPO_ACCESS_TOKEN secret set et
+- [x] Function deploy et
 
-### 7.3 Testing
-- [ ] Bildirime tıkla
-- [ ] Doğru sayfaya gidiyor mu?
-- [ ] Data doğru mu?
+### 6.3 Database Webhook
+- [x] Webhook oluştur (notifications → INSERT)
+- [x] send-notification function'ı bağla
+- [x] Webhook test et
 
 **Dosyalar:**
-- `apps/mobile/app/_layout.tsx` (deep linking config)
+- [x] `supabase/functions/send-notification/index.ts`
+- [x] `.env.local` (EXPO_ACCESS_TOKEN)
+- [x] Database Webhook (send-notification-webhook)
+
+---
+
+## Phase 7: Deep Linking (Hafta 3) ✅
+
+### 7.1 Deep Link Routes
+- [x] `/profile/{userId}` route
+- [x] `/messages/{userId}` route
+- [x] `/content/{contentId}` route
+- [x] `/(settings)/security` route
+
+### 7.2 Notification Data Mapping
+- [x] new_follower → `/profile/{actor_id}`
+- [x] follow_back → `/profile/{actor_id}`
+- [x] new_message → `/messages/{actor_id}`
+- [x] message_like → `/messages/{actor_id}`
+- [x] message_reply → `/messages/{actor_id}`
+- [x] content_like → `/content/{content_id}`
+- [x] content_comment → `/content/{content_id}`
+- [x] content_share → `/content/{content_id}`
+- [x] security_alert → `/(settings)/security`
+- [x] system_alert → custom URL
+
+### 7.3 URL Scheme
+- [x] `scheme: "ipelya"` app.json'a eklendi
+- [x] Deep linking handler implement edildi
+- [x] Last notification check (app açıldığında)
+
+**Dosyalar:**
+- [x] `apps/mobile/app.json` (scheme)
+- [x] `apps/mobile/src/hooks/useNotificationListener.ts` (deep linking)
 
 ---
 

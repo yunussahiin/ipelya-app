@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable, Switch } from "react-native";
-import { LogOut } from "lucide-react-native";
+import { LogOut, ChevronLeft } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -41,10 +41,15 @@ export default function SettingsScreen() {
     <PageScreen showNavigation={false}>
       {() => (
         <>
-          <View style={styles.header}>
-            <Text style={styles.label}>Ayarlar</Text>
-            <Text style={styles.title}>Tercihler</Text>
-            <Text style={styles.subtitle}>Uygulama tercihlerinizi yönetin ve özelleştirin.</Text>
+          <View style={styles.headerContainer}>
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <ChevronLeft size={24} color={colors.textPrimary} />
+            </Pressable>
+            <View style={styles.header}>
+              <Text style={styles.label}>Ayarlar</Text>
+              <Text style={styles.title}>Tercihler</Text>
+              <Text style={styles.subtitle}>Uygulama tercihlerinizi yönetin ve özelleştirin.</Text>
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -137,8 +142,19 @@ import React from "react";
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      paddingBottom: 16
+    },
+    backButton: {
+      padding: 8,
+      marginTop: -8
+    },
     header: {
-      gap: 6
+      gap: 8,
+      flex: 1
     },
     label: {
       color: colors.textSecondary,

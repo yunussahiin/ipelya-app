@@ -23,7 +23,9 @@ export function useDeviceToken(): UseDeviceTokenReturn {
 
       // 1. Fiziksel cihaz kontrolü
       if (!Device.isDevice) {
-        throw new Error('Push notifications require a physical device');
+        console.warn('⚠️ Simulator detected - push notifications disabled (requires physical device)');
+        setLoading(false);
+        return;
       }
 
       console.log('✅ Physical device detected');
@@ -95,6 +97,19 @@ export function useDeviceToken(): UseDeviceTokenReturn {
       if (dbError) throw dbError;
 
       console.log('✅ Token saved to database');
+
+      // 6. Permission status'unu notification_preferences'a kaydet
+      console.log('💾 Saving permission status...');
+      const { error: prefError } = await supabase
+        .from('notification_preferences')
+        .upsert({
+          user_id: user.id,
+          push_enabled: true,
+        });
+
+      if (prefError) throw prefError;
+
+      console.log('✅ Permission status saved');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to register device token';
       console.error('❌ Device token error:', message);
