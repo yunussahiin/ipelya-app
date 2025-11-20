@@ -29,8 +29,10 @@ export function ThemeSwitcherToggle() {
     if (theme === "system") {
       const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setIsDark(isDarkMode);
+      applyTheme("system");
     } else {
       setIsDark(theme === "dark");
+      applyTheme(theme);
     }
   }, []);
 

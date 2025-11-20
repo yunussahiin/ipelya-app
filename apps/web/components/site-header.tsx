@@ -3,6 +3,7 @@
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSwitcherToggle } from "@/app/ops/(private)/account/theme-switcher-toggle";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { NavUser } from "@/components/nav-user";
 
 interface SiteHeaderProps {
@@ -21,6 +22,7 @@ export function SiteHeader({ user }: SiteHeaderProps) {
         <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
         <h1 className="text-base font-medium">Documents</h1>
         <div className="ml-auto flex items-center gap-2">
+          <NotificationCenter notifications={[]} />
           <ThemeSwitcherToggle />
           {user && <NavUser user={user} variant="header" />}
         </div>

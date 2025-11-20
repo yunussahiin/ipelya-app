@@ -23,6 +23,14 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { Loader2, TrendingUp, Send, CheckCircle, AlertCircle } from "lucide-react";
 
 interface Campaign {
@@ -205,14 +213,16 @@ export default function NotificationAnalytics() {
           {/* Total Campaigns */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Toplam Kampanya</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Toplam Kampanya
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="text-3xl font-bold">{stats.totalCampaigns}</div>
                 <Send className="h-8 w-8 text-blue-500 opacity-50" />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {stats.sentCampaigns} gönderildi, {stats.failedCampaigns} başarısız
               </p>
             </CardContent>
@@ -221,7 +231,9 @@ export default function NotificationAnalytics() {
           {/* Total Notifications */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Toplam Bildirim</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Toplam Bildirim
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
@@ -230,7 +242,7 @@ export default function NotificationAnalytics() {
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-500 opacity-50" />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {stats.deliveredNotifications.toLocaleString()} iletildi
               </p>
             </CardContent>
@@ -239,14 +251,16 @@ export default function NotificationAnalytics() {
           {/* Delivery Rate */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">İletim Oranı</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                İletim Oranı
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="text-3xl font-bold">{stats.averageDeliveryRate.toFixed(1)}%</div>
                 <CheckCircle className="h-8 w-8 text-emerald-500 opacity-50" />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {stats.failedNotifications.toLocaleString()} başarısız
               </p>
             </CardContent>
@@ -255,7 +269,7 @@ export default function NotificationAnalytics() {
           {/* Sent Campaigns */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Gönderilen Kampanya
               </CardTitle>
             </CardHeader>
@@ -264,7 +278,7 @@ export default function NotificationAnalytics() {
                 <div className="text-3xl font-bold">{stats.sentCampaigns}</div>
                 <AlertCircle className="h-8 w-8 text-orange-500 opacity-50" />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {((stats.sentCampaigns / stats.totalCampaigns) * 100).toFixed(1)}% başarı oranı
               </p>
             </CardContent>
@@ -422,47 +436,56 @@ export default function NotificationAnalytics() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-4">Başlık</th>
-                  <th className="text-left py-2 px-4">Tür</th>
-                  <th className="text-left py-2 px-4">Durum</th>
-                  <th className="text-right py-2 px-4">Alıcı</th>
-                  <th className="text-right py-2 px-4">İletilen</th>
-                  <th className="text-right py-2 px-4">Başarısız</th>
-                  <th className="text-right py-2 px-4">Oran</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-left">Başlık</TableHead>
+                  <TableHead className="text-left">Tür</TableHead>
+                  <TableHead className="text-left">Durum</TableHead>
+                  <TableHead className="text-right">Alıcı</TableHead>
+                  <TableHead className="text-right">İletilen</TableHead>
+                  <TableHead className="text-right">Başarısız</TableHead>
+                  <TableHead className="text-right">Oran</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {campaigns.slice(0, 10).map((campaign) => {
                   const deliveryRate =
                     campaign.total_recipients > 0
                       ? ((campaign.sent_count / campaign.total_recipients) * 100).toFixed(1)
                       : "0";
 
+                  const statusBadgeClass = {
+                    sent: "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",
+                    scheduled: "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200",
+                    failed: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200",
+                    draft: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
+                    archived:
+                      "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
+                  };
+
+                  const typeBadgeClass =
+                    "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
+
                   return (
-                    <tr key={campaign.id} className="border-b hover:bg-gray-50">
-                      <td className="py-2 px-4 font-medium truncate max-w-xs">{campaign.title}</td>
-                      <td className="py-2 px-4">
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    <TableRow key={campaign.id} className="hover:bg-accent">
+                      <TableCell className="font-medium truncate max-w-xs">
+                        {campaign.title}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-xs px-2 py-1 rounded ${typeBadgeClass}`}>
                           {campaign.type === "single"
                             ? "Tekil"
                             : campaign.type === "bulk"
                               ? "Toplu"
                               : "Zamanlanmış"}
                         </span>
-                      </td>
-                      <td className="py-2 px-4">
+                      </TableCell>
+                      <TableCell>
                         <span
                           className={`text-xs px-2 py-1 rounded font-medium ${
-                            campaign.status === "sent"
-                              ? "bg-green-100 text-green-800"
-                              : campaign.status === "scheduled"
-                                ? "bg-blue-100 text-blue-800"
-                                : campaign.status === "failed"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-gray-100 text-gray-800"
+                            statusBadgeClass[campaign.status as keyof typeof statusBadgeClass] ||
+                            statusBadgeClass.draft
                           }`}
                         >
                           {campaign.status === "sent"
@@ -471,24 +494,26 @@ export default function NotificationAnalytics() {
                               ? "Zamanlanmış"
                               : campaign.status === "failed"
                                 ? "Başarısız"
-                                : "Taslak"}
+                                : campaign.status === "archived"
+                                  ? "Arşivlendi"
+                                  : "Taslak"}
                         </span>
-                      </td>
-                      <td className="py-2 px-4 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         {campaign.total_recipients.toLocaleString()}
-                      </td>
-                      <td className="py-2 px-4 text-right text-green-600 font-medium">
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-green-600 dark:text-green-400">
                         {campaign.sent_count.toLocaleString()}
-                      </td>
-                      <td className="py-2 px-4 text-right text-red-600 font-medium">
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
                         {campaign.failed_count.toLocaleString()}
-                      </td>
-                      <td className="py-2 px-4 text-right font-medium">{deliveryRate}%</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{deliveryRate}%</TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
