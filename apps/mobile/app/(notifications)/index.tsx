@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { ChevronLeft, Trash2 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useNotifications } from "@/hooks/useNotifications";
+import { CheckCheck } from "lucide-react-native";
 
 interface NotificationItem {
   id: string;
@@ -19,58 +20,65 @@ interface NotificationItem {
 export default function NotificationsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { notifications, loading, markAsRead, deleteNotification } = useNotifications();
+  const { notifications, loading, markAsRead, markAllAsRead, deleteNotification, unreadCount } =
+    useNotifications();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const handleNotificationPress = async (notification: NotificationItem) => {
-    // Mark as read
-    if (!notification.read) {
-      await markAsRead(notification.id);
-    }
-
-    // Handle deep linking based on notification type
-    if (notification.data?.url) {
-      router.push(notification.data.url as string);
-    } else if (notification.data?.actor_id) {
-      switch (notification.type) {
-        case "new_follower":
-        case "follow_back":
-          router.push(`/(profile)/${notification.data.actor_id}`);
-          break;
-        case "new_message":
-        case "message_like":
-        case "message_reply":
-          router.push(`/messages/${notification.data.actor_id}`);
-          break;
+  const handleNotificationPress = useCallback(
+    async (notification: NotificationItem) => {
+      // Mark as read
+      if (!notification.read) {
+        await markAsRead(notification.id);
       }
-    } else if (notification.data?.content_id) {
-      router.push(`/content/${notification.data.content_id}`);
-    }
-  };
 
-  const renderNotification = ({ item }: { item: NotificationItem }) => (
-    <Pressable
-      style={[styles.notificationItem, !item.read && styles.notificationItemUnread]}
-      onPress={() => handleNotificationPress(item)}
-    >
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationTitle}>{item.title}</Text>
-        <Text style={styles.notificationBody} numberOfLines={2}>
-          {item.body}
-        </Text>
-        <Text style={styles.notificationTime}>
-          {new Date(item.created_at).toLocaleDateString("tr-TR", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-          })}
-        </Text>
-      </View>
-      <Pressable style={styles.deleteButton} onPress={() => deleteNotification(item.id)}>
-        <Trash2 size={18} color={colors.textSecondary} />
+      // Handle deep linking based on notification type
+      if (notification.data?.url) {
+        router.push(notification.data.url as string);
+      } else if (notification.data?.actor_id) {
+        switch (notification.type) {
+          case "new_follower":
+          case "follow_back":
+            router.push(`/(profile)/${notification.data.actor_id}`);
+            break;
+          case "new_message":
+          case "message_like":
+          case "message_reply":
+            router.push(`/messages/${notification.data.actor_id}`);
+            break;
+        }
+      } else if (notification.data?.content_id) {
+        router.push(`/content/${notification.data.content_id}`);
+      }
+    },
+    [markAsRead, router]
+  );
+
+  const renderNotification = useCallback(
+    ({ item }: { item: NotificationItem }) => (
+      <Pressable
+        style={[styles.notificationItem, !item.read && styles.notificationItemUnread]}
+        onPress={() => handleNotificationPress(item)}
+      >
+        <View style={styles.notificationContent}>
+          <Text style={styles.notificationTitle}>{item.title}</Text>
+          <Text style={styles.notificationBody} numberOfLines={2}>
+            {item.body}
+          </Text>
+          <Text style={styles.notificationTime}>
+            {new Date(item.created_at).toLocaleDateString("tr-TR", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            })}
+          </Text>
+        </View>
+        <Pressable style={styles.deleteButton} onPress={() => deleteNotification(item.id)}>
+          <Trash2 size={18} color={colors.textSecondary} />
+        </Pressable>
       </Pressable>
-    </Pressable>
+    ),
+    [handleNotificationPress, deleteNotification, colors, styles]
   );
 
   if (loading) {
@@ -99,8 +107,20 @@ export default function NotificationsScreen() {
             >
               <ChevronLeft size={24} color={colors.textPrimary} />
             </Pressable>
-            <Text style={styles.title}>Bildirimler</Text>
-            <View style={styles.spacer} />
+            <Text style={styles.title}>Bildirimler ({unreadCount})</Text>
+            <Pressable
+              style={[styles.markAllButton, unreadCount === 0 && styles.markAllButtonDisabled]}
+              onPress={markAllAsRead}
+              disabled={unreadCount === 0}
+              accessible={true}
+              accessibilityLabel="Tümünü oku"
+              accessibilityRole="button"
+            >
+              <CheckCheck
+                size={20}
+                color={unreadCount > 0 ? colors.accent : colors.textSecondary}
+              />
+            </Pressable>
           </View>
 
           {notifications.length === 0 ? (
@@ -114,6 +134,8 @@ export default function NotificationsScreen() {
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
               contentContainerStyle={styles.listContainer}
+              extraData={[notifications, unreadCount]}
+              removeClippedSubviews={false}
             />
           )}
         </>
@@ -150,6 +172,16 @@ function createStyles(colors: ThemeColors) {
       fontSize: 20,
       fontWeight: "700"
     },
+    markAllButton: {
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border
+    },
+    markAllButtonDisabled: {
+      opacity: 0.5
+    },
     spacer: {
       width: 40
     },
@@ -167,8 +199,9 @@ function createStyles(colors: ThemeColors) {
       borderColor: colors.border
     },
     notificationItemUnread: {
-      backgroundColor: colors.accentSoft,
-      borderColor: colors.accent
+      backgroundColor: colors.surface,
+      borderColor: colors.accent,
+      borderWidth: 2
     },
     notificationContent: {
       flex: 1,

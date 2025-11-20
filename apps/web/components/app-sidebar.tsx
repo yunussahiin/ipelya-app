@@ -12,7 +12,8 @@ import {
   IconReport,
   IconSettings,
   IconShield,
-  IconUsers
+  IconUsers,
+  IconBell
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -113,6 +114,25 @@ const data = {
         {
           title: "Raporlar",
           url: "/ops/economy/reports"
+        }
+      ]
+    },
+    {
+      title: "Bildirimler",
+      url: "/ops/notifications",
+      icon: IconBell,
+      items: [
+        {
+          title: "Gönder",
+          url: "/ops/notifications/send"
+        },
+        {
+          title: "Geçmiş",
+          url: "/ops/notifications/history"
+        },
+        {
+          title: "Şablonlar",
+          url: "/ops/notifications/templates"
         }
       ]
     }

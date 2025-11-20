@@ -152,8 +152,9 @@ CREATE TABLE notification_preferences (
 - ⏱️ Notification expiry (30 gün)
 - 🗑️ Automatic cleanup (eski bildirimler)
 
-## Sonraki Adımlar
+## Implementation Status
 
+### ✅ Mobile (Completed)
 1. ✅ Database schema oluştur
 2. ✅ RLS policies ekle
 3. ✅ expo-notifications setup
@@ -161,11 +162,51 @@ CREATE TABLE notification_preferences (
 5. ✅ Realtime listener
 6. ✅ Notification UI
 7. ✅ Deep linking
-8. ✅ Edge Functions
+8. ✅ Edge Functions (send-notification)
 9. ✅ Messaging system integration
+
+### 🔄 Web (In Progress)
+1. ⏳ Admin tables (campaigns, templates, logs)
+2. ⏳ Admin hooks (useSendNotification)
+3. ⏳ Admin panel (Send/History/Templates/Analytics)
+4. ⏳ Admin Edge Functions (bulk, scheduled, cleanup)
+5. ⏳ API routes
+
+---
+
+## Shared Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Shared Database (Supabase)                         │
+│  ├─ notifications (user-level)                      │
+│  ├─ device_tokens (user-level)                      │
+│  ├─ notification_preferences (user-level)           │
+│  ├─ notification_campaigns (admin-level) - WEB      │
+│  ├─ notification_templates (admin-level) - WEB      │
+│  └─ notification_logs (admin-level) - WEB           │
+└──────────────┬──────────────────────────────────────┘
+               │
+       ┌───────┴────────┐
+       │                │
+   ┌───▼────────┐  ┌───▼────────┐
+   │   Mobile   │  │    Web     │
+   ├────────────┤  ├────────────┤
+   │ Hooks:     │  │ Hooks:     │
+   │ • Device   │  │ • Send     │
+   │ • Listen   │  │ • Prefs    │
+   │ • Notif    │  │ • Notif    │
+   │ • Prefs    │  │            │
+   │            │  │ Admin:     │
+   │ UI:        │  │ • Panel    │
+   │ • Bell     │  │ • Routes   │
+   │ • Center   │  │ • Funcs    │
+   └────────────┘  └────────────┘
+```
 
 ---
 
 **Dokümantasyon Yapısı:**
-- `/mobile` - React Native/Expo implementasyonu
-- `/web` - Web implementasyonu (gelecek)
+- `/mobile` - React Native/Expo implementasyonu (✅ Completed)
+- `/web` - Web implementasyonu (🔄 In Progress)
+- `/OVERVIEW.md` - Sistem mimarisi (this file)

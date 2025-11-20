@@ -1,12 +1,118 @@
 # Web - Push Notifications Setup 🌐
 
+## ⚠️ IMPORTANT: Shared Database with Mobile
+
+Mobile tarafta zaten yapılan işlemler:
+- ✅ `notifications` table
+- ✅ `device_tokens` table
+- ✅ `notification_preferences` table
+- ✅ RLS policies
+- ✅ Realtime enabled
+- ✅ `send-notification` Edge Function
+
+**Web tarafında yapılacak:**
+- Admin tables: `notification_campaigns`, `notification_templates`, `notification_logs`
+- Admin hooks: `useSendNotification`
+- Admin panel components
+- Admin Edge Functions
+
+---
+
+## 1. Database Schema (Admin Tables)
+
+### notification_campaigns Tablosu
+```sql
+CREATE TABLE notification_campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL,
+  type TEXT NOT NULL, -- 'single' | 'bulk' | 'scheduled'
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  data JSONB,
+  recipient_segment TEXT,
+  filter JSONB,
+  scheduled_at TIMESTAMP,
+  sent_at TIMESTAMP,
+  status TEXT DEFAULT 'draft', -- 'draft' | 'scheduled' | 'sent' | 'failed'
+  total_recipients INT,
+  sent_count INT DEFAULT 0,
+  failed_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now(),
+  FOREIGN KEY (admin_id) REFERENCES auth.users(id)
+);
+```
+
+### notification_templates Tablosu
+```sql
+CREATE TABLE notification_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL,
+  name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  data JSONB,
+  category TEXT, -- 'announcement' | 'maintenance' | 'security' | 'promotional'
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now(),
+  FOREIGN KEY (admin_id) REFERENCES auth.users(id)
+);
+```
+
+### notification_logs Tablosu
+```sql
+CREATE TABLE notification_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL,
+  recipient_id UUID NOT NULL,
+  status TEXT, -- 'sent' | 'failed' | 'delivered'
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT now(),
+  FOREIGN KEY (campaign_id) REFERENCES notification_campaigns(id),
+  FOREIGN KEY (recipient_id) REFERENCES auth.users(id)
+);
+```
+
+---
+
+## 2. RLS Policies (Admin-only)
+
+```sql
+-- Admin sadece kendi campaign'lerini görebilir
+CREATE POLICY "Admins can view own campaigns"
+  ON notification_campaigns
+  FOR SELECT
+  USING (auth.uid() = admin_id);
+
+-- Admin sadece kendi campaign'lerini oluşturabilir
+CREATE POLICY "Admins can create campaigns"
+  ON notification_campaigns
+  FOR INSERT
+  WITH CHECK (auth.uid() = admin_id);
+```
+
+---
+
+## 3. Environment Setup
+
+```bash
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://ojkyisyjsbgbfytrmmlz.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_cz_MqTpk-aRDtVWkhKcR9g_wJW1xh2s
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_mfxfml155gPLzWD07C_qvg_8pBtGFqU
+```
+
+---
 
 ## 4. Hooks Implementasyonu
 
 ### useNotifications Hook
 
+**⚠️ NOTE:** Bu hook Mobile'da zaten yapıldı. Web'e copy edilecek.
+
 ```typescript
 // hooks/useNotifications.ts
+// Mobile'dan copy edilecek: /apps/mobile/src/hooks/useNotifications.ts
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';

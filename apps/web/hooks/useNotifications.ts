@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 
 export interface Notification {
   id: string;
@@ -28,6 +28,7 @@ export interface UseNotificationsReturn {
 /**
  * Hook for managing notifications with real-time updates
  * Fetches notifications, listens for new ones, and provides actions
+ * Copied from mobile with web-specific Supabase client
  */
 export function useNotifications(): UseNotificationsReturn {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -40,6 +41,8 @@ export function useNotifications(): UseNotificationsReturn {
     try {
       setLoading(true);
       setError(null);
+
+      const supabase = createBrowserSupabaseClient();
 
       const {
         data: { user },
@@ -80,10 +83,10 @@ export function useNotifications(): UseNotificationsReturn {
 
     let retryCount = 0;
     const maxRetries = 3;
-    let unsubscribe: (() => void) | null = null;
 
     const setupSubscription = async () => {
       try {
+        const supabase = createBrowserSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -105,20 +108,8 @@ export function useNotifications(): UseNotificationsReturn {
               console.log('📬 New notification received:', newNotification);
 
               // Add to beginning of list
-              setNotifications((prev) => {
-                const updated = [newNotification, ...prev];
-                console.log('📊 Updated notifications count:', updated.length);
-                return updated;
-              });
-              
-              // Update unread count
-              if (!newNotification.read) {
-                setUnreadCount((prev) => {
-                  const updated = prev + 1;
-                  console.log('📊 Updated unread count:', updated);
-                  return updated;
-                });
-              }
+              setNotifications((prev) => [newNotification, ...prev]);
+              setUnreadCount((prev) => prev + 1);
             }
           )
           .subscribe((status) => {
@@ -136,7 +127,7 @@ export function useNotifications(): UseNotificationsReturn {
             }
           });
 
-        unsubscribe = () => {
+        return () => {
           channel.unsubscribe();
         };
       } catch (err) {
@@ -145,15 +136,13 @@ export function useNotifications(): UseNotificationsReturn {
     };
 
     setupSubscription();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+  }, [loadNotifications]);
 
   // Mark single notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
+      const supabase = createBrowserSupabaseClient();
+
       const { error: updateError } = await supabase
         .from('notifications')
         .update({ read: true, read_at: new Date().toISOString() })
@@ -178,6 +167,8 @@ export function useNotifications(): UseNotificationsReturn {
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
+      const supabase = createBrowserSupabaseClient();
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -205,6 +196,8 @@ export function useNotifications(): UseNotificationsReturn {
   // Delete notification
   const deleteNotification = useCallback(async (notificationId: string) => {
     try {
+      const supabase = createBrowserSupabaseClient();
+
       const { error: deleteError } = await supabase
         .from('notifications')
         .delete()
