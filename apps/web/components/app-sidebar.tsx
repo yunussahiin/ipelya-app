@@ -133,6 +133,14 @@ const data = {
         {
           title: "Şablonlar",
           url: "/ops/notifications/templates"
+        },
+        {
+          title: "Analytics",
+          url: "/ops/notifications/analytics"
+        },
+        {
+          title: "Temizlik",
+          url: "/ops/notifications/cleanup"
         }
       ]
     }
