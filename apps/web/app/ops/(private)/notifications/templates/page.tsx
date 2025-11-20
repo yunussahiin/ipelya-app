@@ -110,12 +110,6 @@ export default function NotificationTemplatesPage() {
     }
   };
 
-  const handleCancel = () => {
-    setFormData({ name: "", title: "", body: "", category: "announcement" });
-    setShowForm(false);
-    setEditingId(null);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">

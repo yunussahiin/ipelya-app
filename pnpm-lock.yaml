@@ -7413,7 +7413,7 @@ snapshots:
       postcss: 8.4.49
       resolve-from: 5.0.0
     optionalDependencies:
-      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.14)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.5)(react@19.2.0))(react@19.2.0)
+      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -7491,7 +7491,7 @@ snapshots:
       '@expo/json-file': 10.0.7
       '@react-native/normalize-colors': 0.81.5
       debug: 4.4.3
-      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.14)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.5)(react@19.2.0))(react@19.2.0)
+      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       resolve-from: 5.0.0
       semver: 7.7.3
       xml2js: 0.6.0
@@ -9638,7 +9638,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.28.4
-      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.14)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.2.5)(react@19.2.0))(react@19.2.0)
+      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
