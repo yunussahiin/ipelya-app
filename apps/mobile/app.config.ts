@@ -20,11 +20,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: false,
+    bundleIdentifier: "com.ipelya.mobile",
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false
+    },
     config: {
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
     }
   },
   android: {
+    package: "com.ipelya.mobile",
     config: {
       googleMaps: {
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY

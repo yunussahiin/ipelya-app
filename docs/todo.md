@@ -24,3 +24,66 @@
 - [ ] AI Fantasy ve ASMR flow'larını edge functions ile uçtan uca bağlayıp UI'da sonuç dinlemeyi implemente et.
 - [ ] Shadcn tabanlı web creator dashboard ekranlarını (dashboard/content/schedule/earnings) oluştur.
 - [x] Vercel deploy'unda pnpm ERR_INVALID_THIS hatasını analiz edip package manager / engines yapılandırmasıyla çöz.
+
+---
+
+## Web Bildirim Sistemi - TODO
+
+### Phase 1: Database & Infrastructure ✅ (Mobile'da yapıldı)
+- [x] `notifications` tablosu oluşturuldu
+- [x] `device_tokens` tablosu oluşturuldu
+- [x] `notification_preferences` tablosu oluşturuldu
+- [x] RLS policies eklendi
+- [x] Realtime enabled
+
+**Web tarafında yapılacak:**
+- [ ] `notification_campaigns` tablosu oluştur (admin tarafı)
+- [ ] `notification_templates` tablosu oluştur (admin tarafı)
+- [ ] `notification_logs` tablosu oluştur (admin tarafı)
+- [ ] Indexes ekle (campaign_id, status, recipient_id)
+- [ ] RLS policies ekle (admin-only)
+
+### Phase 2: Frontend Hooks 🎣
+- [ ] `hooks/useNotifications.ts` oluştur (Mobile'daki ile aynı)
+- [ ] `hooks/useSendNotification.ts` oluştur (Admin-only, Mobile'da yok)
+- [ ] `hooks/useNotificationPreferences.ts` oluştur (Mobile'daki ile aynı)
+
+### Phase 3: API Routes 🔌
+- [ ] `app/api/notifications/send/route.ts` oluştur
+- [ ] `app/api/notifications/mark-read/route.ts` oluştur
+- [ ] `app/api/notifications/[id]/delete/route.ts` oluştur
+
+### Phase 4: Components 🎨
+- [ ] `components/notifications/NotificationCenter.tsx` oluştur
+- [ ] `components/notifications/NotificationBell.tsx` oluştur
+- [ ] `components/notifications/NotificationItem.tsx` oluştur
+- [ ] `components/notifications/NotificationList.tsx` oluştur
+- [ ] Layout'a NotificationCenter entegre et
+
+### Phase 5: Admin Panel - Send 📬
+- [ ] `app/ops/(private)/notifications/send/page.tsx` oluştur
+- [ ] `SingleNotification.tsx` component oluştur
+- [ ] `BulkNotification.tsx` component oluştur
+- [ ] `ScheduledNotification.tsx` component oluştur
+
+### Phase 6: Admin Panel - History & Templates 📊
+- [ ] `app/ops/(private)/notifications/history/page.tsx` oluştur
+- [ ] `app/ops/(private)/notifications/templates/page.tsx` oluştur
+- [ ] `NotificationHistory.tsx` component oluştur
+- [ ] `TemplateList.tsx` component oluştur
+- [ ] `TemplateEditor.tsx` component oluştur
+
+### Phase 7: Edge Functions 🚀
+- [ ] `supabase/functions/send-notification/index.ts` oluştur
+- [ ] `supabase/functions/send-bulk-notification/index.ts` oluştur
+- [ ] `supabase/functions/process-scheduled-notifications/index.ts` oluştur
+- [ ] `supabase/functions/cleanup-notifications/index.ts` oluştur
+
+### Phase 8: Analytics 📈
+- [ ] `app/ops/(private)/notifications/analytics/page.tsx` oluştur
+- [ ] `AnalyticsDashboard.tsx` component oluştur
+
+### Phase 9: Testing & Optimization 🧪
+- [ ] Unit tests yazılacak
+- [ ] Integration tests yazılacak
+- [ ] Performance optimization

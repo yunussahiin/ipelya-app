@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, Image, ActivityIndicator } from "react-native";
-import { Settings, Edit2, Users, Heart } from "lucide-react-native";
+import { Settings, Edit2, Users, Heart, Ban } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
+import { useFollowersRealtime } from "@/hooks/useFollowersRealtime";
 
 interface ProfileData {
   id: string;
@@ -19,7 +20,9 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const { stats: followersStats } = useFollowersRealtime(currentUserId);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
@@ -36,6 +39,9 @@ export default function ProfileScreen() {
 
       if (authError || !user) throw authError || new Error("No user");
 
+      console.log("👤 Current user ID:", user.id);
+      setCurrentUserId(user.id);
+
       const { data, error } = await supabase
         .from("profiles")
         .select("id, display_name, avatar_url, bio, is_creator, gender")
@@ -44,6 +50,7 @@ export default function ProfileScreen() {
         .single();
 
       if (error) throw error;
+      console.log("📊 Profile loaded:", data);
       setProfile(data);
     } catch (error) {
       console.error("Profile load error:", error);
@@ -142,16 +149,16 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.statsSection}
-            onPress={() => router.push(`/(profile)/followers?userId=${profile.id}`)}
+            onPress={() => router.push(`/(profile)/followers?userId=${profile?.id}`)}
             accessible={true}
-            accessibilityLabel="Takipçiler ve takip edilen"
+            accessibilityLabel={`Takipçiler ${followersStats.followers_count}, Takip Edilen ${followersStats.following_count}`}
             accessibilityRole="button"
           >
             <View style={styles.statItem}>
               <Users size={20} color={colors.accent} />
               <View>
                 <Text style={styles.statLabel}>Takipçiler</Text>
-                <Text style={styles.statValue}>1.2K</Text>
+                <Text style={styles.statValue}>{followersStats.followers_count}</Text>
               </View>
             </View>
 
@@ -161,9 +168,23 @@ export default function ProfileScreen() {
               <Heart size={20} color={colors.accent} />
               <View>
                 <Text style={styles.statLabel}>Takip Edilen</Text>
-                <Text style={styles.statValue}>342</Text>
+                <Text style={styles.statValue}>{followersStats.following_count}</Text>
               </View>
             </View>
+          </Pressable>
+
+          {/* Blocked Users Button */}
+          <Pressable
+            style={styles.blockedUsersButton}
+            onPress={() => router.push("/(profile)/blocked-users")}
+            accessible={true}
+            accessibilityLabel="Engellenen kullanıcılar"
+            accessibilityRole="button"
+          >
+            <Ban size={20} color={colors.accent} />
+            <Text style={[styles.blockedUsersButtonText, { color: colors.textPrimary }]}>
+              Engellenen Kullanıcılar
+            </Text>
           </Pressable>
         </>
       )}
@@ -295,6 +316,23 @@ const createStyles = (colors: ThemeColors) =>
     },
     divider: {
       width: 1,
+      height: "100%",
       backgroundColor: colors.border
+    },
+    blockedUsersButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      padding: 16,
+      marginHorizontal: 16,
+      marginBottom: 16,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border
+    },
+    blockedUsersButtonText: {
+      fontSize: 14,
+      fontWeight: "600"
     }
   });

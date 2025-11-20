@@ -13,13 +13,17 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ipelya.mobile",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Profil fotoğrafı seçmek için galeri erişim izni gerekli",
-        "NSCameraUsageDescription": "Profil fotoğrafı çekmek için kamera erişim izni gerekli"
-      }
+        "NSCameraUsageDescription": "Profil fotoğrafı çekmek için kamera erişim izni gerekli",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {}
     },
     "android": {
+      "package": "com.ipelya.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -35,6 +39,20 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FF6B35",
+          "defaultChannel": "default",
+          "sounds": [
+            "./assets/notification-sound.wav"
+          ],
+          "enableBackgroundRemoteNotifications": true
+        }
+      ]
+    ],
     "extra": {
       "router": {},
       "eas": {

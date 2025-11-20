@@ -8,7 +8,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, SafeAreaView } from "rea
 import { ArrowLeft } from "lucide-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
-import { useFollowers } from "@/hooks/useFollowers";
+import { useFollowersRealtime } from "@/hooks/useFollowersRealtime";
 import { FollowersList } from "@/components/profile/FollowersList";
 import { FollowingList } from "@/components/profile/FollowingList";
 import { supabase } from "@/lib/supabaseClient";
@@ -17,13 +17,21 @@ type Tab = "followers" | "following" | "subscriptions";
 
 export default function FollowersScreen() {
   const router = useRouter();
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId: profileId } = useLocalSearchParams<{ userId: string }>();
   const { colors } = useTheme();
-  const { stats, loadStats } = useFollowers();
-  const [activeTab, setActiveTab] = useState<Tab>("followers");
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [displayName, setDisplayName] = useState<string>("Takipçiler");
   const [targetUserId, setTargetUserId] = useState<string | undefined>();
+  const [activeTab, setActiveTab] = useState<Tab>("followers");
+
+  // Hook'a currentUserId geçmeliyiz (auth user ID, profile ID değil)
+  const { stats: realtimeStats } = useFollowersRealtime(currentUserId);
+
+  // Debug log
+  useEffect(() => {
+    console.log("📊 Followers screen - realtimeStats updated:", realtimeStats);
+  }, [realtimeStats]);
+
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Get current user and load stats
@@ -37,49 +45,31 @@ export default function FollowersScreen() {
           setCurrentUserId(user.id);
         }
 
-        if (userId) {
-          // Load profile to get display name
-          // userId could be either profiles.id or auth.users.id, try both
-          let profile = null;
-
-          // First try as profiles.id
-          const { data: profileById } = await supabase
+        if (profileId) {
+          // Load profile to get display name and user_id
+          // profileId is profiles.id, need to get user_id
+          const { data: profile } = await supabase
             .from("profiles")
             .select("display_name, user_id")
-            .eq("id", userId)
+            .eq("id", profileId)
             .eq("type", "real")
             .single();
 
-          if (profileById) {
-            profile = profileById;
-          } else {
-            // Try as user_id
-            const { data: profileByUserId } = await supabase
-              .from("profiles")
-              .select("display_name, user_id")
-              .eq("user_id", userId)
-              .eq("type", "real")
-              .single();
-            profile = profileByUserId;
-          }
-
-          if (profile?.display_name) {
+          if (profile) {
+            console.log("📋 Profile found:", profile);
             setDisplayName(profile.display_name);
+            setTargetUserId(profile.user_id);
+            console.log("🎯 Target user ID set to:", profile.user_id);
           }
-
-          // Load stats with the correct user_id
-          const correctUserId = profile?.user_id || userId;
-          setTargetUserId(correctUserId);
-          await loadStats(correctUserId, user?.id);
         }
       } catch (err) {
         console.error("Error loading profile:", err);
       }
     };
     initScreen();
-  }, [userId, loadStats]);
+  }, [profileId]);
 
-  if (!userId) {
+  if (!profileId) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={styles.errorText}>Kullanıcı bulunamadı</Text>
@@ -110,12 +100,12 @@ export default function FollowersScreen() {
           style={[styles.tab, activeTab === "followers" && styles.tabActive]}
           onPress={() => setActiveTab("followers")}
           accessible={true}
-          accessibilityLabel={`Takipçiler ${stats.followers_count}`}
+          accessibilityLabel={`Takipçiler ${realtimeStats.followers_count}`}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === "followers" }}
         >
           <Text style={[styles.tabText, activeTab === "followers" && styles.tabTextActive]}>
-            {stats.followers_count}
+            {realtimeStats.followers_count}
           </Text>
           <Text style={[styles.tabLabel, activeTab === "followers" && styles.tabLabelActive]}>
             Takipçi
@@ -126,12 +116,12 @@ export default function FollowersScreen() {
           style={[styles.tab, activeTab === "following" && styles.tabActive]}
           onPress={() => setActiveTab("following")}
           accessible={true}
-          accessibilityLabel={`Takip Edilen ${stats.following_count}`}
+          accessibilityLabel={`Takip Edilen ${realtimeStats.following_count}`}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === "following" }}
         >
           <Text style={[styles.tabText, activeTab === "following" && styles.tabTextActive]}>
-            {stats.following_count}
+            {realtimeStats.following_count}
           </Text>
           <Text style={[styles.tabLabel, activeTab === "following" && styles.tabLabelActive]}>
             Takip

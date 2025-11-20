@@ -4,9 +4,20 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SystemBars } from "react-native-edge-to-edge";
 import { View } from "react-native";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+import { useDeviceToken } from "@/hooks/useDeviceToken";
+import { useNotificationListener } from "@/hooks/useNotificationListener";
 
 function AppStack() {
   const { scheme, colors } = useTheme();
+
+  // Initialize push notifications
+  const deviceToken = useDeviceToken();
+  useNotificationListener();
+
+  // Log device token status
+  if (deviceToken.error) {
+    console.warn("⚠️ Device token error:", deviceToken.error);
+  }
 
   return (
     <>

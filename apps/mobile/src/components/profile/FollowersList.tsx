@@ -13,10 +13,16 @@ import {
   Image,
   ActivityIndicator
 } from "react-native";
-import { MessageCircle, UserPlus, UserCheck } from "lucide-react-native";
+import { MessageCircle, UserPlus, UserCheck, MoreVertical } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useFollowers, type FollowerProfile } from "@/hooks/useFollowers";
+import { useFollowersListRealtime } from "@/hooks/useFollowersListRealtime";
+import { useFollowersSearch, type FilterType, type SortType } from "@/hooks/useFollowersSearch";
+import { useBlockUser } from "@/hooks/useBlockUser";
+import { FollowersSearchBar } from "@/components/profile/FollowersSearchBar";
+import { FollowersFilterSheet } from "@/components/profile/FollowersFilterSheet";
+import { FollowerActionSheet } from "@/components/profile/FollowerActionSheet";
 import { SkeletonLoader } from "@/components/common/SkeletonLoader";
 
 export interface FollowersListProps {
@@ -28,8 +34,26 @@ export function FollowersList({ userId, currentUserId }: FollowersListProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const { followers, loading, error, loadFollowers, follow, unfollow, clearError } = useFollowers();
+  const { blockUser, unblockUser, blocking } = useBlockUser();
   const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
   const [followingLoading, setFollowingLoading] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [sortType, setSortType] = useState<SortType>("default");
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [selectedFollower, setSelectedFollower] = useState<FollowerProfile | null>(null);
+
+  // Search, filter, and sort followers
+  const filteredFollowers = useFollowersSearch({
+    followers,
+    searchQuery,
+    filterType,
+    sortType,
+    currentUserId
+  });
+
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Load followers on mount
@@ -47,6 +71,29 @@ export function FollowersList({ userId, currentUserId }: FollowersListProps) {
       setFollowingStates(newStates);
     }
   }, [followers]);
+
+  // Handle real-time follow/unfollow changes
+  const handleFollowChange = useCallback((followerId: string, isFollowing: boolean) => {
+    console.log(`📊 Follow state changed for ${followerId}: ${isFollowing}`);
+    setFollowingStates((prev) => ({
+      ...prev,
+      [followerId]: isFollowing
+    }));
+  }, []);
+
+  // Handle list refresh when new follower added
+  const handleListRefresh = useCallback(() => {
+    console.log("🔄 Refreshing followers list");
+    loadFollowers(userId, currentUserId);
+  }, [userId, currentUserId, loadFollowers]);
+
+  // Setup real-time listener
+  useFollowersListRealtime({
+    userId,
+    currentUserId,
+    onFollowChange: handleFollowChange,
+    onListRefresh: handleListRefresh
+  });
 
   const handleFollowToggle = useCallback(
     async (followerId: string) => {
@@ -73,6 +120,8 @@ export function FollowersList({ userId, currentUserId }: FollowersListProps) {
       const isFollowing = followingStates[item.user_id];
       const isLoading = followingLoading[item.user_id];
       const isCurrentUser = currentUserId === item.user_id;
+
+      console.log(`🎨 Rendering ${item.display_name}: isFollowing=${isFollowing}`);
 
       return (
         <Pressable
@@ -163,17 +212,74 @@ export function FollowersList({ userId, currentUserId }: FollowersListProps) {
                     </>
                   )}
                 </Pressable>
+
+                {/* Action Menu Button */}
+                <Pressable
+                  style={[styles.blockButton, blocking && styles.buttonDisabled]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSelectedFollower(item);
+                    setShowActionSheet(true);
+                  }}
+                  disabled={blocking}
+                  accessible={true}
+                  accessibilityLabel="Seçenekler"
+                  accessibilityRole="button"
+                >
+                  <MoreVertical size={16} color={colors.textSecondary} />
+                </Pressable>
               </>
             )}
           </View>
         </Pressable>
       );
     },
-    [followingStates, followingLoading, currentUserId, handleFollowToggle, colors, styles]
+    [
+      followingStates,
+      followingLoading,
+      currentUserId,
+      handleFollowToggle,
+      colors,
+      styles,
+      blockedUsers,
+      blockUser,
+      unblockUser,
+      blocking,
+      setSelectedFollower,
+      setShowActionSheet
+    ]
   );
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <FollowersSearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Takipçi ara..."
+      />
+
+      {/* Filter Button */}
+      <Pressable
+        style={styles.filterButton}
+        onPress={() => setShowFilterSheet(true)}
+        accessible={true}
+        accessibilityLabel="Filtrele ve sırala"
+        accessibilityRole="button"
+      >
+        <Text style={styles.filterButtonText}>Filtrele</Text>
+      </Pressable>
+
+      {/* Filter Sheet */}
+      <FollowersFilterSheet
+        visible={showFilterSheet}
+        onClose={() => setShowFilterSheet(false)}
+        selectedFilter={filterType}
+        onFilterChange={setFilterType}
+        selectedSort={sortType}
+        onSortChange={setSortType}
+      />
+
       {error && (
         <Pressable
           style={styles.errorBox}
@@ -187,18 +293,55 @@ export function FollowersList({ userId, currentUserId }: FollowersListProps) {
 
       {loading && !followers.length ? (
         <SkeletonLoader count={5} height={70} borderRadius={12} />
-      ) : followers.length === 0 ? (
+      ) : filteredFollowers.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Henüz takipçi yok</Text>
+          <Text style={styles.emptyText}>
+            {searchQuery ? "Sonuç bulunamadı" : "Henüz takipçi yok"}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={followers}
+          data={filteredFollowers}
           renderItem={renderFollower}
           keyExtractor={(item) => item.user_id}
           scrollEnabled={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReachedThreshold={0.5}
+          extraData={followingStates}
+        />
+      )}
+
+      {/* Action Sheet */}
+      {selectedFollower && (
+        <FollowerActionSheet
+          visible={showActionSheet}
+          onClose={() => {
+            setShowActionSheet(false);
+            setSelectedFollower(null);
+          }}
+          displayName={selectedFollower.display_name || "Anonim Kullanıcı"}
+          isFollowing={followingStates[selectedFollower.user_id] || false}
+          isBlocked={blockedUsers.has(selectedFollower.user_id)}
+          onMessage={() => {
+            router.push(`/messages/${selectedFollower.user_id}`);
+          }}
+          onBlock={async () => {
+            await blockUser(selectedFollower.user_id);
+            setBlockedUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.add(selectedFollower.user_id);
+              return newSet;
+            });
+          }}
+          onUnblock={async () => {
+            await unblockUser(selectedFollower.user_id);
+            setBlockedUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(selectedFollower.user_id);
+              return newSet;
+            });
+          }}
+          loading={blocking}
         />
       )}
     </View>
@@ -209,6 +352,20 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: {
       flex: 1
+    },
+    filterButton: {
+      marginHorizontal: 16,
+      marginBottom: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      backgroundColor: colors.accent,
+      borderRadius: 8,
+      alignItems: "center"
+    },
+    filterButtonText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "600"
     },
     centerContainer: {
       flex: 1,
@@ -292,6 +449,16 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 8,
       backgroundColor: colors.accent,
       minWidth: 100,
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    blockButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
       justifyContent: "center",
       alignItems: "center"
     },
