@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSendNotification } from "@/hooks/useSendNotification";
-import { AlertCircle, CheckCircle, Loader2, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, X, FileText } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { TemplateSelectionModal } from "./TemplateSelectionModal";
 
 interface UserProfile {
   id: string;
@@ -38,6 +39,14 @@ export default function SingleNotification() {
   const [filterType, setFilterType] = useState<"all" | "users" | "creators">("all");
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [loadingFiltered, setLoadingFiltered] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+
+  const handleTemplateSelected = (template: any) => {
+    setTitle(template.title);
+    setBody(template.body);
+    setSelectedTemplate(template);
+  };
 
   const { loading, error, success, sendNotification, reset } = useSendNotification();
 
@@ -185,6 +194,17 @@ export default function SingleNotification() {
           <CardDescription>Belirli bir kullanıcıya bildirim gönderin</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Template Selection Button */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowTemplateModal(true)}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Şablon Seç
+          </Button>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">Alıcı Seç</label>
@@ -640,6 +660,13 @@ export default function SingleNotification() {
           </Card>
         </div>
       )}
+
+      {/* Template Selection Modal */}
+      <TemplateSelectionModal
+        open={showTemplateModal}
+        onOpenChange={setShowTemplateModal}
+        onTemplateSelected={handleTemplateSelected}
+      />
     </div>
   );
 }

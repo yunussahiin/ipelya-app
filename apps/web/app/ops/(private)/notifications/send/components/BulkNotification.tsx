@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSendNotification } from "@/hooks/useSendNotification";
-import { CheckCircle, Loader2, X } from "lucide-react";
+import { CheckCircle, Loader2, X, FileText } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { TemplateSelectionModal } from "./TemplateSelectionModal";
 
 const PRESET_SEGMENTS = [
   { value: "all", label: "Tüm Kullanıcılar", description: "Tüm aktif kullanıcılar" },
@@ -43,6 +44,14 @@ export default function BulkNotification() {
   const [data, setData] = useState("{}");
   const [filterPreview, setFilterPreview] = useState<{ count: number; users: any[] } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+
+  const handleTemplateSelected = (template: any) => {
+    setTitle(template.title);
+    setBody(template.body);
+    setSelectedTemplate(template);
+  };
 
   const { loading, error, success, sendNotification, reset } = useSendNotification();
 
@@ -175,6 +184,17 @@ export default function BulkNotification() {
           <CardDescription>Segmente göre bildirim gönderin</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Template Selection Button */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowTemplateModal(true)}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Şablon Seç
+          </Button>
+
           {/* Segment Type Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Segment Türü</label>
@@ -642,6 +662,13 @@ export default function BulkNotification() {
           </Card>
         </div>
       )}
+
+      {/* Template Selection Modal */}
+      <TemplateSelectionModal
+        open={showTemplateModal}
+        onOpenChange={setShowTemplateModal}
+        onTemplateSelected={handleTemplateSelected}
+      />
     </div>
   );
 }

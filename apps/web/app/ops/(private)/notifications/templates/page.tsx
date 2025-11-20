@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit2, Settings } from "lucide-react";
+import { toast } from "sonner";
+import { CategoryManagementModal } from "./components/CategoryManagementModal";
+import { TemplateFormModal } from "./components/TemplateFormModal";
 
 interface Template {
   id: string;
@@ -15,20 +26,52 @@ interface Template {
   created_at: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  label: string;
+  icon: string;
+  color: string;
+  description?: string;
+  is_default: boolean;
+}
+
 export default function NotificationTemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    title: "",
-    body: "",
-    category: "announcement"
-  });
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  const filteredTemplates = selectedCategory
+    ? templates.filter((t) => t.category === selectedCategory)
+    : templates;
 
   useEffect(() => {
-    loadTemplates();
+    loadCategoriesAndTemplates();
   }, []);
+
+  const loadCategoriesAndTemplates = async () => {
+    await Promise.all([loadCategories(), loadTemplates()]);
+  };
+
+  const loadCategories = async () => {
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data, error } = await supabase
+        .from("notification_categories")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (err) {
+      console.error("Error loading categories:", err);
+    }
+  };
 
   const loadTemplates = async () => {
     try {
@@ -47,40 +90,30 @@ export default function NotificationTemplatesPage() {
     }
   };
 
-  const handleSaveTemplate = async () => {
-    try {
-      const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.from("notification_templates").insert({
-        name: formData.name,
-        title: formData.title,
-        body: formData.body,
-        category: formData.category
-      });
-
-      if (error) throw error;
-
-      setFormData({ name: "", title: "", body: "", category: "announcement" });
-      setShowForm(false);
-      loadTemplates();
-    } catch (err) {
-      console.error("Error saving template:", err);
-      alert("Şablon kaydedilirken hata oluştu");
-    }
+  const handleNewTemplate = () => {
+    setEditingTemplate(null);
+    setShowTemplateModal(true);
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (!confirm("Bu şablonu silmek istediğinize emin misiniz?")) return;
-
     try {
       const supabase = createBrowserSupabaseClient();
       const { error } = await supabase.from("notification_templates").delete().eq("id", id);
 
       if (error) throw error;
+      toast.success("✓ Şablon başarıyla silindi!");
+      setDeleteConfirmId(null);
       loadTemplates();
     } catch (err) {
       console.error("Error deleting template:", err);
-      alert("Şablon silinirken hata oluştu");
+      toast.error("✕ Şablon silinirken hata oluştu!");
     }
+  };
+
+  const handleCancel = () => {
+    setFormData({ name: "", title: "", body: "", category: "announcement" });
+    setShowForm(false);
+    setEditingId(null);
   };
 
   return (
@@ -92,121 +125,157 @@ export default function NotificationTemplatesPage() {
             Sık kullanılan bildirim şablonlarını oluşturun ve yönetin
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Yeni Şablon
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowCategoryModal(true)}>
+            <Settings className="mr-2 h-4 w-4" />
+            Kategorileri Yönet
+          </Button>
+          <Button onClick={handleNewTemplate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Yeni Şablon
+          </Button>
+        </div>
       </div>
 
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Yeni Şablon Oluştur</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Şablon Adı</label>
-              <input
-                type="text"
-                placeholder="Örn: Hoş Geldiniz"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md mt-1"
-              />
-            </div>
+      <TemplateFormModal
+        open={showTemplateModal}
+        onOpenChange={setShowTemplateModal}
+        editingTemplate={editingTemplate}
+        categories={categories}
+        onTemplateSaved={() => {
+          loadTemplates();
+          setShowTemplateModal(false);
+        }}
+      />
 
-            <div>
-              <label className="text-sm font-medium">Başlık</label>
-              <input
-                type="text"
-                placeholder="Bildirim başlığı"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md mt-1"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">İçerik</label>
-              <textarea
-                placeholder="Bildirim içeriği"
-                value={formData.body}
-                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                rows={4}
-                className="w-full px-3 py-2 border rounded-md mt-1"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Kategori</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md mt-1"
+      {/* Category Filter */}
+      {!loading && categories.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={selectedCategory === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedCategory(null)}
+          >
+            Tümü ({templates.length})
+          </Button>
+          {categories.map((cat: Category) => {
+            const count = templates.filter((t) => t.category === cat.name).length;
+            return (
+              <Button
+                key={cat.id}
+                variant={selectedCategory === cat.name ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(cat.name)}
               >
-                <option value="announcement">Duyuru</option>
-                <option value="maintenance">Bakım</option>
-                <option value="security">Güvenlik</option>
-                <option value="promotional">Promosyon</option>
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={handleSaveTemplate} className="flex-1">
-                Kaydet
+                {cat.label} ({count})
               </Button>
-              <Button onClick={() => setShowForm(false)} variant="outline" className="flex-1">
-                İptal
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            );
+          })}
+        </div>
       )}
 
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-      ) : templates.length === 0 ? (
+      ) : filteredTemplates.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Henüz şablon yok</p>
+            <p className="text-muted-foreground">
+              {templates.length === 0 ? "Henüz şablon yok" : "Bu kategoride şablon yok"}
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => (
-            <Card key={template.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">{template.name}</CardTitle>
-                <CardDescription>{template.category}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs text-gray-500">Başlık</p>
-                  <p className="text-sm font-medium">{template.title}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">İçerik</p>
-                  <p className="text-sm text-gray-700">{template.body}</p>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Kullan
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteTemplate(template.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {filteredTemplates.map((template) => {
+            const categoryInfo = categories.find((c: Category) => c.name === template.category);
+            return (
+              <Card key={template.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-lg">{template.name}</CardTitle>
+                    {categoryInfo && (
+                      <span
+                        className={`text-xs px-2 py-1 rounded font-semibold shrink-0 ${categoryInfo.color}`}
+                      >
+                        {categoryInfo.label}
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Başlık</p>
+                    <p className="text-sm font-medium">{template.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">İçerik</p>
+                    <p className="text-sm text-gray-700">{template.body}</p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setEditingTemplate(template);
+                        setShowTemplateModal(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4 mr-1" />
+                      Düzenle
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteConfirmId(template.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Şablonu Sil</DialogTitle>
+            <DialogDescription>
+              Bu şablonu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+              İptal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmId && handleDeleteTemplate(deleteConfirmId)}
+            >
+              Sil
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Management Modal */}
+      <CategoryManagementModal
+        open={showCategoryModal}
+        onOpenChange={setShowCategoryModal}
+        onCategoriesUpdated={() => {
+          // Kategoriler güncellendiğinde, sayfayı refresh et
+          loadCategoriesAndTemplates();
+        }}
+      />
     </div>
   );
 }
