@@ -4,11 +4,6 @@
     "appVersionSource": "remote",
     "requireCommit": false
   },
-  "env": {
-    "development": {
-      "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
-    }
-  },
   "build": {
     "development-simulator": {
       "developmentClient": true,
@@ -16,7 +11,8 @@
       "ios": {
         "simulator": true
       },
-      "environment": "development"
+      "environment": "development",
+      "node": "20.x"
     },
     "preview": {
       "extends": "production",
