@@ -64,13 +64,13 @@ export default function NotificationHistoryPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "sent":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
       case "scheduled":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200";
       case "failed":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-foreground";
     }
   };
 
@@ -88,7 +88,7 @@ export default function NotificationHistoryPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="space-y-6 max-w-8xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Bildirim Geçmişi</h1>
         <p className="text-muted-foreground mt-2">
@@ -110,16 +110,16 @@ export default function NotificationHistoryPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Left: Campaigns List */}
-          <div className="md:col-span-2 lg:col-span-2 flex flex-col">
+          <div className="flex flex-col">
             <div className="space-y-3 p-4 flex-1 overflow-y-auto">
               {paginatedCampaigns.map((campaign) => (
                 <Card
                   key={campaign.id}
                   className={`cursor-pointer transition-all ${
                     selectedCampaign?.id === campaign.id
-                      ? "ring-2 ring-blue-500 bg-blue-50"
+                      ? "ring-2 ring-primary bg-accent"
                       : "hover:shadow-md"
                   }`}
                   onClick={() => setSelectedCampaign(campaign)}
@@ -129,7 +129,9 @@ export default function NotificationHistoryPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{campaign.title}</p>
-                          <p className="text-xs text-gray-500 line-clamp-2 mt-1">{campaign.body}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                            {campaign.body}
+                          </p>
                         </div>
                         <Badge
                           variant="outline"
@@ -139,7 +141,7 @@ export default function NotificationHistoryPage() {
                         </Badge>
                       </div>
 
-                      <div className="flex items-center justify-between text-xs text-gray-600 pt-2 border-t">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-border">
                         <span>
                           {campaign.type === "single"
                             ? "📧 Tekil"
@@ -163,7 +165,7 @@ export default function NotificationHistoryPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Sayfa {currentPage} / {totalPages} ({campaigns.length} kampanya)
                 </p>
                 <div className="flex gap-2">
@@ -201,7 +203,7 @@ export default function NotificationHistoryPage() {
                     <CardTitle className="text-lg">Detaylar</CardTitle>
                     <button
                       onClick={() => setSelectedCampaign(null)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -210,20 +212,20 @@ export default function NotificationHistoryPage() {
                 <CardContent className="space-y-4">
                   {/* Title */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Başlık</p>
-                    <p className="text-sm font-medium">{selectedCampaign.title}</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Başlık</p>
+                    <p className="text-sm font-medium text-foreground">{selectedCampaign.title}</p>
                   </div>
 
                   {/* Body */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">İçerik</p>
-                    <p className="text-sm text-gray-700 line-clamp-4">{selectedCampaign.body}</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">İçerik</p>
+                    <p className="text-sm text-foreground line-clamp-4">{selectedCampaign.body}</p>
                   </div>
 
                   {/* Type */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Tür</p>
-                    <p className="text-sm">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Tür</p>
+                    <p className="text-sm text-foreground">
                       {selectedCampaign.type === "single"
                         ? "📧 Tekil Bildirim"
                         : selectedCampaign.type === "bulk"
@@ -234,7 +236,7 @@ export default function NotificationHistoryPage() {
 
                   {/* Status */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Durum</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Durum</p>
                     <Badge className={getStatusColor(selectedCampaign.status)}>
                       {getStatusLabel(selectedCampaign.status)}
                     </Badge>
@@ -242,25 +244,27 @@ export default function NotificationHistoryPage() {
 
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                    <div className="text-center p-2 bg-gray-50 rounded">
-                      <p className="text-xs text-gray-600">Toplam</p>
-                      <p className="text-lg font-bold">{selectedCampaign.total_recipients}</p>
+                    <div className="text-center p-2 bg-muted rounded">
+                      <p className="text-xs text-muted-foreground">Toplam</p>
+                      <p className="text-lg font-bold text-foreground">
+                        {selectedCampaign.total_recipients}
+                      </p>
                     </div>
-                    <div className="text-center p-2 bg-green-50 rounded">
-                      <p className="text-xs text-green-600">Gönderildi</p>
-                      <p className="text-lg font-bold text-green-700">
+                    <div className="text-center p-2 bg-green-100 dark:bg-green-900 rounded">
+                      <p className="text-xs text-green-700 dark:text-green-200">Gönderildi</p>
+                      <p className="text-lg font-bold text-green-800 dark:text-green-100">
                         {selectedCampaign.sent_count}
                       </p>
                     </div>
-                    <div className="text-center p-2 bg-red-50 rounded">
-                      <p className="text-xs text-red-600">Başarısız</p>
-                      <p className="text-lg font-bold text-red-700">
+                    <div className="text-center p-2 bg-red-100 dark:bg-red-900 rounded">
+                      <p className="text-xs text-red-700 dark:text-red-200">Başarısız</p>
+                      <p className="text-lg font-bold text-red-800 dark:text-red-100">
                         {selectedCampaign.failed_count}
                       </p>
                     </div>
-                    <div className="text-center p-2 bg-blue-50 rounded">
-                      <p className="text-xs text-blue-600">Başarı %</p>
-                      <p className="text-lg font-bold text-blue-700">
+                    <div className="text-center p-2 bg-blue-100 dark:bg-blue-900 rounded">
+                      <p className="text-xs text-blue-700 dark:text-blue-200">Başarı %</p>
+                      <p className="text-lg font-bold text-blue-800 dark:text-blue-100">
                         {selectedCampaign.total_recipients > 0
                           ? Math.round(
                               (selectedCampaign.sent_count / selectedCampaign.total_recipients) *
@@ -275,7 +279,7 @@ export default function NotificationHistoryPage() {
                   {/* Dates */}
                   <div className="space-y-2 pt-2 border-t text-xs">
                     <div>
-                      <p className="text-gray-600">Oluşturulma</p>
+                      <p className="text-xs text-muted-foreground">Oluşturulma</p>
                       <p className="font-medium">
                         {format(new Date(selectedCampaign.created_at), "dd MMMM yyyy HH:mm", {
                           locale: tr
@@ -284,7 +288,7 @@ export default function NotificationHistoryPage() {
                     </div>
                     {selectedCampaign.sent_at && (
                       <div>
-                        <p className="text-gray-600">Gönderilme</p>
+                        <p className="text-xs text-muted-foreground">Gönderilme</p>
                         <p className="font-medium">
                           {format(new Date(selectedCampaign.sent_at), "dd MMMM yyyy HH:mm", {
                             locale: tr

@@ -34,6 +34,18 @@
         "ENVIRONMENT": "preview"
       }
     },
+    "internal": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "ENVIRONMENT": "internal"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "distribution": "store",

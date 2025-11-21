@@ -50,7 +50,7 @@ interface CreatorDetailModalProps {
 export function CreatorDetailModal({ creator, open, onOpenChange }: CreatorDetailModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[98vh] w-screen max-w-none overflow-y-auto p-6">
+      <DialogContent className="max-h-[100vh] w-full max-w-none overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle className="text-2xl">Creator Detayları</DialogTitle>
           <DialogDescription>

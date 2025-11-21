@@ -56,7 +56,7 @@ export function ThemeSwitcherSettings() {
           }`}
         >
           <div className="mb-3 flex justify-center">
-            <IconSun className="h-8 w-8 text-yellow-500" />
+            <IconSun className="h-8 w-8 text-yellow-500 dark:text-yellow-400" />
           </div>
           <p className="text-center text-sm font-medium">Açık</p>
           <p className="text-center text-xs text-muted-foreground">Light Mode</p>
@@ -72,7 +72,7 @@ export function ThemeSwitcherSettings() {
           }`}
         >
           <div className="mb-3 flex justify-center">
-            <IconMoon className="h-8 w-8 text-slate-700" />
+            <IconMoon className="h-8 w-8 text-slate-600 dark:text-slate-300" />
           </div>
           <p className="text-center text-sm font-medium">Koyu</p>
           <p className="text-center text-xs text-muted-foreground">Dark Mode</p>
@@ -88,7 +88,7 @@ export function ThemeSwitcherSettings() {
           }`}
         >
           <div className="mb-3 flex justify-center">
-            <IconBrush className="h-8 w-8 text-blue-500" />
+            <IconBrush className="h-8 w-8 text-blue-500 dark:text-blue-400" />
           </div>
           <p className="text-center text-sm font-medium">Sistem</p>
           <p className="text-center text-xs text-muted-foreground">System Default</p>

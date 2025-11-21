@@ -170,7 +170,7 @@ export default function NotificationTemplatesPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : filteredTemplates.length === 0 ? (
         <Card>
@@ -200,12 +200,12 @@ export default function NotificationTemplatesPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <p className="text-xs text-gray-500">Başlık</p>
-                    <p className="text-sm font-medium">{template.title}</p>
+                    <p className="text-xs text-muted-foreground">Başlık</p>
+                    <p className="text-sm font-medium text-foreground">{template.title}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">İçerik</p>
-                    <p className="text-sm text-gray-700">{template.body}</p>
+                    <p className="text-xs text-muted-foreground">İçerik</p>
+                    <p className="text-sm text-foreground">{template.body}</p>
                   </div>
                   <div className="flex gap-2 pt-2">
                     <Button

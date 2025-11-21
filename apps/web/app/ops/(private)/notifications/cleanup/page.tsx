@@ -365,7 +365,8 @@ export default function NotificationCleanup() {
             <Button
               onClick={() => setConfirmDialog({ open: true, type: "delete" })}
               disabled={cleaning || !stats || stats.oldNotifications === 0}
-              className="w-full bg-red-600 hover:bg-red-700"
+              variant="destructive"
+              className="w-full"
             >
               {cleaning ? (
                 <>
@@ -403,7 +404,7 @@ export default function NotificationCleanup() {
             <Button
               onClick={() => setConfirmDialog({ open: true, type: "archive" })}
               disabled={cleaning || !stats || stats.sentCampaigns === 0}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-primary hover:bg-primary/90"
             >
               {cleaning ? (
                 <>
@@ -647,12 +648,12 @@ export default function NotificationCleanup() {
                 }
               }}
               disabled={cleaning}
-              className={
+              variant={
                 confirmDialog.type === "delete"
-                  ? "bg-red-600 hover:bg-red-700"
+                  ? "destructive"
                   : confirmDialog.type === "archive"
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-green-600 hover:bg-green-700"
+                    ? "default"
+                    : "default"
               }
             >
               {cleaning ? (

@@ -14,12 +14,13 @@ export default async function AccountPage() {
   const supabase = await createServerSupabaseClient();
   const headersList = await headers();
 
-  // Auth check
+  // Auth check - use getUser() instead of getSession() for secure server-side auth
   const {
-    data: { session }
-  } = await supabase.auth.getSession();
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user || authError) {
     redirect("/ops/login");
   }
 
@@ -27,18 +28,18 @@ export default async function AccountPage() {
   const { data: adminProfile } = await supabase
     .from("admin_profiles")
     .select("*")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   // Get user metadata
   const userInfo = {
-    id: session.user.id,
-    email: session.user.email || "",
-    full_name: session.user.user_metadata?.full_name || "",
-    avatar_url: session.user.user_metadata?.avatar_url || "",
-    phone: session.user.user_metadata?.phone || "",
-    created_at: session.user.created_at,
-    last_sign_in_at: session.user.last_sign_in_at,
+    id: user.id,
+    email: user.email || "",
+    full_name: user.user_metadata?.full_name || "",
+    avatar_url: user.user_metadata?.avatar_url || "",
+    phone: user.user_metadata?.phone || "",
+    created_at: user.created_at,
+    last_sign_in_at: user.last_sign_in_at,
     role: adminProfile?.role || "admin",
     permissions: adminProfile?.permissions || []
   };
@@ -94,13 +95,13 @@ export default async function AccountPage() {
   // Get current session info
   const sessions = [
     {
-      id: session.user.id,
+      id: user.id,
       device: "Bu Cihaz",
       location: locationData.location,
       timezone: locationData.timezone,
       coordinates: locationData.coordinates,
       ip: clientIp,
-      last_active: session.user.last_sign_in_at || new Date().toISOString(),
+      last_active: user.last_sign_in_at || new Date().toISOString(),
       is_current: true
     }
   ];

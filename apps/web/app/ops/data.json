@@ -1,614 +1,614 @@
 [
   {
     "id": 1,
-    "header": "Cover page",
-    "type": "Cover page",
-    "status": "In Process",
+    "header": "Kapak Sayfası",
+    "type": "Kapak",
+    "status": "İşlemde",
     "target": "18",
     "limit": "5",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Yunus Şahin"
   },
   {
     "id": 2,
-    "header": "Table of contents",
-    "type": "Table of contents",
-    "status": "Done",
+    "header": "İçindekiler",
+    "type": "İçindekiler",
+    "status": "Tamamlandı",
     "target": "29",
     "limit": "24",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Yunus Şahin"
   },
   {
     "id": 3,
-    "header": "Executive summary",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Yönetici Özeti",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "10",
     "limit": "13",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Yunus Şahin"
   },
   {
     "id": 4,
-    "header": "Technical approach",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Teknik Yaklaşım",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "27",
     "limit": "23",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Teknik Ekip"
   },
   {
     "id": 5,
-    "header": "Design",
-    "type": "Narrative",
-    "status": "In Process",
+    "header": "Tasarım",
+    "type": "Anlatı",
+    "status": "İşlemde",
     "target": "2",
     "limit": "16",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Tasarım Ekibi"
   },
   {
     "id": 6,
-    "header": "Capabilities",
-    "type": "Narrative",
-    "status": "In Process",
+    "header": "Yetenekler",
+    "type": "Anlatı",
+    "status": "İşlemde",
     "target": "20",
     "limit": "8",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Ürün Ekibi"
   },
   {
     "id": 7,
-    "header": "Integration with existing systems",
-    "type": "Narrative",
-    "status": "In Process",
+    "header": "Mevcut Sistemlerle Entegrasyon",
+    "type": "Anlatı",
+    "status": "İşlemde",
     "target": "19",
     "limit": "21",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Teknik Ekip"
   },
   {
     "id": 8,
-    "header": "Innovation and Advantages",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "İnovasyon ve Avantajlar",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "25",
     "limit": "26",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 9,
-    "header": "Overview of EMR's Innovative Solutions",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "İPELYA'nın İnovatif Çözümlerine Genel Bakış",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "7",
     "limit": "23",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 10,
-    "header": "Advanced Algorithms and Machine Learning",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Gelişmiş Algoritmalar ve Makine Öğrenmesi",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "30",
     "limit": "28",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 11,
-    "header": "Adaptive Communication Protocols",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Uyarlanabilir İletişim Protokolleri",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "9",
     "limit": "31",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 12,
-    "header": "Advantages Over Current Technologies",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Mevcut Teknolojilere Karşı Avantajlar",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "12",
     "limit": "0",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 13,
-    "header": "Past Performance",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Geçmiş Performans",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "22",
     "limit": "33",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 14,
-    "header": "Customer Feedback and Satisfaction Levels",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Müşteri Geri Bildirimi ve Memnuniyet Seviyeleri",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "15",
     "limit": "34",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 15,
-    "header": "Implementation Challenges and Solutions",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Uygulama Zorlukları ve Çözümleri",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "3",
     "limit": "35",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 16,
-    "header": "Security Measures and Data Protection Policies",
-    "type": "Narrative",
-    "status": "In Process",
+    "header": "Güvenlik Önlemleri ve Veri Koruma Politikaları",
+    "type": "Anlatı",
+    "status": "İşlemde",
     "target": "6",
     "limit": "36",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 17,
-    "header": "Scalability and Future Proofing",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Ölçeklenebilirlik ve Geleceğe Hazırlık",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "4",
     "limit": "37",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 18,
-    "header": "Cost-Benefit Analysis",
-    "type": "Plain language",
-    "status": "Done",
+    "header": "Maliyet-Fayda Analizi",
+    "type": "Basit Dil",
+    "status": "Tamamlandı",
     "target": "14",
     "limit": "38",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 19,
-    "header": "User Training and Onboarding Experience",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Kullanıcı Eğitimi ve Onboarding Deneyimi",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "17",
     "limit": "39",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 20,
-    "header": "Future Development Roadmap",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Gelecek Geliştirme Yol Haritası",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "11",
     "limit": "40",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 21,
-    "header": "System Architecture Overview",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Sistem Mimarisi Özeti",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "24",
     "limit": "18",
-    "reviewer": "Maya Johnson"
+    "reviewer": "Mimari Ekibi"
   },
   {
     "id": 22,
-    "header": "Risk Management Plan",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Risk Yönetimi Planı",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "15",
     "limit": "22",
-    "reviewer": "Carlos Rodriguez"
+    "reviewer": "Risk Yöneticisi"
   },
   {
     "id": 23,
-    "header": "Compliance Documentation",
-    "type": "Legal",
-    "status": "In Process",
+    "header": "Uyum Belgelendirmesi",
+    "type": "Yasal",
+    "status": "İşlemde",
     "target": "31",
     "limit": "27",
-    "reviewer": "Sarah Chen"
+    "reviewer": "Hukuk Ekibi"
   },
   {
     "id": 24,
-    "header": "API Documentation",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "API Belgelendirmesi",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "8",
     "limit": "12",
-    "reviewer": "Raj Patel"
+    "reviewer": "Geliştirici Ekibi"
   },
   {
     "id": 25,
-    "header": "User Interface Mockups",
-    "type": "Visual",
-    "status": "In Process",
+    "header": "Kullanıcı Arayüzü Mockup'ları",
+    "type": "Görsel",
+    "status": "İşlemde",
     "target": "19",
     "limit": "25",
-    "reviewer": "Leila Ahmadi"
+    "reviewer": "Tasarımcı"
   },
   {
     "id": 26,
-    "header": "Database Schema",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Veritabanı Şeması",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "22",
     "limit": "20",
-    "reviewer": "Thomas Wilson"
+    "reviewer": "Veri Ekibi"
   },
   {
     "id": 27,
-    "header": "Testing Methodology",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Test Metodolojisi",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "17",
     "limit": "14",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 28,
-    "header": "Deployment Strategy",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Dağıtım Stratejisi",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "26",
     "limit": "30",
-    "reviewer": "Eddie Lake"
+    "reviewer": "DevOps Ekibi"
   },
   {
     "id": 29,
-    "header": "Budget Breakdown",
-    "type": "Financial",
-    "status": "In Process",
+    "header": "Bütçe Dağılımı",
+    "type": "Mali",
+    "status": "İşlemde",
     "target": "13",
     "limit": "16",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Mali Müdür"
   },
   {
     "id": 30,
-    "header": "Market Analysis",
-    "type": "Research",
-    "status": "Done",
+    "header": "Pazar Analizi",
+    "type": "Araştırma",
+    "status": "Tamamlandı",
     "target": "29",
     "limit": "32",
-    "reviewer": "Sophia Martinez"
+    "reviewer": "Araştırma Ekibi"
   },
   {
     "id": 31,
-    "header": "Competitor Comparison",
-    "type": "Research",
-    "status": "In Process",
+    "header": "Rakip Karşılaştırması",
+    "type": "Araştırma",
+    "status": "İşlemde",
     "target": "21",
     "limit": "19",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 32,
-    "header": "Maintenance Plan",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Bakım Planı",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "16",
     "limit": "23",
-    "reviewer": "Alex Thompson"
+    "reviewer": "Destek Ekibi"
   },
   {
     "id": 33,
-    "header": "User Personas",
-    "type": "Research",
-    "status": "In Process",
+    "header": "Kullanıcı Personas",
+    "type": "Araştırma",
+    "status": "İşlemde",
     "target": "27",
     "limit": "24",
-    "reviewer": "Nina Patel"
+    "reviewer": "UX Araştırmacı"
   },
   {
     "id": 34,
-    "header": "Accessibility Compliance",
-    "type": "Legal",
-    "status": "Done",
+    "header": "Erişilebilirlik Uyumluluğu",
+    "type": "Yasal",
+    "status": "Tamamlandı",
     "target": "18",
     "limit": "21",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 35,
-    "header": "Performance Metrics",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Performans Metrikleri",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "23",
     "limit": "26",
-    "reviewer": "David Kim"
+    "reviewer": "Performans Ekibi"
   },
   {
     "id": 36,
-    "header": "Disaster Recovery Plan",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Olağanüstü Durum Kurtarma Planı",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "14",
     "limit": "17",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Teknik Ekip"
   },
   {
     "id": 37,
-    "header": "Third-party Integrations",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Üçüncü Taraf Entegrasyonları",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "25",
     "limit": "28",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Entegrasyon Ekibi"
   },
   {
     "id": 38,
-    "header": "User Feedback Summary",
-    "type": "Research",
-    "status": "Done",
+    "header": "Kullanıcı Geri Bildirimi Özeti",
+    "type": "Araştırma",
+    "status": "Tamamlandı",
     "target": "20",
     "limit": "15",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 39,
-    "header": "Localization Strategy",
-    "type": "Narrative",
-    "status": "In Process",
+    "header": "Yerelleştirme Stratejisi",
+    "type": "Anlatı",
+    "status": "İşlemde",
     "target": "12",
     "limit": "19",
-    "reviewer": "Maria Garcia"
+    "reviewer": "Yerelleştirme Ekibi"
   },
   {
     "id": 40,
-    "header": "Mobile Compatibility",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Mobil Uyumluluğu",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "28",
     "limit": "31",
-    "reviewer": "James Wilson"
+    "reviewer": "Mobil Ekibi"
   },
   {
     "id": 41,
-    "header": "Data Migration Plan",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Veri Taşıma Planı",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "19",
     "limit": "22",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 42,
-    "header": "Quality Assurance Protocols",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Kalite Güvence Protokolleri",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "30",
     "limit": "33",
-    "reviewer": "Priya Singh"
+    "reviewer": "QA Ekibi"
   },
   {
     "id": 43,
-    "header": "Stakeholder Analysis",
-    "type": "Research",
-    "status": "In Process",
+    "header": "Paydaş Analizi",
+    "type": "Araştırma",
+    "status": "İşlemde",
     "target": "11",
     "limit": "14",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Proje Yöneticisi"
   },
   {
     "id": 44,
-    "header": "Environmental Impact Assessment",
-    "type": "Research",
-    "status": "Done",
+    "header": "Çevresel Etki Değerlendirmesi",
+    "type": "Araştırma",
+    "status": "Tamamlandı",
     "target": "24",
     "limit": "27",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 45,
-    "header": "Intellectual Property Rights",
-    "type": "Legal",
-    "status": "In Process",
+    "header": "Fikri Mülkiyet Hakları",
+    "type": "Yasal",
+    "status": "İşlemde",
     "target": "17",
     "limit": "20",
-    "reviewer": "Sarah Johnson"
+    "reviewer": "Hukuk Müşaviri"
   },
   {
     "id": 46,
-    "header": "Customer Support Framework",
-    "type": "Narrative",
-    "status": "Done",
+    "header": "Müşteri Destek Çerçevesi",
+    "type": "Anlatı",
+    "status": "Tamamlandı",
     "target": "22",
     "limit": "25",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Destek Müdürü"
   },
   {
     "id": 47,
-    "header": "Version Control Strategy",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Sürüm Kontrol Stratejisi",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "15",
     "limit": "18",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 48,
-    "header": "Continuous Integration Pipeline",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Sürekli Entegrasyon Hattı",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "26",
     "limit": "29",
-    "reviewer": "Michael Chen"
+    "reviewer": "DevOps Mühendisi"
   },
   {
     "id": 49,
-    "header": "Regulatory Compliance",
-    "type": "Legal",
-    "status": "In Process",
+    "header": "Yasal Uyum",
+    "type": "Yasal",
+    "status": "İşlemde",
     "target": "13",
     "limit": "16",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 50,
-    "header": "User Authentication System",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Kullanıcı Kimlik Doğrulama Sistemi",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "28",
     "limit": "31",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Güvenlik Ekibi"
   },
   {
     "id": 51,
-    "header": "Data Analytics Framework",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Veri Analitik Çerçevesi",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "21",
     "limit": "24",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Veri Analisti"
   },
   {
     "id": 52,
-    "header": "Cloud Infrastructure",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Bulut Altyapısı",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "16",
     "limit": "19",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 53,
-    "header": "Network Security Measures",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Ağ Güvenliği Önlemleri",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "29",
     "limit": "32",
-    "reviewer": "Lisa Wong"
+    "reviewer": "Ağ Yöneticisi"
   },
   {
     "id": 54,
-    "header": "Project Timeline",
-    "type": "Planning",
-    "status": "Done",
+    "header": "Proje Zaman Çizelgesi",
+    "type": "Planlama",
+    "status": "Tamamlandı",
     "target": "14",
     "limit": "17",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Proje Yöneticisi"
   },
   {
     "id": 55,
-    "header": "Resource Allocation",
-    "type": "Planning",
-    "status": "In Process",
+    "header": "Kaynak Tahsisi",
+    "type": "Planlama",
+    "status": "İşlemde",
     "target": "27",
     "limit": "30",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 56,
-    "header": "Team Structure and Roles",
-    "type": "Planning",
-    "status": "Done",
+    "header": "Takım Yapısı ve Roller",
+    "type": "Planlama",
+    "status": "Tamamlandı",
     "target": "20",
     "limit": "23",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "İnsan Kaynakları"
   },
   {
     "id": 57,
-    "header": "Communication Protocols",
-    "type": "Planning",
-    "status": "In Process",
+    "header": "İletişim Protokolleri",
+    "type": "Planlama",
+    "status": "İşlemde",
     "target": "15",
     "limit": "18",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 58,
-    "header": "Success Metrics",
-    "type": "Planning",
-    "status": "Done",
+    "header": "Başarı Metrikleri",
+    "type": "Planlama",
+    "status": "Tamamlandı",
     "target": "30",
     "limit": "33",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Proje Yöneticisi"
   },
   {
     "id": 59,
-    "header": "Internationalization Support",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Uluslararasılaştırma Desteği",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "23",
     "limit": "26",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Yerelleştirme Ekibi"
   },
   {
     "id": 60,
-    "header": "Backup and Recovery Procedures",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Yedekleme ve Kurtarma Prosedürleri",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "18",
     "limit": "21",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 61,
-    "header": "Monitoring and Alerting System",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "İzleme ve Uyarı Sistemi",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "25",
     "limit": "28",
-    "reviewer": "Daniel Park"
+    "reviewer": "Sistem Yöneticisi"
   },
   {
     "id": 62,
-    "header": "Code Review Guidelines",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Kod İncelemesi Yönergeleri",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "12",
     "limit": "15",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Teknik Lider"
   },
   {
     "id": 63,
-    "header": "Documentation Standards",
-    "type": "Technical content",
-    "status": "In Process",
+    "header": "Belgelendirme Standartları",
+    "type": "Teknik İçerik",
+    "status": "İşlemde",
     "target": "27",
     "limit": "30",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Teknik Yazar"
   },
   {
     "id": 64,
-    "header": "Release Management Process",
-    "type": "Planning",
-    "status": "Done",
+    "header": "Sürüm Yönetimi Süreci",
+    "type": "Planlama",
+    "status": "Tamamlandı",
     "target": "22",
     "limit": "25",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   },
   {
     "id": 65,
-    "header": "Feature Prioritization Matrix",
-    "type": "Planning",
-    "status": "In Process",
+    "header": "Özellik Önceliklendirme Matrisi",
+    "type": "Planlama",
+    "status": "İşlemde",
     "target": "19",
     "limit": "22",
-    "reviewer": "Emma Davis"
+    "reviewer": "Ürün Müdürü"
   },
   {
     "id": 66,
-    "header": "Technical Debt Assessment",
-    "type": "Technical content",
-    "status": "Done",
+    "header": "Teknik Borç Değerlendirmesi",
+    "type": "Teknik İçerik",
+    "status": "Tamamlandı",
     "target": "24",
     "limit": "27",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Teknik Lider"
   },
   {
     "id": 67,
-    "header": "Capacity Planning",
-    "type": "Planning",
-    "status": "In Process",
+    "header": "Kapasite Planlaması",
+    "type": "Planlama",
+    "status": "İşlemde",
     "target": "21",
     "limit": "24",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Altyapı Ekibi"
   },
   {
     "id": 68,
-    "header": "Service Level Agreements",
-    "type": "Legal",
-    "status": "Done",
+    "header": "Hizmet Düzeyi Anlaşmaları",
+    "type": "Yasal",
+    "status": "Tamamlandı",
     "target": "26",
     "limit": "29",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Atanacak"
   }
 ]

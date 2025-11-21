@@ -57,7 +57,7 @@ export function PasswordForm() {
         return;
       }
 
-      toast.success("Şifreniz başarıyla güncellendi.");
+      toast.success("✓ Şifreniz başarıyla güncellendi!");
       e.currentTarget.reset();
     } catch (error) {
       toast.error("Bir hata oluştu. Lütfen tekrar deneyin.");

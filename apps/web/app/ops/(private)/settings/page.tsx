@@ -19,9 +19,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ThemeSwitcherSettings } from "./theme-switcher-settings";
+import { ShortcutsSettings } from "./shortcuts-settings";
 
-export default async function SettingsPage() {
+interface SettingsPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const supabase = await createServerSupabaseClient();
+  const params = await searchParams;
+  const defaultTab = params.tab || "general";
 
   // Sistem ayarlarını çek
   const { data: settings } = await supabase.from("system_settings").select("*").single();
@@ -41,13 +48,14 @@ export default async function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="general" className="space-y-4">
+      <Tabs defaultValue={defaultTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="general">Genel</TabsTrigger>
           <TabsTrigger value="security">Güvenlik</TabsTrigger>
           <TabsTrigger value="notifications">Bildirimler</TabsTrigger>
           <TabsTrigger value="email">E-posta</TabsTrigger>
           <TabsTrigger value="appearance">Görünüm</TabsTrigger>
+          <TabsTrigger value="shortcuts">Kısayollar</TabsTrigger>
           <TabsTrigger value="advanced">Gelişmiş</TabsTrigger>
         </TabsList>
 
@@ -440,6 +448,11 @@ export default async function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Shortcuts Settings */}
+        <TabsContent value="shortcuts" className="space-y-4">
+          <ShortcutsSettings />
         </TabsContent>
       </Tabs>
     </>

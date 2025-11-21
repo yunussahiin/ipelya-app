@@ -73,18 +73,18 @@ export function SessionsTable({ sessions }: { sessions: Session[] }) {
     return `${Math.floor(diffInMinutes / 1440)} gün önce`;
   };
 
-  const handleLogoutSession = async (sessionId: string) => {
+  const handleLogoutSession = async () => {
     setIsLoading(true);
     try {
       const supabase = createBrowserSupabaseClient();
       const { error } = await supabase.auth.signOut();
 
       if (error) {
-        toast.error("Oturum sonlandırılamadı");
+        toast.error("✕ Oturum sonlandırılamadı");
         return;
       }
 
-      toast.success("Oturum sonlandırıldı");
+      toast.success("✓ Oturum sonlandırıldı!");
       // Sayfayı yenile
       window.location.reload();
     } catch (error) {
@@ -150,7 +150,7 @@ export function SessionsTable({ sessions }: { sessions: Session[] }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleLogoutSession(session.id)}
+                    onClick={() => handleLogoutSession()}
                     disabled={isLoading}
                   >
                     <IconTrash className="h-4 w-4 text-destructive" />
