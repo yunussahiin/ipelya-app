@@ -6,3 +6,4 @@ export * from "./economy";
 export * from "./ai";
 export * from "./messaging";
 export * from "./live";
+export * from "./shadow";

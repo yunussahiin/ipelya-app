@@ -29,6 +29,7 @@ import {
 import { useRouter } from "expo-router";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { PageScreen } from "@/components/layout/PageScreen";
+import { ShadowToggle } from "@/components/ShadowToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/auth.store";
 import { clearSession } from "@/services/secure-store.service";
@@ -760,6 +761,20 @@ export default function HomeScreen() {
             { paddingBottom: layout.insets.bottom + 60 }
           ]}
         >
+          {/* Shadow Mode Toggle */}
+          {user && profile && (
+            <View style={{ marginBottom: 20 }}>
+              <ShadowToggle
+                onToggleComplete={() => {
+                  console.log("✅ Shadow mode toggled");
+                }}
+                onError={(error) => {
+                  console.error("❌ Shadow mode error:", error);
+                }}
+              />
+            </View>
+          )}
+
           {user && profile && (
             <View
               style={{
@@ -861,6 +876,22 @@ export default function HomeScreen() {
                 <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Type:</Text> {profile.type}
                 </Text>
+                {profile.type === "real" && (
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
+                    <Text style={{ fontWeight: "600" }}>Shadow Active:</Text>{" "}
+                    {profile.shadow_profile_active ? "✅ Yes" : "❌ No"}
+                  </Text>
+                )}
+                {profile.type === "real" && (
+                  <Text
+                    style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                  >
+                    <Text style={{ fontWeight: "600" }}>Shadow Unlocked:</Text>{" "}
+                    {profile.shadow_unlocked ? "🎭 Yes" : "👤 No"}
+                  </Text>
+                )}
                 <Text style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}>
                   <Text style={{ fontWeight: "600" }}>Role:</Text> {profile.role || "user"}
                 </Text>

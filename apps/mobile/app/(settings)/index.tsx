@@ -1,29 +1,19 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable, Switch } from "react-native";
-import { LogOut, ChevronLeft } from "lucide-react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { LogOut, ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useTheme, type ThemeColors, type ThemeAccent } from "@/theme/ThemeProvider";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
 import { clearSession } from "@/services/secure-store.service";
 import { useAuthStore } from "@/store/auth.store";
-
-const accentOptions: Array<{
-  key: ThemeAccent;
-  label: string;
-  description: string;
-  swatch: string;
-}> = [
-  { key: "magenta", label: "Neon", description: "Varsayılan", swatch: "#ff3b81" },
-  { key: "aqua", label: "Aqua", description: "Minimal", swatch: "#22d3ee" },
-  { key: "amber", label: "Amber", description: "Sunset", swatch: "#fbbf24" }
-];
+import { useShadowMode } from "@/hooks/useShadowMode";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors, accent, setAccent } = useTheme();
   const clearAuthSession = useAuthStore((s) => s.clearSession);
+  const { enabled: shadowModeEnabled } = useShadowMode();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleLogout = async () => {
@@ -45,62 +35,69 @@ export default function SettingsScreen() {
             <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ChevronLeft size={24} color={colors.textPrimary} />
             </Pressable>
-            <View style={styles.header}>
-              <Text style={styles.label}>Ayarlar</Text>
-              <Text style={styles.title}>Tercihler</Text>
-              <Text style={styles.subtitle}>Uygulama tercihlerinizi yönetin ve özelleştirin.</Text>
-            </View>
+            <Text style={styles.title}>Ayarlar</Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tema Yönetimi</Text>
-            <Text style={styles.sectionSubtitle}>Açık/koyu modunu ve vurgu rengini seçin.</Text>
-            <View style={styles.themeControlRow}>
-              <View>
-                <Text style={styles.themeLabel}>Görünüm Modu</Text>
-                <Text style={styles.themeHint}>Sistem tercihini anında değiştir.</Text>
-              </View>
-              <ThemeToggle />
-            </View>
-            <Text style={styles.themeLabel}>Vurgu Rengi</Text>
-            <View style={styles.accentRow}>
-              {accentOptions.map((option) => {
-                const isActive = accent === option.key;
-                return (
-                  <Pressable
-                    key={option.key}
-                    onPress={() => setAccent(option.key)}
-                    style={[
-                      styles.accentOption,
-                      isActive && styles.accentOptionActive,
-                      isActive && { borderColor: colors.textPrimary }
-                    ]}
-                  >
-                    <View style={[styles.accentSwatch, { backgroundColor: option.swatch }]} />
-                    <Text style={[styles.accentLabel, isActive && styles.accentLabelActive]}>
-                      {option.label}
+            <Text style={styles.sectionTitle}>Tercihler</Text>
+            <View style={styles.settingsCard}>
+              <Pressable style={styles.settingRow} onPress={() => router.push("/(settings)/theme")}>
+                <View style={styles.settingRowContent}>
+                  <Text style={styles.settingEmoji}>🎨</Text>
+                  <View style={styles.settingRowText}>
+                    <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+                      Tema Ayarları
                     </Text>
-                    <Text style={styles.accentDescription}>{option.description}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Bildirimler</Text>
-            <View style={styles.settingsCard}>
-              <SettingRow label="Push Bildirimleri" defaultValue={true} colors={colors} />
-              <SettingRow label="E-posta Bildirimleri" defaultValue={true} colors={colors} />
-              <SettingRow label="Mesaj Bildirimleri" defaultValue={true} colors={colors} />
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Gizlilik</Text>
-            <View style={styles.settingsCard}>
-              <SettingRow label="Çevrimiçi Durumu Göster" defaultValue={true} colors={colors} />
-              <SettingRow label="Direkt Mesajlara İzin Ver" defaultValue={true} colors={colors} />
+                    <Text style={styles.settingRowHint}>Mod ve renk seçimi</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                style={styles.settingRow}
+                onPress={() => router.push("/(settings)/notifications")}
+              >
+                <View style={styles.settingRowContent}>
+                  <Text style={styles.settingEmoji}>🔔</Text>
+                  <View style={styles.settingRowText}>
+                    <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+                      Bildirim Ayarları
+                    </Text>
+                    <Text style={styles.settingRowHint}>Push, e-posta ve mesaj</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                style={styles.settingRow}
+                onPress={() => router.push("/(settings)/privacy")}
+              >
+                <View style={styles.settingRowContent}>
+                  <Text style={styles.settingEmoji}>🔒</Text>
+                  <View style={styles.settingRowText}>
+                    <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+                      Gizlilik Ayarları
+                    </Text>
+                    <Text style={styles.settingRowHint}>Profil ve mesajlaşma</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                style={[styles.settingRow, styles.settingRowLast]}
+                onPress={() => router.push("/(settings)/shadow-profile")}
+              >
+                <View style={styles.settingRowContent}>
+                  <Text style={styles.settingEmoji}>🎭</Text>
+                  <View style={styles.settingRowText}>
+                    <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+                      Gölge Profil
+                    </Text>
+                    <Text style={styles.settingRowHint}>PIN, biometric ve aktivite</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
+              </Pressable>
             </View>
           </View>
 
@@ -114,69 +111,37 @@ export default function SettingsScreen() {
   );
 }
 
-function SettingRow({
-  label,
-  defaultValue,
-  colors
-}: {
-  label: string;
-  defaultValue: boolean;
-  colors: ThemeColors;
-}) {
-  const [value, setValue] = React.useState(defaultValue);
-
-  return (
-    <View style={staticStyles.settingRow}>
-      <Text style={[staticStyles.settingLabel, { color: colors.textPrimary }]}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={setValue}
-        trackColor={{ false: "#374151", true: colors.accent }}
-        thumbColor="#fff"
-      />
-    </View>
-  );
-}
-
-import React from "react";
-
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     headerContainer: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       gap: 12,
-      paddingBottom: 16
+      paddingBottom: 20,
+      paddingTop: 8
     },
     backButton: {
       padding: 8,
-      marginTop: -8
-    },
-    header: {
-      gap: 8,
-      flex: 1
-    },
-    label: {
-      color: colors.textSecondary,
-      textTransform: "uppercase",
-      fontSize: 12
+      marginLeft: -8
     },
     title: {
       color: colors.textPrimary,
-      fontSize: 26,
-      fontWeight: "700"
-    },
-    subtitle: {
-      color: colors.textSecondary,
-      lineHeight: 20
+      fontSize: 32,
+      fontWeight: "700",
+      flex: 1
     },
     section: {
-      gap: 12
+      gap: 24,
+      marginBottom: 24
     },
     sectionTitle: {
-      color: colors.textPrimary,
-      fontSize: 18,
-      fontWeight: "600"
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginLeft: 16,
+      marginBottom: 8
     },
     sectionSubtitle: {
       color: colors.textSecondary,
@@ -196,9 +161,19 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textPrimary,
       fontWeight: "600"
     },
+    settingLabel: {
+      color: colors.textPrimary,
+      fontWeight: "500",
+      fontSize: 16,
+      flex: 1
+    },
     themeHint: {
-      color: colors.textSecondary,
-      fontSize: 12
+      color: colors.textMuted,
+      fontSize: 15
+    },
+    settingHint: {
+      color: colors.textMuted,
+      fontSize: 13
     },
     accentRow: {
       flexDirection: "row",
@@ -236,12 +211,40 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 12
     },
     settingsCard: {
-      borderRadius: 18,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surface,
-      padding: 16,
-      gap: 12
+      overflow: "hidden"
+    },
+    settingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border
+    },
+    settingRowLast: {
+      borderBottomWidth: 0
+    },
+    settingRowContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1
+    },
+    settingEmoji: {
+      fontSize: 24
+    },
+    settingRowText: {
+      flex: 1,
+      gap: 4
+    },
+    settingRowHint: {
+      color: colors.textMuted,
+      fontSize: 13
     },
     logoutButton: {
       flexDirection: "row",
@@ -258,17 +261,22 @@ const createStyles = (colors: ThemeColors) =>
       color: "#ef4444",
       fontSize: 15,
       fontWeight: "600"
+    },
+    settingButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 0
+    },
+    settingButtonContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1
+    },
+    settingButtonText: {
+      flex: 1,
+      gap: 4
     }
   });
-
-const staticStyles = StyleSheet.create({
-  settingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8
-  },
-  settingLabel: {
-    fontSize: 15
-  }
-});

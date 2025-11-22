@@ -1,5 +1,13 @@
 import { useMemo, useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  TextInput,
+  ActivityIndicator
+} from "react-native";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
@@ -33,8 +41,11 @@ export default function ProfileEditScreen() {
   async function loadProfile() {
     try {
       setLoading(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+        error: authError
+      } = await supabase.auth.getUser();
+
       if (authError || !user) throw authError || new Error("No user");
 
       const { data, error } = await supabase
@@ -45,7 +56,7 @@ export default function ProfileEditScreen() {
         .single();
 
       if (error) throw error;
-      
+
       if (data) {
         setForm({
           display_name: data.display_name || "",
@@ -64,8 +75,11 @@ export default function ProfileEditScreen() {
   async function handleSave() {
     try {
       setSaving(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+        error: authError
+      } = await supabase.auth.getUser();
+
       if (authError || !user) throw authError || new Error("No user");
 
       const { error } = await supabase
@@ -116,7 +130,7 @@ export default function ProfileEditScreen() {
             <Text style={styles.title}>Profili Düzenle</Text>
           </View>
 
-          <ScrollView 
+          <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -126,8 +140,27 @@ export default function ProfileEditScreen() {
               <Text style={styles.sectionTitle}>Profil Fotoğrafı</Text>
               <AvatarUploader
                 currentAvatarUrl={currentAvatarUrl}
-                onUploadSuccess={(url) => {
+                profileType="real"
+                onUploadSuccess={async (url) => {
                   setCurrentAvatarUrl(url || null);
+                  // Save avatar URL to real profile immediately
+                  if (url) {
+                    try {
+                      const {
+                        data: { user }
+                      } = await supabase.auth.getUser();
+                      if (user) {
+                        await supabase
+                          .from("profiles")
+                          .update({ avatar_url: url })
+                          .eq("user_id", user.id)
+                          .eq("type", "real");
+                        console.log("👤 Real avatar saved immediately");
+                      }
+                    } catch (err) {
+                      console.error("❌ Failed to save real avatar:", err);
+                    }
+                  }
                 }}
                 onUploadError={(error) => {
                   console.error("Avatar upload error:", error);

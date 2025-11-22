@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
+import { logAudit } from "@/services/audit.service";
 
 export default function ShadowPinScreen() {
   const router = useRouter();
@@ -37,7 +38,10 @@ export default function ShadowPinScreen() {
       setLoading(true);
       setError("");
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError
+      } = await supabase.auth.getUser();
       if (authError || !user) throw authError || new Error("No user");
 
       // Edge Function çağrısı (enable-shadow-mode)
@@ -46,6 +50,13 @@ export default function ShadowPinScreen() {
       });
 
       if (functionError) throw functionError;
+
+      // Log PIN change
+      await logAudit(user.id, "pin_changed", "real", {
+        pinLength: pin.length
+      });
+
+      console.log("✅ PIN changed successfully");
       router.back();
     } catch (err) {
       console.error("Shadow PIN error:", err);
@@ -92,9 +103,7 @@ export default function ShadowPinScreen() {
 
             <View style={styles.form}>
               <View style={styles.formGroup}>
-                <Text style={styles.label}>
-                  {step === "create" ? "PIN" : "PIN'i Onayla"}
-                </Text>
+                <Text style={styles.label}>{step === "create" ? "PIN" : "PIN'i Onayla"}</Text>
                 <TextInput
                   style={styles.pinInput}
                   placeholder="••••"

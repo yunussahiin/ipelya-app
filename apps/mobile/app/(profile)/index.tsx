@@ -1,14 +1,24 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, Image, ActivityIndicator } from "react-native";
 import { Settings, Edit2, Users, Heart, Ban } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
 import { useFollowersRealtime } from "@/hooks/useFollowersRealtime";
+import { useShadowMode } from "@/hooks/useShadowMode";
 
 interface ProfileData {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  is_creator: boolean;
+  gender: string;
+}
+
+interface ShadowProfileData {
   id: string;
   display_name: string;
   avatar_url: string | null;
@@ -20,15 +30,27 @@ interface ProfileData {
 export default function ProfileScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { enabled: shadowModeEnabled } = useShadowMode();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [shadowProfile, setShadowProfile] = useState<ShadowProfileData | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"real" | "shadow">(
+    shadowModeEnabled ? "shadow" : "real"
+  );
   const { stats: followersStats } = useFollowersRealtime(currentUserId);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Reload profiles when returning from edit screen (without loading spinner)
+      reloadProfiles();
+    }, [])
+  );
 
   async function loadProfile() {
     try {
@@ -53,10 +75,75 @@ export default function ProfileScreen() {
       if (error) throw error;
       console.log("📊 Profile loaded:", data);
       setProfile(data);
+
+      // Load shadow profile
+      await loadShadowProfile();
     } catch (error) {
       console.error("Profile load error:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadShadowProfile() {
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: shadowData, error: shadowError } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url, bio, is_creator, gender")
+        .eq("user_id", user.id)
+        .eq("type", "shadow")
+        .single();
+
+      if (!shadowError && shadowData) {
+        console.log("🎭 Shadow profile loaded:", shadowData);
+        setShadowProfile(shadowData);
+      }
+    } catch (error) {
+      console.error("Shadow profile load error:", error);
+    }
+  }
+
+  async function reloadProfiles() {
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      // Reload real profile
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url, bio, is_creator, gender")
+        .eq("user_id", user.id)
+        .eq("type", "real")
+        .single();
+
+      if (!error && data) {
+        console.log("👤 Profile reloaded:", data);
+        setProfile(data);
+      }
+
+      // Reload shadow profile
+      const { data: shadowData, error: shadowError } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url, bio, is_creator, gender")
+        .eq("user_id", user.id)
+        .eq("type", "shadow")
+        .single();
+
+      if (!shadowError && shadowData) {
+        console.log("🎭 Shadow profile reloaded:", shadowData);
+        setShadowProfile(shadowData);
+      }
+    } catch (error) {
+      console.error("Profile reload error:", error);
     }
   }
 
@@ -106,50 +193,115 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.profileCard}>
-            <View style={styles.avatarSection}>
-              {profile.avatar_url ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  style={styles.avatar}
-                  accessible={true}
-                  accessibilityLabel="Profil fotoğrafı"
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarPlaceholderText}>
-                    {profile.display_name?.charAt(0).toUpperCase() || "?"}
-                  </Text>
-                </View>
-              )}
+          {shadowProfile && (
+            <View style={styles.tabContainer}>
+              <Pressable
+                style={[
+                  styles.tab,
+                  activeTab === "real" && styles.tabActive,
+                  { borderBottomColor: activeTab === "real" ? colors.accent : colors.border }
+                ]}
+                onPress={() => setActiveTab("real")}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "real" && styles.tabTextActive,
+                    { color: activeTab === "real" ? colors.accent : colors.textSecondary }
+                  ]}
+                >
+                  👤 Normal Profil
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.tab,
+                  activeTab === "shadow" && styles.tabActive,
+                  { borderBottomColor: activeTab === "shadow" ? colors.accent : colors.border }
+                ]}
+                onPress={() => setActiveTab("shadow")}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "shadow" && styles.tabTextActive,
+                    { color: activeTab === "shadow" ? colors.accent : colors.textSecondary }
+                  ]}
+                >
+                  🎭 Gölge Profil
+                </Text>
+              </Pressable>
             </View>
+          )}
 
-            <View style={styles.profileInfo}>
-              <Text style={styles.displayName}>{profile.display_name}</Text>
-              {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-
-              <View style={styles.badgeRow}>
-                {profile.is_creator && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>Creator</Text>
+          {profile && (
+            <View style={[styles.profileCard, activeTab === "shadow" && styles.profileCardShadow]}>
+              <View style={styles.avatarSection}>
+                {(activeTab === "shadow" ? shadowProfile : profile)?.avatar_url ? (
+                  <Image
+                    source={{
+                      uri: (activeTab === "shadow" ? shadowProfile : profile)?.avatar_url || ""
+                    }}
+                    style={styles.avatar}
+                    accessible={true}
+                    accessibilityLabel={
+                      activeTab === "shadow" ? "Gölge profil fotoğrafı" : "Profil fotoğrafı"
+                    }
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Text style={styles.avatarPlaceholderText}>
+                      {(activeTab === "shadow" ? shadowProfile : profile)?.display_name
+                        ?.charAt(0)
+                        .toUpperCase() || "?"}
+                    </Text>
                   </View>
                 )}
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{profile.gender}</Text>
+              </View>
+
+              <View style={styles.profileInfo}>
+                <Text style={styles.displayName}>
+                  {(activeTab === "shadow" ? shadowProfile : profile)?.display_name}
+                </Text>
+                {(activeTab === "shadow" ? shadowProfile : profile)?.bio && (
+                  <Text style={styles.bio}>
+                    {(activeTab === "shadow" ? shadowProfile : profile)?.bio}
+                  </Text>
+                )}
+
+                <View style={styles.badgeRow}>
+                  {(activeTab === "shadow" ? shadowProfile : profile)?.is_creator && (
+                    <View style={[styles.badge, activeTab === "shadow" && styles.badgeShadow]}>
+                      <Text style={styles.badgeText}>Creator</Text>
+                    </View>
+                  )}
+                  <View style={[styles.badge, activeTab === "shadow" && styles.badgeShadow]}>
+                    <Text style={styles.badgeText}>
+                      {(activeTab === "shadow" ? shadowProfile : profile)?.gender}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
 
-            <Pressable
-              style={styles.editButton}
-              onPress={() => router.push("/(profile)/edit")}
-              accessible={true}
-              accessibilityLabel="Profili düzenle"
-              accessibilityRole="button"
-            >
-              <Edit2 size={20} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+              <View style={styles.buttonGroup}>
+                <Pressable
+                  style={styles.editButton}
+                  onPress={() =>
+                    router.push(
+                      activeTab === "shadow" ? "/(profile)/shadow-edit" : "/(profile)/edit"
+                    )
+                  }
+                  accessible={true}
+                  accessibilityLabel={
+                    activeTab === "shadow" ? "Gölge profili düzenle" : "Profili düzenle"
+                  }
+                  accessibilityRole="button"
+                >
+                  <Edit2 size={20} color={colors.textPrimary} />
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           <Pressable
             style={styles.statsSection}
@@ -343,5 +495,52 @@ const createStyles = (colors: ThemeColors) =>
     blockedUsersButtonText: {
       fontSize: 14,
       fontWeight: "600"
+    },
+    tabContainer: {
+      flexDirection: "row",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: 16,
+      marginHorizontal: 16
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 12,
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
+      alignItems: "center"
+    },
+    tabActive: {
+      borderBottomColor: colors.accent
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textSecondary
+    },
+    tabTextActive: {
+      color: colors.accent
+    },
+    buttonGroup: {
+      flexDirection: "row",
+      gap: 8
+    },
+    shadowEditButton: {
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: colors.accentSoft,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    profileCardShadow: {
+      borderColor: colors.accent,
+      borderWidth: 2
+    },
+    badgeShadow: {
+      backgroundColor: colors.accentSoft,
+      borderColor: colors.accent,
+      borderWidth: 1
     }
   });

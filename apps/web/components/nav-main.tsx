@@ -261,15 +261,18 @@ export function NavMain({
             <SidebarMenuItem className="flex items-center gap-2"></SidebarMenuItem>
           </SidebarMenu>
           <SidebarMenu>
-            {items.map((item) =>
-              item.items && item.items.length > 0 ? (
-                <Collapsible key={item.title} asChild defaultOpen className="group/collapsible">
+            {items.map((item) => {
+              const isActive = pathname === item.url || pathname.startsWith(item.url + "/");
+              return item.items && item.items.length > 0 ? (
+                <Collapsible
+                  key={item.title}
+                  asChild
+                  defaultOpen={isActive}
+                  className="group/collapsible"
+                >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
-                      >
+                      <SidebarMenuButton tooltip={item.title} isActive={isActive}>
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
                         <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -299,8 +302,8 @@ export function NavMain({
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )
-            )}
+              );
+            })}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>

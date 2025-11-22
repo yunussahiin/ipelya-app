@@ -35,6 +35,7 @@ interface RemoveUserAvatarOptions {
   userId: string;
   storagePath?: string | null;
   currentUrl?: string | null;
+  profileType?: "real" | "shadow";
 }
 
 const BUCKET_NAME = "avatars";
@@ -152,19 +153,23 @@ export async function uploadAvatar(options: AvatarUploadOptions): Promise<Avatar
 /**
  * Update user profile with new avatar URL
  */
-export async function updateProfileAvatar(userId: string, avatarUrl: string): Promise<{ success: boolean; error?: string }> {
+export async function updateProfileAvatar(
+  userId: string,
+  avatarUrl: string,
+  profileType: "real" | "shadow" = "real"
+): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
       .from("profiles")
       .update({ avatar_url: avatarUrl })
       .eq("user_id", userId)
-      .eq("type", "real");
+      .eq("type", profileType);
 
     if (error) {
       return { success: false, error: error.message };
     }
 
-    console.log("✅ Profile avatar updated");
+    console.log(`✅ ${profileType === "shadow" ? "🎭 Shadow" : "👤 Profile"} avatar updated`);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -201,7 +206,8 @@ export async function deleteAvatar(path: string): Promise<AvatarDeleteResult> {
 export async function uploadAndUpdateAvatar(
   userId: string,
   file: AvatarUploadOptions["file"],
-  oldAvatarPath?: string
+  oldAvatarPath?: string,
+  profileType: "real" | "shadow" = "real"
 ): Promise<AvatarUploadResult> {
   try {
     // Upload new avatar
@@ -216,7 +222,7 @@ export async function uploadAndUpdateAvatar(
     }
 
     // Update profile
-    const updateResult = await updateProfileAvatar(userId, uploadResult.url);
+    const updateResult = await updateProfileAvatar(userId, uploadResult.url, profileType);
     if (!updateResult.success) {
       return { success: false, error: updateResult.error };
     }
@@ -245,7 +251,7 @@ export function getAvatarUrl(path: string): string {
   return data?.publicUrl || "";
 }
 
-export async function removeUserAvatar({ userId, storagePath, currentUrl }: RemoveUserAvatarOptions) {
+export async function removeUserAvatar({ userId, storagePath, currentUrl, profileType = "real" }: RemoveUserAvatarOptions) {
   try {
     const path = storagePath ?? extractStoragePathFromUrl(currentUrl);
 
@@ -260,7 +266,7 @@ export async function removeUserAvatar({ userId, storagePath, currentUrl }: Remo
       .from("profiles")
       .update({ avatar_url: null })
       .eq("user_id", userId)
-      .eq("type", "real");
+      .eq("type", profileType);
 
     if (error) {
       return { success: false, error: error.message };

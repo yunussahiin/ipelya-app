@@ -31,7 +31,7 @@ export interface UseAvatarUploadActions {
   reset: () => void;
 }
 
-export function useAvatarUpload(currentAvatarUrl?: string | null): UseAvatarUploadState & UseAvatarUploadActions {
+export function useAvatarUpload(currentAvatarUrl?: string | null, profileType: "real" | "shadow" = "real"): UseAvatarUploadState & UseAvatarUploadActions {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -159,7 +159,7 @@ export function useAvatarUpload(currentAvatarUrl?: string | null): UseAvatarUplo
         uri,
         name: filename,
         type: "image/jpeg"
-      }, oldPath);
+      }, oldPath, profileType);
 
       if (!result.success) {
         throw new Error(result.error || "Yükleme başarısız");

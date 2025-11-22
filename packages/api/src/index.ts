@@ -1,6 +1,7 @@
 // Bu dosya API servislerinin public export noktasını temsil eder.
 export * from "./auth";
 export * from "./shadow";
+export * from "./shadow-broadcast";
 export * from "./fantasy";
 export * from "./coins";
 export * from "./ppv";

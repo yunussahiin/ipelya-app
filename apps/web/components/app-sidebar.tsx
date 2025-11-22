@@ -13,7 +13,8 @@ import {
   IconSettings,
   IconShield,
   IconUsers,
-  IconBell
+  IconBell,
+  IconMask
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -143,6 +144,45 @@ const data = {
           url: "/ops/notifications/cleanup"
         }
       ]
+    },
+    {
+      title: "Shadow Profil",
+      url: "/ops/shadow",
+      icon: IconMask,
+      items: [
+        {
+          title: "Kontrol Paneli",
+          url: "/ops/shadow"
+        },
+        {
+          title: "Oturumlar",
+          url: "/ops/shadow/sessions"
+        },
+        {
+          title: "Denetim Günlükleri",
+          url: "/ops/shadow/audit-logs"
+        },
+        {
+          title: "Anomaliler",
+          url: "/ops/shadow/anomalies"
+        },
+        {
+          title: "Hız Sınırlaması",
+          url: "/ops/shadow/rate-limits"
+        },
+        {
+          title: "Analitikler",
+          url: "/ops/shadow/analytics"
+        },
+        {
+          title: "Yapılandırma",
+          url: "/ops/shadow/config"
+        },
+        {
+          title: "Shadow Kullanıcılar",
+          url: "/ops/shadow/users"
+        }
+      ]
     }
   ],
   navSecondary: [
@@ -166,12 +206,12 @@ const data = {
       ]
     },
     {
-      title: "Live Sessions",
+      title: "Canlı Oturumlar",
       url: "/ops/live",
       icon: IconCamera
     },
     {
-      title: "AI Engine",
+      title: "AI Motoru",
       url: "/ops/ai",
       icon: IconFileAi
     }

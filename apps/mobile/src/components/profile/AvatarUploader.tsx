@@ -13,12 +13,14 @@ export interface AvatarUploaderProps {
   currentAvatarUrl?: string | null;
   onUploadSuccess?: (url: string) => void;
   onUploadError?: (error: string) => void;
+  profileType?: "real" | "shadow";
 }
 
 export function AvatarUploader({
   currentAvatarUrl,
   onUploadSuccess,
-  onUploadError
+  onUploadError,
+  profileType = "real"
 }: AvatarUploaderProps) {
   const { colors } = useTheme();
   const {
@@ -31,7 +33,7 @@ export function AvatarUploader({
     takePhoto,
     removeAvatar,
     clearError
-  } = useAvatarUpload(currentAvatarUrl);
+  } = useAvatarUpload(currentAvatarUrl, profileType);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const displayUrl = avatarUrl || currentAvatarUrl;
