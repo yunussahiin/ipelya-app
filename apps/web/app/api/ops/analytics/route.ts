@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminSupabaseClient } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminSupabaseClient();
     
     // Check if user is ops
     const { data: { user } } = await supabase.auth.getUser();
@@ -17,7 +17,7 @@ export async function GET() {
       .eq('user_id', user.id)
       .single();
 
-    if (profile?.role !== 'ops') {
+    if (profile?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
