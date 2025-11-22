@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminSupabaseClient } from '@/lib/supabase/server';
 import { lockUserByOps } from '@ipelya/api';
 
 export async function POST(
@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: { userId: string } }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminSupabaseClient();
     
     // Check if user is ops
     const { data: { user } } = await supabase.auth.getUser();

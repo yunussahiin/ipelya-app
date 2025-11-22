@@ -8,17 +8,12 @@
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
-import { useShadowStore } from '@/store/shadow.store';
 import { endSession } from '@/services/session.service';
 import { logAudit } from '@/services/audit.service';
-import {
-  updateRateLimitConfigDynamic,
-  RateLimitConfig,
-} from '@/services/rate-limit.service';
-import {
-  updateAnomalyConfig,
-  AnomalyDetectionConfig,
-} from '@/services/anomaly-detection.service';
+import { useShadowStore } from '@/store/shadow.store';
+import { saveLockInfo, clearLockInfo, formatLockDuration } from '@/services/user-lock.service';
+import { updateRateLimitConfigDynamic, RateLimitConfig } from '@/services/rate-limit.service';
+import { updateAnomalyConfig, AnomalyDetectionConfig } from '@/services/anomaly-detection.service';
 
 /**
  * Setup realtime listener for ops commands from web-ops
@@ -161,37 +156,51 @@ async function handleSessionTerminated(
 /**
  * Handle user lockout by ops
  */
-function handleUserLocked(
+async function handleUserLocked(
   payload: Record<string, unknown>,
   userId: string
 ) {
   try {
     const reason = payload.reason as string;
-    const duration = payload.duration as number; // minutes
-    const lockedUntil = payload.locked_until as string; // ISO timestamp
+    const duration = payload.duration as number | null;
+    const lockedUntil = payload.locked_until as string | null;
 
-    console.log(`🔒 User locked by ops: ${reason} (${duration} min)`);
+    console.log(`🔒 User locked by ops: ${reason} (duration: ${duration ? `${duration} minutes` : 'permanent'})`);
 
-    // 1. Disable shadow mode
-    useShadowStore.setState({ enabled: false });
+    // 1. Save lock info to local storage
+    await saveLockInfo({
+      reason,
+      lockedAt: new Date().toISOString(),
+      lockedUntil,
+      duration,
+    });
 
-    // 2. Log audit event
-    logAudit(userId, 'user_locked_by_ops', 'real', {
+    // 2. Disable shadow mode
+    useShadowStore.setState({ enabled: false, sessionId: null });
+
+    // 3. Log audit event
+    await logAudit(userId, 'user_locked_by_ops', 'real', {
       reason,
       duration,
       lockedUntil,
     });
 
-    // 3. Show alert to user
+    // 4. Show alert to user
+    const durationText = duration 
+      ? formatLockDuration(duration)
+      : 'kalıcı olarak';
+    
+    const untilText = lockedUntil
+      ? `\n\nKilit bitiş: ${new Date(lockedUntil).toLocaleString('tr-TR')}`
+      : '';
+
     Alert.alert(
       '🔒 Hesap Kilitlendi',
-      `Hesabınız ${duration} dakika boyunca kilitlenmiştir.\n\nNeden: ${reason}\n\nKilit saat: ${new Date(lockedUntil).toLocaleTimeString('tr-TR')}`,
+      `Hesabınız ${durationText} kilitlenmiştir.\n\nNeden: ${reason}${untilText}`,
       [
         {
           text: 'Tamam',
-          onPress: () => {
-            // Optional: Navigate to home
-          },
+          onPress: () => {},
         },
       ]
     );
@@ -205,17 +214,20 @@ function handleUserLocked(
 /**
  * Handle user unlock by ops
  */
-function handleUserUnlocked(
+async function handleUserUnlocked(
   payload: Record<string, unknown>,
   userId: string
 ) {
   try {
     console.log('🔓 User unlocked by ops');
 
-    // Log audit event
-    logAudit(userId, 'user_unlocked_by_ops', 'real', {});
+    // 1. Clear lock info from local storage
+    await clearLockInfo();
 
-    // Show notification
+    // 2. Log audit event
+    await logAudit(userId, 'user_unlocked_by_ops', 'real', {});
+
+    // 3. Show notification
     Alert.alert(
       '🔓 Hesap Açıldı',
       'Hesabınızın kilidi açılmıştır. Şimdi shadow profili kullanabilirsiniz.',

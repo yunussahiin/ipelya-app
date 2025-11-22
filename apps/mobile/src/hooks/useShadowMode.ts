@@ -16,6 +16,7 @@ import { useShadowStore } from "@/store/shadow.store";
 import { verifyPin } from "@/utils/crypto";
 import { logAudit } from "@/services/audit.service";
 import { checkPinRateLimit, checkBiometricRateLimit } from "@/services/rate-limit.service";
+import { isUserLocked, getLockInfo, formatLockDuration } from "@/services/user-lock.service";
 import * as LocalAuthentication from "expo-local-authentication";
 
 /**
