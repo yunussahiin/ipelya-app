@@ -78,6 +78,7 @@ function createStyles(colors: any) {
       fontWeight: "400",
       lineHeight: 24,
       padding: 0,
+      textAlignVertical: "center",
       // Android specific
       ...(Platform.OS === "android" && {
         paddingVertical: 0

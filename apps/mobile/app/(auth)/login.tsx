@@ -1,4 +1,12 @@
-import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  StyleSheet,
+  View,
+  Platform,
+  useWindowDimensions
+} from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +26,15 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { signIn, isLoading, error, setError } = useAuthActions();
+  const {
+    signIn,
+    signInWithGoogleOAuth,
+    signInWithMagicLinkEmail,
+    signInWithAppleOAuth,
+    isLoading,
+    error,
+    setError
+  } = useAuthActions();
   const { control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
@@ -28,6 +44,28 @@ export default function LoginScreen() {
   const onSubmit = handleSubmit(async ({ email, password }) => {
     await signIn(email, password);
   });
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    await signInWithGoogleOAuth();
+  };
+
+  const handleMagicLink = async () => {
+    setError(null);
+    if (formState.isValid) {
+      const email = control._formValues.email;
+      const success = await signInWithMagicLinkEmail(email);
+      if (success) {
+        setError(null);
+        // Magic link başarıyla gönderildi - kullanıcıya bilgi ver
+      }
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError(null);
+    await signInWithAppleOAuth();
+  };
 
   const styles = createStyles(colors);
 
@@ -124,6 +162,68 @@ export default function LoginScreen() {
           <Text style={styles.loginButtonText}>Giriş yap</Text>
         )}
       </Pressable>
+
+      {/* Divider */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>veya</Text>
+        <View style={styles.divider} />
+      </View>
+
+      {/* Google OAuth Button */}
+      <Pressable
+        onPress={handleGoogleSignIn}
+        disabled={isLoading}
+        style={({ pressed }) => [
+          styles.socialButton,
+          {
+            opacity: isLoading || pressed ? 0.7 : 1
+          }
+        ]}
+        accessible={true}
+        accessibilityLabel="Google ile giriş yap"
+        accessibilityRole="button"
+      >
+        <Text style={styles.socialButtonText}>🔵 Google ile Giriş Yap</Text>
+      </Pressable>
+
+      {/* Magic Link Button */}
+      <Pressable
+        onPress={handleMagicLink}
+        disabled={isLoading || !formState.isValid}
+        style={({ pressed }) => [
+          styles.socialButton,
+          styles.magicLinkButton,
+          {
+            opacity: isLoading || !formState.isValid || pressed ? 0.7 : 1
+          }
+        ]}
+        accessible={true}
+        accessibilityLabel="Magic Link gönder"
+        accessibilityRole="button"
+      >
+        <Text style={styles.magicLinkButtonText}>📧 Magic Link Gönder</Text>
+      </Pressable>
+
+      {/* Apple Sign-In Button (iOS only) */}
+      {Platform.OS === "ios" && (
+        <Pressable
+          onPress={handleAppleSignIn}
+          disabled={isLoading}
+          style={({ pressed }) => [
+            styles.socialButton,
+            styles.appleButton,
+            {
+              opacity: isLoading || pressed ? 0.7 : 1
+            }
+          ]}
+          accessible={true}
+          accessibilityLabel="Apple ile giriş yap"
+          accessibilityRole="button"
+        >
+          <Text style={styles.appleButtonText}>🍎 Apple ile Giriş Yap</Text>
+        </Pressable>
+      )}
     </AuthScreen>
   );
 }
@@ -179,6 +279,63 @@ function createStyles(colors: any) {
     signupLink: {
       color: colors.accentSoft,
       fontWeight: "600"
+    },
+    dividerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginVertical: 24,
+      gap: 12
+    },
+    divider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border
+    },
+    dividerText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: "500"
+    },
+    socialButton: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: LAYOUT_CONSTANTS.radiusMedium,
+      paddingVertical: Platform.OS === "android" ? 14 : 16,
+      paddingHorizontal: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: LAYOUT_CONSTANTS.buttonMinHeight,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...(Platform.OS === "android" && {
+        elevation: 1
+      })
+    },
+    socialButtonText: {
+      color: colors.textPrimary,
+      fontWeight: "600",
+      fontSize: 16,
+      lineHeight: 24
+    },
+    magicLinkButton: {
+      backgroundColor: colors.accentSoft + "15",
+      borderColor: colors.accentSoft
+    },
+    magicLinkButtonText: {
+      color: colors.accentSoft,
+      fontWeight: "600",
+      fontSize: 16,
+      lineHeight: 24
+    },
+    appleButton: {
+      backgroundColor: "#000000",
+      borderColor: "#000000"
+    },
+    appleButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "600",
+      fontSize: 16,
+      lineHeight: 24
     }
   });
 }

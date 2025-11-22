@@ -5,13 +5,13 @@ import {
   IconBan,
   IconCalendar,
   IconDeviceMobile,
+  IconLock,
   IconMail,
   IconShield,
   IconTrash,
   IconUser,
   IconUserOff
 } from "@tabler/icons-react";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,10 @@ interface UserDetailModalProps {
 
 export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: "ban" | "delete" | null;
+    open: boolean;
+  }>({ type: null, open: false });
 
   if (!user) return null;
 
@@ -43,6 +47,7 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
     // TODO: Ban user action
     setTimeout(() => {
       setIsLoading(false);
+      setConfirmDialog({ type: null, open: false });
       onOpenChange(false);
     }, 1000);
   };
@@ -52,6 +57,7 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
     // TODO: Delete user action
     setTimeout(() => {
       setIsLoading(false);
+      setConfirmDialog({ type: null, open: false });
       onOpenChange(false);
     }, 1000);
   };
@@ -107,8 +113,10 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
 
           {/* Tabs */}
           <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="info">Genel Bilgiler</TabsTrigger>
+              <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
+              <TabsTrigger value="shadow">Shadow Profil</TabsTrigger>
               <TabsTrigger value="activity">Aktivite</TabsTrigger>
               <TabsTrigger value="security">Güvenlik</TabsTrigger>
             </TabsList>
@@ -187,7 +195,16 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
                     <IconShield className="h-4 w-4" />
                     Profil Tipi
                   </Label>
-                  <p className="text-sm capitalize">{user.type || "-"}</p>
+                  <Badge
+                    variant={user.type === "shadow" ? "secondary" : "default"}
+                    className="w-fit"
+                  >
+                    {user.type === "real"
+                      ? "Gerçek Profil"
+                      : user.type === "shadow"
+                        ? "Shadow Profil"
+                        : "-"}
+                  </Badge>
                 </div>
 
                 <div className="space-y-2">
@@ -293,6 +310,336 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
               )}
             </TabsContent>
 
+            {/* Onboarding */}
+            <TabsContent value="onboarding" className="space-y-4">
+              <div className="rounded-lg border p-4">
+                <h4 className="mb-4 font-semibold">Onboarding Durumu</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Adım:</span>
+                    <Badge variant="default">{user.onboarding_step || 0}/5</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Tamamlanma Tarihi:</span>
+                    <span className="text-sm">
+                      {user.onboarding_completed_at
+                        ? new Date(user.onboarding_completed_at).toLocaleDateString("tr-TR", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })
+                        : "Tamamlanmamış"}
+                    </span>
+                  </div>
+                  <Separator />
+
+                  {/* Step 1 - Profil Bilgileri */}
+                  {user.onboarding_step >= 1 && (
+                    <div className="space-y-2">
+                      <h5 className="font-medium text-sm">Adım 1: Profil Bilgileri</h5>
+                      <div className="pl-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Display Name:</span>
+                          <span
+                            className={
+                              !user.onboarding_data?.step1?.displayName
+                                ? "text-muted-foreground"
+                                : ""
+                            }
+                          >
+                            {user.onboarding_data?.step1?.displayName ||
+                              user.display_name ||
+                              "Seçilmedi"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cinsiyet:</span>
+                          <Badge
+                            variant={
+                              (user.onboarding_data?.step1?.gender || user.gender) &&
+                              (user.onboarding_data?.step1?.gender || user.gender) !==
+                                "belirtmek-istemiyorum"
+                                ? "secondary"
+                                : "outline"
+                            }
+                            className="capitalize"
+                          >
+                            {(user.onboarding_data?.step1?.gender || user.gender) ===
+                            "belirtmek-istemiyorum"
+                              ? "Belirtmek İstemiyorum"
+                              : user.onboarding_data?.step1?.gender || user.gender || "Seçilmedi"}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Bio:</span>
+                          <span
+                            className={`text-right max-w-xs ${!user.onboarding_data?.step1?.bio ? "text-muted-foreground" : ""}`}
+                          >
+                            {user.onboarding_data?.step1?.bio || user.bio || "Seçilmedi"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2 */}
+                  {user.onboarding_step >= 2 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h5 className="font-medium text-sm">Adım 2: Kişilik Özellikleri</h5>
+                        <div className="pl-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Mood:</span>
+                            <Badge
+                              variant={user.onboarding_data?.step2?.mood ? "secondary" : "outline"}
+                              className="capitalize"
+                            >
+                              {user.onboarding_data?.step2?.mood || "Seçilmedi"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Energy:</span>
+                            <Badge
+                              variant={
+                                user.onboarding_data?.step2?.energy ? "secondary" : "outline"
+                              }
+                              className="capitalize"
+                            >
+                              {user.onboarding_data?.step2?.energy || "Seçilmedi"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Personality:</span>
+                            <Badge
+                              variant={
+                                user.onboarding_data?.step2?.personality ? "secondary" : "outline"
+                              }
+                              className="capitalize"
+                            >
+                              {user.onboarding_data?.step2?.personality || "Seçilmedi"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Step 3 */}
+                  {user.onboarding_step >= 3 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h5 className="font-medium text-sm">Adım 3: Shadow Mode & Biometric</h5>
+                        <div className="pl-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Shadow PIN Hash:</span>
+                            <Badge variant={user.shadow_pin_hash ? "default" : "secondary"}>
+                              {user.shadow_pin_hash ? "✓ Ayarlanmış" : "✗ Ayarlanmamış"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Biometric Enabled:</span>
+                            <Badge
+                              variant={
+                                user.onboarding_data?.step3?.biometricEnabled
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {user.onboarding_data?.step3?.biometricEnabled ? "✓ Evet" : "✗ Hayır"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Biometric Type:</span>
+                            <Badge variant="secondary" className="capitalize">
+                              {user.onboarding_data?.step3?.biometricType || "-"}
+                            </Badge>
+                          </div>
+                          {user.shadow_pin_created_at && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">PIN Oluşturma Tarihi:</span>
+                              <span className="text-xs">
+                                {new Date(user.shadow_pin_created_at).toLocaleDateString("tr-TR", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Step 4 */}
+                  {user.onboarding_step >= 4 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h5 className="font-medium text-sm">Adım 4: Şartlar & Kabuller</h5>
+                        <div className="pl-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">ToS Accepted:</span>
+                            <Badge variant={user.tos_accepted_at ? "default" : "secondary"}>
+                              {user.tos_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Privacy Accepted:</span>
+                            <Badge variant={user.privacy_accepted_at ? "default" : "secondary"}>
+                              {user.privacy_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Firewall Accepted:</span>
+                            <Badge variant={user.firewall_accepted_at ? "default" : "secondary"}>
+                              {user.firewall_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Anti-Screenshot Accepted:</span>
+                            <Badge
+                              variant={user.anti_screenshot_accepted_at ? "default" : "secondary"}
+                            >
+                              {user.anti_screenshot_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="shadow" className="space-y-4">
+              <div className="rounded-lg border p-4">
+                <h4 className="mb-4 font-semibold">Shadow Profil Bilgileri</h4>
+                <div className="space-y-4">
+                  {/* Profil Durumu */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Profil Durumu</Label>
+                    <div className="pl-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Aktif:</span>
+                        <Badge variant={user.shadow_profile_active ? "default" : "secondary"}>
+                          {user.shadow_profile_active ? "✓ Evet" : "✗ Hayır"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Açılmış:</span>
+                        <Badge variant={user.shadow_unlocked ? "default" : "secondary"}>
+                          {user.shadow_unlocked ? "✓ Evet" : "✗ Hayır"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* PIN Bilgileri */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <IconLock className="h-4 w-4" />
+                      PIN Bilgileri
+                    </Label>
+                    <div className="pl-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">PIN Ayarlanmış:</span>
+                        <Badge variant={user.shadow_pin_hash ? "default" : "secondary"}>
+                          {user.shadow_pin_hash ? "✓ Evet" : "✗ Hayır"}
+                        </Badge>
+                      </div>
+                      {user.shadow_pin_hash && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">PIN Hash:</span>
+                          <span className="font-mono text-xs truncate max-w-xs">
+                            {user.shadow_pin_hash.substring(0, 16)}...
+                          </span>
+                        </div>
+                      )}
+                      {user.shadow_pin_created_at && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Oluşturma Tarihi:</span>
+                          <span className="text-xs">
+                            {new Date(user.shadow_pin_created_at).toLocaleDateString("tr-TR", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Biometric Bilgileri */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <IconDeviceMobile className="h-4 w-4" />
+                      Biometric Bilgileri
+                    </Label>
+                    <div className="pl-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Aktif:</span>
+                        <Badge variant={user.biometric_enabled ? "default" : "secondary"}>
+                          {user.biometric_enabled ? "✓ Evet" : "✗ Hayır"}
+                        </Badge>
+                      </div>
+                      {user.biometric_type && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Türü:</span>
+                          <Badge variant="secondary" className="capitalize">
+                            {user.biometric_type === "face_id"
+                              ? "Face ID"
+                              : user.biometric_type === "touch_id"
+                                ? "Touch ID"
+                                : user.biometric_type === "fingerprint"
+                                  ? "Fingerprint"
+                                  : user.biometric_type}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Kullanıcı Bilgileri */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <IconUser className="h-4 w-4" />
+                      Kullanıcı Bilgileri
+                    </Label>
+                    <div className="pl-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Kullanıcı Adı:</span>
+                        <span className="font-medium">@{user.username || "-"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Görünen Ad:</span>
+                        <span className="font-medium">{user.display_name || "-"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">E-posta:</span>
+                        <span className="text-xs">{user.email || "-"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
             {/* Aktivite */}
             <TabsContent value="activity" className="space-y-4">
               <div className="rounded-lg border p-4">
@@ -326,18 +673,78 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
               <div className="rounded-lg border p-4">
                 <h4 className="mb-4 font-semibold">Güvenlik Bilgileri</h4>
                 <div className="space-y-3">
+                  {/* Shadow Mode Section */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <IconLock className="h-4 w-4" />
+                      Shadow Mode Durumu
+                    </Label>
+                    <div className="space-y-2 pl-6">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Profil Aktif:</span>
+                        <Badge variant={user.shadow_profile_active ? "default" : "secondary"}>
+                          {user.shadow_profile_active ? "Aktif" : "Pasif"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">PIN Ayarlanmış:</span>
+                        <Badge variant={user.shadow_pin_hash ? "default" : "secondary"}>
+                          {user.shadow_pin_hash ? "Evet" : "Hayır"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Biometric:</span>
+                        <Badge variant={user.biometric_enabled ? "default" : "secondary"}>
+                          {user.biometric_enabled
+                            ? `Aktif (${user.biometric_type || "Bilinmiyor"})`
+                            : "Pasif"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Device Info */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-muted-foreground">
                       <IconDeviceMobile className="h-4 w-4" />
                       Son Cihaz
                     </Label>
-                    <div className="rounded-md border bg-muted/50 p-3">
-                      <pre className="text-xs overflow-x-auto">
-                        {user.last_device_info
-                          ? JSON.stringify(user.last_device_info, null, 2)
-                          : "-"}
-                      </pre>
-                    </div>
+                    {user.last_device_info ? (
+                      <div className="rounded-md border bg-muted/50 p-3 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Model:</span>
+                          <span className="font-medium">{user.last_device_info.model || "-"}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Platform:</span>
+                          <Badge variant="secondary" className="capitalize">
+                            {user.last_device_info.platform || "-"}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">OS Versiyonu:</span>
+                          <span className="font-medium">
+                            {user.last_device_info.os_version || "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">App Versiyonu:</span>
+                          <span className="font-medium">
+                            {user.last_device_info.app_version || "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Device ID:</span>
+                          <span className="font-mono text-xs">
+                            {user.last_device_info.device_id || "-"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Cihaz bilgisi bulunamadı</p>
+                    )}
                   </div>
 
                   <Separator />
@@ -349,11 +756,38 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
 
                   <Separator />
 
+                  {/* Step 4 Acceptances */}
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Shadow Mode</Label>
-                    <Badge variant={user.shadow_unlocked ? "default" : "secondary"}>
-                      {user.shadow_unlocked ? "Aktif" : "Pasif"}
-                    </Badge>
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <IconShield className="h-4 w-4" />
+                      Kabul Edilen Şartlar
+                    </Label>
+                    <div className="space-y-2 pl-6">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Kullanım Şartları:</span>
+                        <Badge variant={user.tos_accepted_at ? "default" : "secondary"}>
+                          {user.tos_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Gizlilik Politikası:</span>
+                        <Badge variant={user.privacy_accepted_at ? "default" : "secondary"}>
+                          {user.privacy_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Anti-Screenshot:</span>
+                        <Badge variant={user.anti_screenshot_accepted_at ? "default" : "secondary"}>
+                          {user.anti_screenshot_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Firewall:</span>
+                        <Badge variant={user.firewall_accepted_at ? "default" : "secondary"}>
+                          {user.firewall_accepted_at ? "✓ Kabul" : "✗ Reddedildi"}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,18 +797,30 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
 
         <DialogFooter className="gap-2">
           {user.type !== "banned" && (
-            <Button variant="destructive" onClick={handleBanUser} disabled={isLoading}>
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmDialog({ type: "ban", open: true })}
+              disabled={isLoading}
+            >
               <IconBan className="mr-2 h-4 w-4" />
               Yasakla
             </Button>
           )}
           {user.type === "banned" && (
-            <Button variant="default" onClick={handleBanUser} disabled={isLoading}>
+            <Button
+              variant="default"
+              onClick={() => setConfirmDialog({ type: "ban", open: true })}
+              disabled={isLoading}
+            >
               <IconUserOff className="mr-2 h-4 w-4" />
               Yasağı Kaldır
             </Button>
           )}
-          <Button variant="destructive" onClick={handleDeleteUser} disabled={isLoading}>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDialog({ type: "delete", open: true })}
+            disabled={isLoading}
+          >
             <IconTrash className="mr-2 h-4 w-4" />
             Sil
           </Button>
@@ -382,6 +828,43 @@ export function UserDetailModal({ user, open, onOpenChange }: UserDetailModalPro
             Kapat
           </Button>
         </DialogFooter>
+
+        {/* Confirmation Dialog */}
+        <Dialog
+          open={confirmDialog.open}
+          onOpenChange={(newOpen) => setConfirmDialog({ ...confirmDialog, open: newOpen })}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                {confirmDialog.type === "ban" ? "Kullanıcıyı Yasakla" : "Kullanıcıyı Sil"}
+              </DialogTitle>
+              <DialogDescription>
+                {confirmDialog.type === "ban"
+                  ? user.type === "banned"
+                    ? "Bu kullanıcının yasağını kaldırmak istediğinize emin misiniz?"
+                    : "Bu kullanıcıyı yasaklamak istediğinize emin misiniz?"
+                  : "Bu işlem geri alınamaz. Kullanıcıyı silmek istediğinize emin misiniz?"}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDialog({ type: null, open: false })}
+                disabled={isLoading}
+              >
+                İptal
+              </Button>
+              <Button
+                variant={confirmDialog.type === "delete" ? "destructive" : "default"}
+                onClick={confirmDialog.type === "ban" ? handleBanUser : handleDeleteUser}
+                disabled={isLoading}
+              >
+                {confirmDialog.type === "ban" ? "Evet, Yasakla" : "Evet, Sil"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

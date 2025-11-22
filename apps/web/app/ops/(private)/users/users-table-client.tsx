@@ -67,6 +67,8 @@ export function UsersTableClient({ profiles, adminProfiles, filter }: UsersTable
                 <TableHead>Kullanıcı</TableHead>
                 <TableHead>Tip</TableHead>
                 <TableHead>Durum</TableHead>
+                <TableHead>Onboarding</TableHead>
+                <TableHead>Shadow</TableHead>
                 <TableHead>Kayıt Tarihi</TableHead>
                 <TableHead>Son Giriş</TableHead>
                 <TableHead className="text-right">İşlemler</TableHead>
@@ -105,6 +107,8 @@ export function UsersTableClient({ profiles, adminProfiles, filter }: UsersTable
                           <Badge variant="destructive">Pasif</Badge>
                         )}
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">-</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(admin.created_at).toLocaleDateString("tr-TR")}
                       </TableCell>
@@ -183,6 +187,16 @@ export function UsersTableClient({ profiles, adminProfiles, filter }: UsersTable
                             Aktif
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={profile.onboarding_step === 5 ? "default" : "secondary"}>
+                          {profile.onboarding_step}/5
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={profile.shadow_profile_active ? "default" : "secondary"}>
+                          {profile.shadow_profile_active ? "Aktif" : "Pasif"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(profile.created_at).toLocaleDateString("tr-TR")}

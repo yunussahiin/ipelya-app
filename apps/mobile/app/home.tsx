@@ -27,6 +27,7 @@ import {
   ChevronDown
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/auth.store";
@@ -642,6 +643,10 @@ const ShadowModeCard = ({ active }: { active: boolean }) => (
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  // Check onboarding status - redirect if incomplete
+  useOnboardingGuard();
+
   const [shadowMode, setShadowMode] = useState(false);
   const [profileType, setProfileType] = useState<"male" | "female">("male");
   const [user, setUser] = useState<any>(null);
@@ -973,7 +978,9 @@ export default function HomeScreen() {
               )}
 
               {/* Shadow Mode & Security */}
-              {(profile.shadow_unlocked !== undefined || profile.banned_until) && (
+              {(profile.shadow_unlocked !== undefined ||
+                profile.banned_until ||
+                profile.is_active !== undefined) && (
                 <View
                   style={{
                     marginBottom: 12,
@@ -992,12 +999,48 @@ export default function HomeScreen() {
                   >
                     SECURITY & STATUS
                   </Text>
+                  {profile.is_active !== undefined && (
+                    <Text
+                      style={{
+                        color: profile.is_active ? userInfoColors.textPrimary : "#ef4444",
+                        fontSize: 13,
+                        marginBottom: 3
+                      }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Aktif:</Text>{" "}
+                      {profile.is_active ? "Evet" : "Hayır"}
+                    </Text>
+                  )}
+                  {profile.shadow_profile_active !== undefined && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Shadow Profile:</Text>{" "}
+                      {profile.shadow_profile_active ? "Aktif" : "Pasif"}
+                    </Text>
+                  )}
                   {profile.shadow_unlocked !== undefined && (
                     <Text
                       style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
                     >
                       <Text style={{ fontWeight: "600" }}>Shadow Mode:</Text>{" "}
                       {profile.shadow_unlocked ? "Açık" : "Kapalı"}
+                    </Text>
+                  )}
+                  {profile.onboarding_step !== undefined && (
+                    <Text
+                      style={{ color: userInfoColors.textPrimary, fontSize: 13, marginBottom: 3 }}
+                    >
+                      <Text style={{ fontWeight: "600" }}>Onboarding Step:</Text>{" "}
+                      {profile.onboarding_step}/5
+                    </Text>
+                  )}
+                  {profile.onboarding_completed_at && (
+                    <Text
+                      style={{ color: userInfoColors.textSecondary, fontSize: 12, marginBottom: 3 }}
+                    >
+                      Onboarding Tamamlandı:{" "}
+                      {new Date(profile.onboarding_completed_at).toLocaleString("tr-TR")}
                     </Text>
                   )}
                   {profile.banned_until && (

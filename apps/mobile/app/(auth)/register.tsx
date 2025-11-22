@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, StyleSheet } from "react-native";
+import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -107,26 +107,78 @@ export default function RegisterScreen() {
           />
         )}
       />
-      {error ? <Text style={{ color: "#f87171" }}>{error}</Text> : null}
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       <Pressable
         onPress={onSubmit}
         disabled={isLoading}
         style={({ pressed }) => [
+          styles.registerButton,
           {
-            backgroundColor: "#a855f7",
-            borderRadius: 16,
-            paddingVertical: 16,
-            alignItems: "center",
             opacity: isLoading || pressed ? 0.7 : 1
           }
         ]}
+        accessible={true}
+        accessibilityLabel="Kayıt ol"
+        accessibilityRole="button"
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.buttonPrimaryText} size="small" />
         ) : (
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Kayıt ol</Text>
+          <Text style={styles.registerButtonText}>Kayıt ol</Text>
         )}
       </Pressable>
     </AuthScreen>
   );
+}
+
+function createStyles(colors: any) {
+  return StyleSheet.create({
+    errorContainer: {
+      backgroundColor: `${colors.warning}15`,
+      borderRadius: LAYOUT_CONSTANTS.radiusMedium,
+      padding: 12,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.warning,
+      marginBottom: 16
+    },
+    errorText: {
+      color: colors.warning,
+      fontSize: 14,
+      fontWeight: "500",
+      lineHeight: 20
+    },
+    registerButton: {
+      backgroundColor: colors.accent,
+      borderRadius: LAYOUT_CONSTANTS.radiusMedium,
+      paddingVertical: Platform.OS === "android" ? 14 : 16,
+      paddingHorizontal: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: LAYOUT_CONSTANTS.buttonMinHeight,
+      marginTop: 8,
+      ...(Platform.OS === "android" && {
+        elevation: 3
+      })
+    },
+    registerButtonText: {
+      color: colors.buttonPrimaryText,
+      fontWeight: "700",
+      fontSize: 16,
+      lineHeight: 24
+    },
+    footerText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20
+    },
+    loginLink: {
+      color: colors.accentSoft,
+      fontWeight: "600"
+    }
+  });
 }

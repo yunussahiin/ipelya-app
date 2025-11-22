@@ -26,13 +26,14 @@ export function UsersFilterWrapper({ allProfiles, allAdminProfiles }: UsersFilte
 
     // Tab'a göre filtrele
     if (activeTab === "users") {
-      // Kullanıcılar: role === "user"
-      filtered = filtered.filter((p) => p.role === "user");
+      // Kullanıcılar: role === "user" ve is_creator === false
+      filtered = filtered.filter((p) => p.role === "user" && !p.is_creator);
     } else if (activeTab === "creators") {
-      // Creator'lar: role === "creator"
-      filtered = filtered.filter((p) => p.role === "creator");
+      // Creator'lar: is_creator === true
+      filtered = filtered.filter((p) => p.is_creator === true);
     } else if (activeTab === "banned") {
-      filtered = filtered.filter((p) => p.role === "banned");
+      // Yasaklı: banned_until IS NOT NULL
+      filtered = filtered.filter((p) => p.banned_until !== null);
     }
 
     // Arama terimine göre filtrele
@@ -41,7 +42,8 @@ export function UsersFilterWrapper({ allProfiles, allAdminProfiles }: UsersFilte
       filtered = filtered.filter(
         (p) =>
           p.email?.toLowerCase().includes(term) ||
-          p.full_name?.toLowerCase().includes(term) ||
+          p.display_name?.toLowerCase().includes(term) ||
+          p.username?.toLowerCase().includes(term) ||
           p.user_id?.toLowerCase().includes(term)
       );
     }

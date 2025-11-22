@@ -47,9 +47,10 @@ export default async function PrivateLayout({ children }: { children: React.Reac
           "--header-height": "calc(var(--spacing) * 12)"
         } as CSSProperties
       }
+      suppressHydrationWarning
     >
       <AppSidebar variant="inset" user={user} />
-      <SidebarInset>
+      <SidebarInset suppressHydrationWarning>
         <SiteHeader user={user} />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
