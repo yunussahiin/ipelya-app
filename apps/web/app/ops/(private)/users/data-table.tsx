@@ -188,16 +188,31 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
               const selectedData = table
                 .getFilteredSelectedRowModel()
                 .rows.map((row) => row.original);
+              const csvRows = selectedData.map((user) => {
+                const typedUser = user as TData & {
+                  display_name?: string;
+                  created_at?: string;
+                  email?: string;
+                  username?: string;
+                  role?: string;
+                  banned_until?: string | null;
+                };
+                const displayName = typedUser.display_name ?? typedUser.username ?? "";
+                const createdAt = typedUser.created_at
+                  ? new Date(typedUser.created_at).toLocaleDateString("tr-TR")
+                  : "";
+                return [
+                  displayName,
+                  typedUser.email ?? "",
+                  typedUser.username ?? "",
+                  typedUser.role ?? "",
+                  typedUser.banned_until ? "Yasaklı" : "Aktif",
+                  createdAt
+                ];
+              });
               const csv = [
                 ["İsim", "Email", "Kullanıcı Adı", "Tip", "Durum", "Kayıt Tarihi"],
-                ...selectedData.map((user) => [
-                  user.display_name,
-                  user.email,
-                  user.username,
-                  user.role,
-                  user.banned_until ? "Yasaklı" : "Aktif",
-                  new Date(user.created_at).toLocaleDateString("tr-TR")
-                ])
+                ...csvRows
               ]
                 .map((row) => row.map((cell) => `"${cell}"`).join(","))
                 .join("\n");
@@ -205,7 +220,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement("a");
               a.href = url;
-              a.download = `kullanicilar_${new Date().getTime()}.csv`;
+              a.download = `ipelya_kullanicilar_${new Date().getTime()}.csv`;
               a.click();
             }}
             disabled={table.getFilteredSelectedRowModel().rows.length === 0}
@@ -374,7 +389,11 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
               onClick={() => {
                 const selectedIds = table
                   .getFilteredSelectedRowModel()
-                  .rows.map((row) => row.original.id);
+                  .rows.map((row) => {
+                    const rowData = row.original as TData & { id?: string };
+                    return rowData.id;
+                  })
+                  .filter(Boolean);
                 console.log(
                   confirmDialog.type === "ban" ? "Ban users:" : "Delete users:",
                   selectedIds

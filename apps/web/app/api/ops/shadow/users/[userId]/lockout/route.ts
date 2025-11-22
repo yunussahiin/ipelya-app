@@ -9,6 +9,23 @@ export async function POST(
   try {
     const supabase = createAdminSupabaseClient();
     const { userId } = await params;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { reason, durationMinutes = 30 } = await request.json();
 
     if (!reason) {
@@ -34,7 +51,13 @@ export async function POST(
     if (error) throw error;
 
     // Send broadcast to mobile
-    await lockUserByOps(supabase, userId, reason, durationMinutes);
+    await lockUserByOps(
+      supabase,
+      userId,
+      reason,
+      durationMinutes,
+      user.id
+    );
 
     // Log the action
     await supabase.from('audit_logs').insert({

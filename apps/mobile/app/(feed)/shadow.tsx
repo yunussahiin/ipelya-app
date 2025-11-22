@@ -3,6 +3,7 @@ import { PageScreen } from "@/components/layout/PageScreen";
 import { View, Text, StyleSheet } from "react-native";
 import { supabase } from "@/lib/supabaseClient";
 import { useOpsRealtime } from "@/hooks/useOpsRealtime";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useShadowStore } from "@/store/shadow.store";
 import { useTheme } from "@/theme/ThemeProvider";
 import { ShadowToggle } from "@/components/ShadowToggle";
@@ -22,6 +23,9 @@ export default function ShadowFeedScreen() {
 
   // Initialize realtime listener only when shadow mode is active
   useOpsRealtime(shadowEnabled ? userId : undefined);
+  
+  // Initialize session timeout checker
+  useSessionTimeout();
 
   // Get current user and shadow profile
   useEffect(() => {

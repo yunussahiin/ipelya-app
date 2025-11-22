@@ -29,7 +29,8 @@ export async function sendBroadcast(
   try {
     // Use Edge Function to send broadcast
     // Edge Function handles Supabase Realtime channel subscription and broadcast
-    const projectUrl = supabase.supabaseUrl;
+    const projectUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
     const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!projectUrl || !apiKey) {

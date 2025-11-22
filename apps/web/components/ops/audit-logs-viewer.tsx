@@ -58,6 +58,15 @@ interface AuditLog {
       }[];
 }
 
+interface AuditUser {
+  id: string;
+  username?: string;
+  email?: string;
+  is_creator?: boolean;
+  role?: string;
+  user_id?: string;
+}
+
 const ACTION_OPTIONS = [
   { value: "shadow_mode_enabled", label: "Shadow Mod Etkinleştirildi" },
   { value: "pin_verified", label: "PIN Doğrulandı" },
@@ -118,9 +127,7 @@ export function AuditLogsViewer() {
   });
 
   // Get unique users with their profile info
-  const { data: usersData } = useQuery<
-    Array<{ id: string; username?: string; email?: string; is_creator?: boolean; role?: string }>
-  >({
+  const { data: usersData } = useQuery<AuditUser[]>({
     queryKey: ["audit-logs-users"],
     queryFn: async () => {
       const res = await fetch("/api/ops/shadow/audit-logs/users");
@@ -130,8 +137,8 @@ export function AuditLogsViewer() {
   });
 
   // Group users by id (user_id) and show real profile info
-  const usersByUserId = new Map<string, (typeof usersData)[0] & { user_id?: string }>();
-  (usersData || []).forEach((user: any) => {
+  const usersByUserId = new Map<string, AuditUser>();
+  (usersData || []).forEach((user) => {
     const userId = user.user_id || user.id;
     if (!usersByUserId.has(userId)) {
       usersByUserId.set(userId, { ...user, user_id: userId });

@@ -25,9 +25,10 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontal, Zap } from "lucide-react";
+import { MoreHorizontal, Zap, Lock } from "lucide-react";
 import { useState } from "react";
 import { SessionTerminationDialog } from "./session-termination-dialog";
+import { UserLockDialog } from "./user-lock-dialog";
 
 interface Session {
   id: string;
@@ -45,6 +46,10 @@ export function SessionsTable() {
   const [terminateDialog, setTerminateDialog] = useState<{
     open: boolean;
     sessionId?: string;
+    userId?: string;
+  }>({ open: false });
+  const [lockDialog, setLockDialog] = useState<{
+    open: boolean;
     userId?: string;
   }>({ open: false });
 
@@ -161,10 +166,17 @@ export function SessionsTable() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
+                            onClick={() => setLockDialog({ open: true, userId: session.user_id })}
+                          >
+                            <Lock className="w-4 h-4 mr-2" />
+                            Kullanıcıyı Kilitle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => handleTerminateClick(session.id, session.user_id)}
                             className="text-red-600"
                           >
-                            Sonlandır
+                            <Zap className="w-4 h-4 mr-2" />
+                            Oturumu Sonlandır
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -209,6 +221,18 @@ export function SessionsTable() {
           sessionId={terminateDialog.sessionId}
           userId={terminateDialog.userId}
           onSuccess={handleTerminateSuccess}
+        />
+      )}
+
+      {lockDialog.userId && (
+        <UserLockDialog
+          open={lockDialog.open}
+          onOpenChange={(open) => setLockDialog({ ...lockDialog, open })}
+          userId={lockDialog.userId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            setLockDialog({ open: false });
+          }}
         />
       )}
     </Card>
