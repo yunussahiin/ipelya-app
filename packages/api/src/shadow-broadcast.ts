@@ -90,20 +90,41 @@ export async function terminateSessionByOps(
  * @param supabase - Supabase client instance
  * @param userId - Target user ID
  * @param reason - Lockout reason
- * @param durationMinutes - Lockout duration in minutes
+ * @param durationMinutes - Lockout duration in minutes (null = permanent)
+ * @param lockedBy - Ops user ID who locked the user
  */
 export async function lockUserByOps(
   supabase: SupabaseClient,
   userId: string,
   reason: string,
-  durationMinutes: number
+  durationMinutes: number | null,
+  lockedBy: string
 ): Promise<void> {
-  const lockedUntil = new Date(Date.now() + durationMinutes * 60000);
+  const lockedUntil = durationMinutes 
+    ? new Date(Date.now() + durationMinutes * 60000).toISOString()
+    : null;
 
+  // Insert lock record to database
+  const { error: insertError } = await supabase
+    .from('user_locks')
+    .insert({
+      user_id: userId,
+      locked_by: lockedBy,
+      reason,
+      locked_until: lockedUntil,
+      status: 'active',
+    });
+
+  if (insertError) {
+    console.error('❌ Error inserting lock record:', insertError);
+    throw new Error(`Failed to lock user: ${insertError.message}`);
+  }
+
+  // Send broadcast to mobile
   await sendBroadcast(supabase, userId, 'user_locked', {
     reason,
     duration: durationMinutes,
-    locked_until: lockedUntil.toISOString(),
+    locked_until: lockedUntil,
   });
 }
 
@@ -117,6 +138,19 @@ export async function unlockUserByOps(
   supabase: SupabaseClient,
   userId: string
 ): Promise<void> {
+  // Update active locks to unlocked status
+  const { error: updateError } = await supabase
+    .from('user_locks')
+    .update({ status: 'unlocked', updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (updateError) {
+    console.error('❌ Error unlocking user:', updateError);
+    throw new Error(`Failed to unlock user: ${updateError.message}`);
+  }
+
+  // Send broadcast to mobile
   await sendBroadcast(supabase, userId, 'user_unlocked', {});
 }
 
