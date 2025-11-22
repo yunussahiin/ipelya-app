@@ -164,6 +164,21 @@ export function useShadowMode() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
+        // Check if user is locked (only when enabling shadow mode)
+        if (!enabled) {
+          const locked = await isUserLocked();
+          if (locked) {
+            const lockInfo = await getLockInfo();
+            const durationText = lockInfo?.duration 
+              ? formatLockDuration(lockInfo.duration)
+              : 'kalıcı olarak';
+            
+            setError(`Hesabınız ${durationText} kilitlenmiştir. Neden: ${lockInfo?.reason}`);
+            console.warn('⚠️ User is locked, cannot enable shadow mode');
+            return false;
+          }
+        }
+
         // PIN doğrulama (biometric bypass)
         if (!biometricVerified && pin) {
           console.log("🔑 PIN doğrulanıyor...");

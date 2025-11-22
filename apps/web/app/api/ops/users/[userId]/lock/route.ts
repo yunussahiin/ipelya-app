@@ -4,12 +4,13 @@ import { lockUserByOps } from '@ipelya/api';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const supabase = createAdminSupabaseClient();
+    const { userId } = await params;
     
-    // Check if user is ops
+    // Check if user is admin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,7 +22,7 @@ export async function POST(
       .eq('user_id', user.id)
       .single();
 
-    if (profile?.role !== 'ops') {
+    if (profile?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -36,7 +37,7 @@ export async function POST(
     // Lock user
     await lockUserByOps(
       supabase,
-      params.userId,
+      userId,
       reason,
       durationMinutes || null,
       user.id
