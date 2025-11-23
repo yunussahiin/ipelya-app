@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Get profile info for these users (including type)
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('user_id, id, username, email, is_creator, role, type')
+      .select('user_id, id, username, email, is_creator, role, type, avatar_url')
       .in('user_id', userIds);
 
     if (profileError) throw profileError;

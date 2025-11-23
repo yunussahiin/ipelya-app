@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Copy, Check, Download, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -48,6 +49,7 @@ interface AuditLog {
         email?: string;
         is_creator?: boolean;
         role?: string;
+        avatar_url?: string;
       }
     | {
         id: string;
@@ -55,6 +57,7 @@ interface AuditLog {
         email?: string;
         is_creator?: boolean;
         role?: string;
+        avatar_url?: string;
       }[];
 }
 
@@ -69,13 +72,45 @@ interface AuditUser {
 
 const ACTION_OPTIONS = [
   { value: "shadow_mode_enabled", label: "Shadow Mod Etkinleştirildi" },
+  { value: "shadow_mode_disabled", label: "Shadow Mod Devre Dışı" },
+  { value: "pin_created", label: "PIN Oluşturuldu" },
+  { value: "pin_changed", label: "PIN Değiştirildi" },
   { value: "pin_verified", label: "PIN Doğrulandı" },
   { value: "pin_failed", label: "PIN Başarısız" },
+  { value: "biometric_enabled", label: "Biyometrik Etkinleştirildi" },
+  { value: "biometric_disabled", label: "Biyometrik Devre Dışı" },
   { value: "biometric_verified", label: "Biyometrik Doğrulandı" },
   { value: "biometric_failed", label: "Biyometrik Başarısız" },
+  { value: "profile_updated", label: "Profil Güncellendi" },
+  { value: "avatar_uploaded", label: "Avatar Yüklendi" },
+  { value: "session_started", label: "Oturum Başladı" },
+  { value: "session_ended", label: "Oturum Bitti" },
+  { value: "session_timeout", label: "Oturum Zaman Aşımı" },
+  { value: "session_terminated_by_ops", label: "Oturum Sonlandırıldı" },
   { value: "user_locked_by_ops", label: "Kullanıcı Kilitlendi" },
-  { value: "session_terminated_by_ops", label: "Oturum Sonlandırıldı" }
+  { value: "user_unlocked_by_ops", label: "Kullanıcı Kilidi Açıldı" }
 ];
+
+const ACTION_LABELS: Record<string, string> = {
+  shadow_mode_enabled: "Shadow Mod Etkinleştirildi",
+  shadow_mode_disabled: "Shadow Mod Devre Dışı",
+  pin_created: "PIN Oluşturuldu",
+  pin_changed: "PIN Değiştirildi",
+  pin_verified: "PIN Doğrulandı",
+  pin_failed: "PIN Başarısız",
+  biometric_enabled: "Biyometrik Etkinleştirildi",
+  biometric_disabled: "Biyometrik Devre Dışı",
+  biometric_verified: "Biyometrik Doğrulandı",
+  biometric_failed: "Biyometrik Başarısız",
+  profile_updated: "Profil Güncellendi",
+  avatar_uploaded: "Avatar Yüklendi",
+  session_started: "Oturum Başladı",
+  session_ended: "Oturum Bitti",
+  session_timeout: "Oturum Zaman Aşımı",
+  session_terminated_by_ops: "Oturum Sonlandırıldı",
+  user_locked_by_ops: "Kullanıcı Kilitlendi",
+  user_unlocked_by_ops: "Kullanıcı Kilidi Açıldı"
+};
 
 export function AuditLogsViewer() {
   const [filters, setFilters] = useState({
@@ -88,6 +123,7 @@ export function AuditLogsViewer() {
   const [offset, setOffset] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   const handleCopyUserId = (userId: string) => {
     navigator.clipboard.writeText(userId);
@@ -196,6 +232,13 @@ export function AuditLogsViewer() {
                 <SelectValue placeholder="Tüm İşlemler" />
               </SelectTrigger>
               <SelectContent>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start px-2 py-1.5 h-auto font-medium text-sm"
+                  onClick={() => handleFilterChange({ ...filters, action: "" })}
+                >
+                  Tüm İşlemler
+                </Button>
                 {ACTION_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -316,11 +359,13 @@ export function AuditLogsViewer() {
                           log.profile_type === "shadow" ? "🔒 Shadow" : "👤 Real";
 
                         // Format action for badge
-                        const actionLabel = log.action
-                          .replace(/_/g, " ")
-                          .split(" ")
-                          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                          .join(" ");
+                        const actionLabel =
+                          ACTION_LABELS[log.action] ||
+                          log.action
+                            .replace(/_/g, " ")
+                            .split(" ")
+                            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(" ");
 
                         // Determine action badge color
                         const getActionBadgeVariant = (action: string) => {
@@ -339,9 +384,34 @@ export function AuditLogsViewer() {
                         return (
                           <TableRow key={log.id}>
                             <TableCell className="text-sm font-medium">
-                              {userLabel} {isCreator}
-                              <div className="text-xs text-muted-foreground">
-                                {role} • {profileTypeLabel}
+                              <div className="flex items-center gap-2">
+                                {profile?.avatar_url && !failedImages.has(profile.avatar_url) ? (
+                                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                                    <Image
+                                      src={profile.avatar_url}
+                                      alt={userLabel}
+                                      width={32}
+                                      height={32}
+                                      className="w-full h-full object-cover"
+                                      unoptimized
+                                      onError={() => {
+                                        setFailedImages(
+                                          (prev) => new Set([...prev, profile.avatar_url!])
+                                        );
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium shrink-0">
+                                    {userLabel.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div>
+                                  {userLabel} {isCreator}
+                                  <div className="text-xs text-muted-foreground">
+                                    {role} • {profileTypeLabel}
+                                  </div>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="font-mono text-xs">
