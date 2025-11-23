@@ -92,7 +92,7 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
   const supabase = createAdminSupabaseClient();
   
   // Yeni kullanıcı kaydı
-  const { data: authData, error } = await supabase.auth.admin.createUser({
+  const { error } = await supabase.auth.admin.createUser({
     email: parsed.data.email,
     password: parsed.data.password,
     user_metadata: {
@@ -103,23 +103,6 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
 
   if (error) {
     return { status: "error", message: error.message };
-  }
-
-  // Trigger'ın profile oluşturmasını bekle (3 saniye)
-  if (authData?.user?.id) {
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Profile'ın oluşturulduğunu doğrula
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", authData.user.id)
-      .eq("type", "real")
-      .single();
-
-    if (profileError || !profile) {
-      return { status: "error", message: "Profil oluşturma başarısız oldu. Lütfen tekrar deneyin." };
-    }
   }
 
   redirect("/ops/login?msg=confirm");
