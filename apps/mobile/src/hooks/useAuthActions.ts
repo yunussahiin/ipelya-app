@@ -93,10 +93,6 @@ export function useAuthActions() {
           device_id: Constants.deviceId || "unknown"
         };
         
-        console.log("⏳ Waiting for trigger to create profile...");
-        // Trigger'ın profile oluşturmasını bekle (2 saniye)
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
         console.log("🔄 Updating profile with device info...");
         const { error: profileError } = await supabase
           .from("profiles")

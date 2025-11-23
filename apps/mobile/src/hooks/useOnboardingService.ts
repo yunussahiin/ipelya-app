@@ -192,7 +192,8 @@ export function useOnboardingService() {
         if (updateError) throw updateError;
 
         // Step 2: Shadow profile'ı oluştur veya activate et
-        // Önce shadow profile var mı kontrol et
+        // Shadow profile trigger tarafından otomatik oluşturulmuş
+        // Trigger'ın oluşturduğu shadow profile'ı doğrula
         const { data: shadowProfile } = await supabase
           .from("profiles")
           .select("id")
@@ -201,7 +202,8 @@ export function useOnboardingService() {
           .maybeSingle();
 
         if (!shadowProfile) {
-          // Shadow profile yok, oluştur
+          console.warn("⚠️ Shadow profile trigger tarafından oluşturulmadı, manuel oluştur");
+          // Fallback: Shadow profile yok ise manuel oluştur
           const { error: shadowCreateError } = await supabase
             .from("profiles")
             .insert({
@@ -210,31 +212,15 @@ export function useOnboardingService() {
               username: `shadow_${userId.substring(0, 8)}`,
               is_active: true,
               role: "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             });
 
           if (shadowCreateError) {
             console.warn("⚠️ Shadow profile oluşturma hatası:", shadowCreateError);
           } else {
-            console.log("✅ Shadow profile oluşturuldu");
+            console.log("✅ Shadow profile manuel olarak oluşturuldu");
           }
-        } else if (shadowProfile) {
-          // Shadow profile var, activate et
-          const { error: shadowUpdateError } = await supabase
-            .from("profiles")
-            .update({
-              is_active: true,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", userId)
-            .eq("type", "shadow");
-
-          if (shadowUpdateError) {
-            console.warn("⚠️ Shadow profile activation hatası:", shadowUpdateError);
-          } else {
-            console.log("✅ Shadow profile aktifleştirildi");
-          }
+        } else {
+          console.log("✅ Shadow profile trigger tarafından oluşturulmuş");
         }
 
         console.log("✅ Onboarding tamamlandı, shadow profile hazır");
