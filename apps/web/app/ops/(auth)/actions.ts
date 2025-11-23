@@ -108,6 +108,8 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
 
   // Trigger'ın profile oluşturmasını bekle (fallback: manuel oluştur)
   if (authData?.user?.id) {
+    const userId = authData.user.id;
+    
     // Trigger'ın çalışmasını bekle
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -115,7 +117,7 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     const { data: profile } = await supabase
       .from("profiles")
       .select("id")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", userId)
       .eq("type", "real")
       .single();
 
@@ -124,7 +126,7 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
       const { error: profileError } = await supabase
         .from("profiles")
         .insert({
-          user_id: authData.user.id,
+          user_id: userId,
           username: parsed.data.email.split("@")[0],
           email: parsed.data.email,
           type: "real",
@@ -141,14 +143,14 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     const { data: adminProfile } = await supabase
       .from("admin_profiles")
       .select("id")
-      .eq("id", authData.user.id)
+      .eq("id", userId)
       .single();
 
     if (!adminProfile) {
       const { error: adminError } = await supabase
         .from("admin_profiles")
         .insert({
-          id: authData.user.id,
+          id: userId,
           email: parsed.data.email,
           full_name: parsed.data.name,
           is_active: true
