@@ -114,7 +114,7 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     });
 
     if (!signInError) {
-      redirect("/ops/dashboard");
+      redirect("/ops");
     }
   }
 
