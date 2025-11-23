@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  createAdminSupabaseClient,
+  createServerSupabaseClient
+} from "@/lib/supabase/server";
 import type { AuthFormState } from "./types";
 
 const loginSchema = z.object({
@@ -86,32 +89,20 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     return { status: "error", message: firstErrorMessage(parsed.error.issues) };
   }
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = createAdminSupabaseClient();
   
   // Yeni kullanıcı kaydı
-  const { data: authData, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.admin.createUser({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: {
-      data: { 
-        full_name: parsed.data.name,
-        role: "admin" // Ops register'dan kaydolanlar admin olacak
-      },
-    },
+    user_metadata: {
+      full_name: parsed.data.name,
+      role: "admin"
+    }
   });
 
   if (error) {
     return { status: "error", message: error.message };
-  }
-
-  // Kullanıcı oluşturuldu ama email confirmation bekliyor
-  if (authData.user && !authData.session) {
-    redirect("/ops/login?msg=confirm");
-  }
-
-  // Email confirmation kapalıysa direkt giriş yapılır
-  if (authData.session) {
-    redirect("/ops");
   }
 
   redirect("/ops/login?msg=confirm");
