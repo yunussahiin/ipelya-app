@@ -92,18 +92,32 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
   const supabase = createAdminSupabaseClient();
   
   // Yeni kullanıcı kaydı
-  const { error } = await supabase.auth.admin.createUser({
+  const { data: authData, error } = await supabase.auth.admin.createUser({
     email: parsed.data.email,
     password: parsed.data.password,
     user_metadata: {
       full_name: parsed.data.name,
       role: "admin"
-    }
+    },
+    email_confirm: true // Email confirmation'ı bypass et
   });
 
   if (error) {
     return { status: "error", message: error.message };
   }
 
-  redirect("/ops/login?msg=confirm");
+  // Email confirmation kapalı ise otomatik giriş yap
+  if (authData?.user) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password
+    });
+
+    if (!signInError) {
+      redirect("/ops/dashboard");
+    }
+  }
+
+  // Fallback: Login sayfasına yönlendir
+  redirect("/ops/login");
 }
