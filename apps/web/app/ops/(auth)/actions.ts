@@ -106,6 +106,60 @@ export async function registerAction(_: AuthFormState, formData: FormData): Prom
     return { status: "error", message: error.message };
   }
 
+  // Trigger'ın profile oluşturmasını bekle (fallback: manuel oluştur)
+  if (authData?.user?.id) {
+    // Trigger'ın çalışmasını bekle
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Profile'ın oluşturulduğunu kontrol et
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", authData.user.id)
+      .eq("type", "real")
+      .single();
+
+    // Profile yoksa manuel oluştur
+    if (!profile) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          user_id: authData.user.id,
+          username: parsed.data.email.split("@")[0],
+          email: parsed.data.email,
+          type: "real",
+          role: "admin",
+          is_active: true
+        });
+
+      if (profileError) {
+        console.error("Profile oluşturma hatası:", profileError);
+      }
+    }
+
+    // Admin profile'ı kontrol et ve oluştur
+    const { data: adminProfile } = await supabase
+      .from("admin_profiles")
+      .select("id")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (!adminProfile) {
+      const { error: adminError } = await supabase
+        .from("admin_profiles")
+        .insert({
+          id: authData.user.id,
+          email: parsed.data.email,
+          full_name: parsed.data.name,
+          is_active: true
+        });
+
+      if (adminError) {
+        console.error("Admin profile oluşturma hatası:", adminError);
+      }
+    }
+  }
+
   // Email confirmation kapalı ise otomatik giriş yap
   if (authData?.user) {
     const { error: signInError } = await supabase.auth.signInWithPassword({
