@@ -83,6 +83,13 @@ export function useAuthActions() {
       
       console.log("✅ Auth signup successful, user ID:", data.user?.id);
       
+      // Session token'ı kaydet
+      if (data.session?.access_token) {
+        await saveSession(data.session.access_token);
+        setSession(data.session.access_token);
+        console.log("✅ Session token saved");
+      }
+      
       // Kayıt sonrası device info kaydet (trigger otomatik profile oluşturur)
       if (data.user) {
         const deviceInfo = {

@@ -39,11 +39,12 @@ export async function loginAction(_: AuthFormState, formData: FormData): Promise
     return { status: "error", message: error.message };
   }
 
-  // Role kontrolü - profiles tablosundan
+  // Role kontrolü - profiles tablosundan (real profile only)
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, type")
     .eq("user_id", authData.user.id)
+    .eq("type", "real")
     .single();
 
   if (profileError || !profile) {

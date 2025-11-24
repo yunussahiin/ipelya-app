@@ -1,10 +1,10 @@
 import { Appearance, ColorSchemeName } from "react-native";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { useSettingsStore, type ThemeAccent as StoreThemeAccent } from "@/store/settings.store";
+import { useSettingsStore } from "@/store/settings.store";
 
 export type ThemeScheme = "light" | "dark";
 
-export type ThemeAccent = "magenta" | "aqua" | "amber";
+export type ThemeAccent = "magenta" | "aqua" | "amber" | "custom";
 
 export type ThemeColors = {
   background: string;
@@ -101,7 +101,7 @@ type AccentPalette = {
   >;
 };
 
-const accentPalettes: Record<ThemeAccent, AccentPalette> = {
+const accentPalettes: Record<Exclude<ThemeAccent, "custom">, AccentPalette> = {
   magenta: {
     dark: {
       accent: "#ff3b81",
@@ -162,6 +162,7 @@ function resolveScheme(value: ColorSchemeName | ThemeScheme | null | undefined):
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = useSettingsStore((state) => state.themeMode);
   const accentColor = useSettingsStore((state) => state.accentColor);
+  const customAccentColor = useSettingsStore((state) => state.customAccentColor);
   const setThemeMode = useSettingsStore((state) => state.setThemeMode);
   const setAccentColor = useSettingsStore((state) => state.setAccentColor);
 
@@ -192,9 +193,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ThemeContextValue>(() => {
     const safeScheme = scheme || "dark"; // Extra safety for scheme
     const resolved = resolveScheme(safeScheme);
-    const safeAccent = accent || "magenta"; // Extra safety for accent
-    const accentPalette =
-      accentPalettes[safeAccent]?.[resolved] || accentPalettes["magenta"]["dark"];
+    const safeAccent = (accent || "magenta") as ThemeAccent; // Extra safety for accent
+
+    let accentPalette;
+    if (safeAccent === "custom") {
+      // Use custom color for all accent properties
+      accentPalette = {
+        accent: customAccentColor,
+        accentSoft: customAccentColor,
+        navIndicator: customAccentColor,
+        navIndicatorAndroid: customAccentColor
+      };
+    } else {
+      accentPalette = accentPalettes[safeAccent]?.[resolved] || accentPalettes["magenta"]["dark"];
+    }
+
     const baseColors = palettes[resolved];
     return {
       scheme: resolved,
@@ -210,7 +223,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setScheme,
       setAccent
     };
-  }, [scheme, accent, toggleScheme, setScheme, setAccent]);
+  }, [scheme, accent, customAccentColor, toggleScheme, setScheme, setAccent]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

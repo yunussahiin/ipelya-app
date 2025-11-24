@@ -1,12 +1,4 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  StyleSheet,
-  View,
-  Platform,
-  useWindowDimensions
-} from "react-native";
+import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,11 +27,12 @@ export default function LoginScreen() {
     error,
     setError
   } = useAuthActions();
-  const { control, handleSubmit, formState } = useForm<FormValues>({
+  const { control, handleSubmit, formState, watch } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
     mode: "onBlur"
   });
+  const email = watch("email");
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     await signIn(email, password);
@@ -52,8 +45,7 @@ export default function LoginScreen() {
 
   const handleMagicLink = async () => {
     setError(null);
-    if (formState.isValid) {
-      const email = control._formValues.email;
+    if (formState.isValid && email) {
       const success = await signInWithMagicLinkEmail(email);
       if (success) {
         setError(null);
@@ -144,12 +136,16 @@ export default function LoginScreen() {
       <Pressable
         onPress={onSubmit}
         disabled={isLoading || !formState.isValid}
-        style={({ pressed }) => [
-          styles.loginButton,
-          {
-            opacity: isLoading || !formState.isValid || pressed ? 0.7 : 1
-          }
-        ]}
+        style={({ pressed }) => {
+          const isDisabled = isLoading || !formState.isValid;
+          return [
+            styles.loginButton,
+            isDisabled && styles.loginButtonDisabled,
+            {
+              opacity: isDisabled || pressed ? 0.7 : 1
+            }
+          ];
+        }}
         accessible={true}
         accessibilityLabel="Giriş yap"
         accessibilityHint="E-posta ve şifreyi girdikten sonra tıkla"
@@ -228,7 +224,7 @@ export default function LoginScreen() {
   );
 }
 
-function createStyles(colors: any) {
+function createStyles(colors: Record<string, string>) {
   return StyleSheet.create({
     forgotPassword: {
       color: colors.accentSoft,
@@ -270,6 +266,10 @@ function createStyles(colors: any) {
       fontWeight: "700",
       fontSize: 16,
       lineHeight: 24
+    },
+    loginButtonDisabled: {
+      backgroundColor: colors.accentSoft,
+      opacity: 0.5
     },
     footerText: {
       color: colors.textSecondary,

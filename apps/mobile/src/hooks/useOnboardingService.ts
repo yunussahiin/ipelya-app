@@ -162,10 +162,10 @@ export function useOnboardingService() {
 
         // Extract policy acceptance data from Step 4
         const now = new Date().toISOString();
-        const tosAccepted = profile?.onboarding_data?.step4?.tosAccepted;
-        const privacyAccepted = profile?.onboarding_data?.step4?.privacyAccepted;
-        const antiScreenshotAccepted = profile?.onboarding_data?.step4?.antiScreenshotAccepted;
-        const firewallAccepted = profile?.onboarding_data?.step4?.firewallAccepted;
+        const tosAccepted = profile?.onboarding_data?.step4?.tosAccepted === true;
+        const privacyAccepted = profile?.onboarding_data?.step4?.privacyAccepted === true;
+        const antiScreenshotAccepted = profile?.onboarding_data?.step4?.antiScreenshotAccepted === true;
+        const firewallAccepted = profile?.onboarding_data?.step4?.firewallAccepted === true;
 
         // Step 1: Onboarding'i tamamla ve profile data'sını güncelle
         const { error: updateError } = await supabase

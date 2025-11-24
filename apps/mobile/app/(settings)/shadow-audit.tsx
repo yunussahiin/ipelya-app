@@ -27,7 +27,10 @@ const ACTION_LABELS: Record<AuditAction, { label: string; emoji: string; color: 
   avatar_uploaded: { label: "Avatar Yüklendi", emoji: "📸", color: "#3B82F6" },
   session_started: { label: "Oturum Başladı", emoji: "▶️", color: "#10B981" },
   session_ended: { label: "Oturum Bitti", emoji: "⏹️", color: "#6B7280" },
-  session_timeout: { label: "Oturum Zaman Aşımı", emoji: "⏱️", color: "#EF4444" }
+  session_timeout: { label: "Oturum Zaman Aşımı", emoji: "⏱️", color: "#EF4444" },
+  session_terminated_by_ops: { label: "Oturum Sonlandırıldı", emoji: "🛑", color: "#EF4444" },
+  user_locked_by_ops: { label: "Kullanıcı Kilitlendi", emoji: "🔒", color: "#EF4444" },
+  user_unlocked_by_ops: { label: "Kullanıcı Kilidi Açıldı", emoji: "🔓", color: "#10B981" }
 };
 
 interface AuditLogDisplay extends AuditLogEntry {
@@ -95,7 +98,11 @@ export default function ShadowAuditScreen() {
   }
 
   function renderLogItem({ item }: { item: AuditLogDisplay }) {
-    const actionInfo = ACTION_LABELS[item.action];
+    const actionInfo = ACTION_LABELS[item.action] || {
+      label: item.action,
+      emoji: "📝",
+      color: "#6B7280"
+    };
 
     return (
       <View style={[styles.logItem, { borderLeftColor: actionInfo.color }]}>
@@ -140,7 +147,7 @@ export default function ShadowAuditScreen() {
   }
 
   return (
-    <PageScreen showNavigation={false}>
+    <PageScreen showNavigation={false} scrollViewProps={{ scrollEnabled: false }}>
       {() => (
         <View style={styles.container}>
           <View style={styles.header}>
@@ -170,6 +177,7 @@ export default function ShadowAuditScreen() {
               keyExtractor={(item, index) => item.id || `log-${index}`}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={true}
             />
           )}
         </View>

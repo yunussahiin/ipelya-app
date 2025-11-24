@@ -1,22 +1,50 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
-import { ArrowLeft } from "lucide-react-native";
+import { useMemo, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
+import { ArrowLeft, X } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import ColorPicker, { Panel1, Preview, HueSlider, OpacitySlider } from "reanimated-color-picker";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useTheme, type ThemeColors, type ThemeAccent } from "@/theme/ThemeProvider";
+import {
+  useTheme,
+  type ThemeColors,
+  type ThemeAccent,
+  type ThemeScheme
+} from "@/theme/ThemeProvider";
+import { useSettingsStore } from "@/store/settings.store";
+
+const accentSwatches: Record<Exclude<ThemeAccent, "custom">, Record<ThemeScheme, string>> = {
+  magenta: {
+    dark: "#ff3b81",
+    light: "#d946ef"
+  },
+  aqua: {
+    dark: "#22d3ee",
+    light: "#0ea5e9"
+  },
+  amber: {
+    dark: "#fbbf24",
+    light: "#f97316"
+  }
+};
 
 const getAccentOptions = (
-  colors: ThemeColors
+  colors: ThemeColors,
+  scheme: ThemeScheme
 ): Array<{
   key: ThemeAccent;
   label: string;
   description: string;
   swatch: string;
 }> => [
-  { key: "magenta", label: "Neon", description: "Varsayılan", swatch: colors.accent },
-  { key: "aqua", label: "Aqua", description: "Minimal", swatch: colors.accent },
-  { key: "amber", label: "Amber", description: "Sunset", swatch: colors.accent }
+  {
+    key: "magenta",
+    label: "Neon",
+    description: "Varsayılan",
+    swatch: accentSwatches.magenta[scheme]
+  },
+  { key: "aqua", label: "Aqua", description: "Minimal", swatch: accentSwatches.aqua[scheme] },
+  { key: "amber", label: "Amber", description: "Sunset", swatch: accentSwatches.amber[scheme] }
 ];
 
 /**
@@ -28,9 +56,17 @@ const getAccentOptions = (
  */
 export default function ThemeScreen() {
   const router = useRouter();
-  const { colors, accent, setAccent } = useTheme();
+  const { colors, accent, setAccent, scheme } = useTheme();
+  const { customAccentColor, setCustomAccentColor } = useSettingsStore();
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const accentOptions = useMemo(() => getAccentOptions(colors), [colors]);
+  const accentOptions = useMemo(() => getAccentOptions(colors, scheme), [colors, scheme]);
+
+  const handleSelectColor = ({ hex }: { hex: string }) => {
+    setCustomAccentColor(hex);
+    setAccent("custom");
+  };
 
   return (
     <PageScreen showNavigation={false}>
@@ -84,7 +120,63 @@ export default function ThemeScreen() {
                 );
               })}
             </View>
+
+            <Pressable
+              onPress={() => setShowColorPicker(true)}
+              style={[
+                styles.accentOption,
+                accent === "custom" && styles.accentOptionActive,
+                accent === "custom" && { borderColor: colors.textPrimary }
+              ]}
+            >
+              <View style={[styles.accentSwatch, { backgroundColor: customAccentColor }]} />
+              <Text style={[styles.accentLabel, accent === "custom" && styles.accentLabelActive]}>
+                Özel
+              </Text>
+              <Text style={styles.accentDescription}>Kendi rengin</Text>
+            </Pressable>
           </View>
+
+          <Modal
+            visible={showColorPicker}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowColorPicker(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Renk Seç</Text>
+                  <Pressable onPress={() => setShowColorPicker(false)}>
+                    <X size={24} color={colors.textPrimary} />
+                  </Pressable>
+                </View>
+
+                <ScrollView
+                  style={styles.colorPickerContainer}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <ColorPicker
+                    value={customAccentColor}
+                    onComplete={handleSelectColor}
+                    style={{ width: "100%" }}
+                  >
+                    <Preview />
+                    <Panel1 />
+                    <HueSlider />
+                    <OpacitySlider />
+                  </ColorPicker>
+                </ScrollView>
+
+                <Pressable
+                  onPress={() => setShowColorPicker(false)}
+                  style={[styles.confirmButton, { backgroundColor: colors.accent }]}
+                >
+                  <Text style={styles.confirmButtonText}>Tamam</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
         </>
       )}
     </PageScreen>
@@ -186,5 +278,42 @@ const createStyles = (colors: ThemeColors) =>
     accentDescription: {
       color: colors.textMuted,
       fontSize: 12
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    modalContent: {
+      borderRadius: 24,
+      padding: 20,
+      width: "85%",
+      maxWidth: 320,
+      gap: 16
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center"
+    },
+    modalTitle: {
+      color: colors.textPrimary,
+      fontSize: 18,
+      fontWeight: "600"
+    },
+    colorPickerContainer: {
+      maxHeight: 400,
+      paddingVertical: 16
+    },
+    confirmButton: {
+      borderRadius: 12,
+      padding: 12,
+      alignItems: "center"
+    },
+    confirmButtonText: {
+      color: "#ffffff",
+      fontSize: 14,
+      fontWeight: "600"
     }
   });
