@@ -58,7 +58,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         color: "#ffffff"
       }
     ],
-    "expo-maps"
+    "expo-maps",
+    "expo-video"
   ],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,

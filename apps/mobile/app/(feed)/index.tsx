@@ -1,15 +1,8 @@
-import { PlaceholderScreen } from "@/components/layout/PlaceholderScreen";
+import FeedScreen from "@/components/home-feed/FeedScreen";
 
 export const options = {
   title: "Feed",
-  headerShown: true
+  headerShown: false // FeedScreen kendi header'ını yönetiyor
 };
 
-export default function FeedScreen() {
-  return (
-    <PlaceholderScreen
-      title="Gerçek Feed"
-      description="Gerçek kullanıcı içeriği, React Query ile Supabase'den çekilecek."
-    />
-  );
-}
+export default FeedScreen;

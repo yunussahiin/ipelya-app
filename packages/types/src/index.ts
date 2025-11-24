@@ -7,3 +7,6 @@ export * from "./ai";
 export * from "./messaging";
 export * from "./live";
 export * from "./shadow";
+
+// Home Feed types
+export * from "./home-feed";

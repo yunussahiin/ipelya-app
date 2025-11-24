@@ -4,11 +4,24 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SystemBars } from "react-native-edge-to-edge";
 import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as Linking from "expo-linking";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { useDeviceToken } from "@/hooks/useDeviceToken";
 import { useNotificationListener } from "@/hooks/useNotificationListener";
 import { createSessionFromUrl } from "@/services/oauth.service";
+
+// React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10 // 10 minutes
+    }
+  }
+});
 
 function AppStack() {
   const { scheme, colors } = useTheme();
@@ -78,10 +91,16 @@ function AppStack() {
 
 export default function Layout() {
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <AppStack />
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <SafeAreaProvider>
+            <BottomSheetModalProvider>
+              <AppStack />
+            </BottomSheetModalProvider>
+          </SafeAreaProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

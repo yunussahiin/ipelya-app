@@ -54,7 +54,7 @@ export default function EntryScreen() {
   }
 
   if (sessionToken) {
-    return <Redirect href="/home" />;
+    return <Redirect href="/(feed)" />;
   }
 
   return <Redirect href="/(auth)/login" />;

@@ -45,6 +45,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@gorhom/bottom-sheet':
+        specifier: ^5.2.6
+        version: 5.2.6(@types/react@19.1.17)(react-native-gesture-handler@2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-reanimated@4.1.5(@babel/core@7.28.5)(react-native-worklets@0.5.1(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.66.1(react@19.1.0))
@@ -69,9 +72,6 @@ importers:
       expo-auth-session:
         specifier: ~7.0.9
         version: 7.0.9(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      expo-av:
-        specifier: ~16.0.7
-        version: 16.0.7(expo@54.0.25)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-background-fetch:
         specifier: ~14.0.8
         version: 14.0.8(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
@@ -108,6 +108,9 @@ importers:
       expo-haptics:
         specifier: ~15.0.7
         version: 15.0.7(expo@54.0.25)
+      expo-image:
+        specifier: ~3.0.10
+        version: 3.0.10(expo@54.0.25)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-image-manipulator:
         specifier: ~14.0.7
         version: 14.0.7(expo@54.0.25)
@@ -153,6 +156,12 @@ importers:
       expo-task-manager:
         specifier: ~14.0.8
         version: 14.0.8(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
+      expo-video:
+        specifier: ~3.0.14
+        version: 3.0.14(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo-video-thumbnails:
+        specifier: ~10.0.7
+        version: 10.0.7(expo@54.0.25)
       expo-web-browser:
         specifier: ~15.0.9
         version: 15.0.9(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
@@ -1168,6 +1177,27 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@gorhom/bottom-sheet@5.2.6':
+    resolution: {integrity: sha512-vmruJxdiUGDg+ZYcDmS30XDhq/h/+QkINOI5LY/uGjx8cPGwgJW0H6AB902gNTKtccbiKe/rr94EwdmIEz+LAQ==}
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-native': '*'
+      react: '*'
+      react-native: '*'
+      react-native-gesture-handler: '>=2.16.1'
+      react-native-reanimated: '>=3.16.0 || >=4.0.0-'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-native':
+        optional: true
+
+  '@gorhom/portal@1.0.14':
+    resolution: {integrity: sha512-MXyL4xvCjmgaORr/rtryDNFy3kU4qUbKlwtQqqsygd0xX3mhKjOLn6mQK8wfu0RkoE0pBE0nAasRoHua+/QZ7A==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
 
   '@hookform/resolvers@5.2.2':
     resolution: {integrity: sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA==}
@@ -3566,17 +3596,6 @@ packages:
       react: '*'
       react-native: '*'
 
-  expo-av@16.0.7:
-    resolution: {integrity: sha512-QReef6/RYuZ4GekTcZZw5zY26pcPOmHqK6LMgFlPhnsT0ga97HJrgMc63pvIiojDP+q4oIv24g+QPD8ljZu4XQ==}
-    peerDependencies:
-      expo: '*'
-      react: '*'
-      react-native: '*'
-      react-native-web: '*'
-    peerDependenciesMeta:
-      react-native-web:
-        optional: true
-
   expo-background-fetch@14.0.8:
     resolution: {integrity: sha512-vAtTyLVQnMN+lfPUsqImk4tz+6ZQ5XCFho+9xv/uQ6pzRneXXBCbok/4ojcYsu2HZdBXr4DdazT6VRzf98JRpQ==}
     peerDependencies:
@@ -3687,6 +3706,17 @@ packages:
     resolution: {integrity: sha512-489ByhVs2XPoAu9zodivAKLv7hG4S/FOe8hO/C2U6jVxmRjpAKakKNjMml0IwWjf1+c/RYBqm1XxKaZ+vq/fDQ==}
     peerDependencies:
       expo: '*'
+
+  expo-image@3.0.10:
+    resolution: {integrity: sha512-i4qNCEf9Ur7vDqdfDdFfWnNCAF2efDTdahuDy9iELPS2nzMKBLeeGA2KxYEPuRylGCS96Rwm+SOZJu6INc2ADQ==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+      react-native-web: '*'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
 
   expo-json-utils@0.15.0:
     resolution: {integrity: sha512-duRT6oGl80IDzH2LD2yEFWNwGIC2WkozsB6HF3cDYNoNNdUvFk6uN3YiwsTsqVM/D0z6LEAQ01/SlYvN+Fw0JQ==}
@@ -3863,6 +3893,18 @@ packages:
     resolution: {integrity: sha512-pTzAIufEZdVPKql6iMi5ylVSPqV1qbEopz9G6TSECQmnNde2nwq42PxdFBaUEd8IZJ/fdJLQnOT3m6+XJ5s7jg==}
     peerDependencies:
       expo: '*'
+
+  expo-video-thumbnails@10.0.7:
+    resolution: {integrity: sha512-pPZr2xq2DALWwZC/7M/OlIfVTAXXIFtEVvtE6BLqrtnDvlFNFvitItmsQ+Y483KS0LyMEAVrHVFVP4cIvVb9UQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-video@3.0.14:
+    resolution: {integrity: sha512-k4vz9mUzrgUdVI0IKesWzkYCJw0yc2AKioN/riLg+X/dyR/GG6ej03nzqKd0KmPjtG6FcJEA0D/BuxCtU4OH1Q==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-web-browser@15.0.9:
     resolution: {integrity: sha512-Dj8kNFO+oXsxqCDNlUT/GhOrJnm10kAElH++3RplLydogFm5jTzXYWDEeNIDmV+F+BzGYs+sIhxiBf7RyaxXZg==}
@@ -7610,6 +7652,23 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
+  '@gorhom/bottom-sheet@5.2.6(@types/react@19.1.17)(react-native-gesture-handler@2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-reanimated@4.1.5(@babel/core@7.28.5)(react-native-worklets@0.5.1(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      '@gorhom/portal': 1.0.14(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      invariant: 2.2.4
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
+      react-native-gesture-handler: 2.28.0(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react-native-reanimated: 4.1.5(@babel/core@7.28.5)(react-native-worklets@0.5.1(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+    optionalDependencies:
+      '@types/react': 19.1.17
+
+  '@gorhom/portal@1.0.14(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      nanoid: 3.3.11
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
+
   '@hookform/resolvers@5.2.2(react-hook-form@7.66.1(react@19.1.0))':
     dependencies:
       '@standard-schema/utils': 0.3.0
@@ -10614,14 +10673,6 @@ snapshots:
       - expo
       - supports-color
 
-  expo-av@16.0.7(expo@54.0.25)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
-    dependencies:
-      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      react: 19.1.0
-      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
-    optionalDependencies:
-      react-native-web: 0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-
   expo-background-fetch@14.0.8(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)):
     dependencies:
       expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -10757,6 +10808,14 @@ snapshots:
     dependencies:
       expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-image-loader: 6.0.0(expo@54.0.25)
+
+  expo-image@3.0.10(expo@54.0.25)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
+    optionalDependencies:
+      react-native-web: 0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
 
   expo-json-utils@0.15.0: {}
 
@@ -10992,6 +11051,16 @@ snapshots:
   expo-updates-interface@2.0.0(expo@54.0.25):
     dependencies:
       expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+
+  expo-video-thumbnails@10.0.7(expo@54.0.25):
+    dependencies:
+      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+
+  expo-video@3.0.14(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(@modelcontextprotocol/sdk@1.22.0)(expo-router@6.0.15)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
 
   expo-web-browser@15.0.9(expo@54.0.25)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)):
     dependencies:
