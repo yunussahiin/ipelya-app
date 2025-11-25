@@ -1,484 +1,288 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, Image, ActivityIndicator } from "react-native";
-import { Settings, Edit2, Users, Heart, Ban } from "lucide-react-native";
+/**
+ * Own Profile Screen - Refactored
+ * Uses new profile-view components
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, View, RefreshControl, Text, Pressable } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { PageScreen } from "@/components/layout/PageScreen";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { Ban } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
 import { useFollowersRealtime } from "@/hooks/useFollowersRealtime";
 import { useShadowMode } from "@/hooks/useShadowMode";
+import {
+  ProfileTopBar,
+  ProfileHeader,
+  ProfileActions,
+  StoryHighlights,
+  ProfileTabs,
+  ProfileSkeleton,
+  type Profile,
+  type ProfileStatsType,
+  type PostItem,
+  type Highlight,
+  type TabType
+} from "@/components/profile-view";
 
-interface ProfileData {
-  id: string;
-  display_name: string;
-  avatar_url: string | null;
-  bio: string | null;
-  is_creator: boolean;
-  gender: string;
-}
-
-interface ShadowProfileData {
-  id: string;
-  display_name: string;
-  avatar_url: string | null;
-  bio: string | null;
-  is_creator: boolean;
-  gender: string;
-}
-
-export default function ProfileScreen() {
+export default function OwnProfileScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { enabled: shadowModeEnabled } = useShadowMode();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [shadowProfile, setShadowProfile] = useState<ShadowProfileData | null>(null);
+
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"real" | "shadow">(
+  const [currentProfileType, setCurrentProfileType] = useState<"real" | "shadow">(
     shadowModeEnabled ? "shadow" : "real"
   );
+  const [hasShadowProfile, setHasShadowProfile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [exclusivePosts, setExclusivePosts] = useState<PostItem[]>([]);
+  const [reels, setReels] = useState<PostItem[]>([]);
+  const [highlights] = useState<Highlight[]>([]);
+
   const { stats: followersStats } = useFollowersRealtime(currentUserId);
-  const styles = useMemo(() => createStyles(colors), [colors]);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      // Reload profiles when returning from edit screen (without loading spinner)
-      reloadProfiles();
-    }, [])
+  const stats: ProfileStatsType = useMemo(
+    () => ({
+      followers_count: followersStats.followers_count,
+      following_count: followersStats.following_count,
+      posts_count: posts.length
+    }),
+    [followersStats, posts.length]
   );
 
-  async function loadProfile() {
+  // Load profile on mount
+  useEffect(() => {
+    loadProfile();
+  }, [currentProfileType]);
+
+  // Reload on focus
+  useFocusEffect(
+    useCallback(() => {
+      if (profile) reloadProfile();
+    }, [profile?.id])
+  );
+
+  const loadProfile = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const {
-        data: { user },
-        error: authError
+        data: { user }
       } = await supabase.auth.getUser();
+      if (!user) return;
 
-      if (authError || !user) throw authError || new Error("No user");
-
-      console.log("👤 Current user ID:", user.id);
       setCurrentUserId(user.id);
 
+      // Load profile based on type
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, bio, is_creator, gender")
+        .select("*")
         .eq("user_id", user.id)
-        .eq("type", "real")
+        .eq("type", currentProfileType)
         .single();
 
       if (error) throw error;
-      console.log("📊 Profile loaded:", data);
       setProfile(data);
 
-      // Load shadow profile
-      await loadShadowProfile();
+      // Check shadow profile exists
+      const { data: shadowData } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("type", "shadow")
+        .single();
+
+      setHasShadowProfile(!!shadowData);
+
+      // Load posts
+      await loadPosts(user.id);
     } catch (error) {
       console.error("Profile load error:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }
+  };
 
-  async function loadShadowProfile() {
+  const reloadProfile = async () => {
     try {
       const {
         data: { user }
       } = await supabase.auth.getUser();
-
       if (!user) return;
 
-      const { data: shadowData, error: shadowError } = await supabase
+      const { data } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, bio, is_creator, gender")
+        .select("*")
         .eq("user_id", user.id)
-        .eq("type", "shadow")
+        .eq("type", currentProfileType)
         .single();
 
-      if (!shadowError && shadowData) {
-        console.log("🎭 Shadow profile loaded:", shadowData);
-        setShadowProfile(shadowData);
-      }
-    } catch (error) {
-      console.error("Shadow profile load error:", error);
-    }
-  }
-
-  async function reloadProfiles() {
-    try {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      // Reload real profile
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url, bio, is_creator, gender")
-        .eq("user_id", user.id)
-        .eq("type", "real")
-        .single();
-
-      if (!error && data) {
-        console.log("👤 Profile reloaded:", data);
-        setProfile(data);
-      }
-
-      // Reload shadow profile
-      const { data: shadowData, error: shadowError } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url, bio, is_creator, gender")
-        .eq("user_id", user.id)
-        .eq("type", "shadow")
-        .single();
-
-      if (!shadowError && shadowData) {
-        console.log("🎭 Shadow profile reloaded:", shadowData);
-        setShadowProfile(shadowData);
-      }
+      if (data) setProfile(data);
     } catch (error) {
       console.error("Profile reload error:", error);
     }
-  }
+  };
 
-  if (loading) {
-    return (
-      <PageScreen>
-        {() => (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.accent} />
-          </View>
-        )}
-      </PageScreen>
-    );
-  }
+  const loadPosts = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from("posts")
+        .select(
+          `
+          id, caption, likes_count, comments_count, views_count,
+          post_type, is_exclusive, created_at,
+          post_media (id, media_url, thumbnail_url, media_type)
+        `
+        )
+        .eq("user_id", userId)
+        .eq("profile_type", currentProfileType)
+        .eq("moderation_status", "approved")
+        .order("created_at", { ascending: false });
 
-  if (!profile) {
-    return (
-      <PageScreen>
-        {() => (
-          <View style={styles.centerContainer}>
-            <Text style={styles.errorText}>Profil yüklenemedi</Text>
-          </View>
-        )}
-      </PageScreen>
-    );
+      if (data) {
+        const allPosts: PostItem[] = data.map((p) => ({
+          id: p.id,
+          caption: p.caption || "",
+          thumbnail_url: p.post_media?.[0]?.thumbnail_url || p.post_media?.[0]?.media_url || "",
+          likes_count: p.likes_count || 0,
+          comments_count: p.comments_count || 0,
+          media_count: p.post_media?.length || 1,
+          views_count: p.views_count,
+          post_type: p.post_type,
+          is_exclusive: p.is_exclusive,
+          media: p.post_media || []
+        }));
+
+        setPosts(allPosts.filter((p) => !p.is_exclusive && p.post_type !== "reels"));
+        setExclusivePosts(allPosts.filter((p) => p.is_exclusive));
+        setReels(
+          allPosts.filter((p) => p.post_type === "reels" || p.media?.[0]?.media_type === "video")
+        );
+      }
+    } catch (error) {
+      console.error("Posts load error:", error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadProfile();
+    setIsRefreshing(false);
+  };
+
+  const handleProfileSwitch = (type: "real" | "shadow") => {
+    if (type !== currentProfileType) {
+      setCurrentProfileType(type);
+    }
+  };
+
+  const handleCreatePost = () => router.push("/(create)/post");
+  const handleMenuPress = () => router.push("/(settings)");
+  const handleEditProfile = () => {
+    router.push(currentProfileType === "shadow" ? "/(profile)/shadow-edit" : "/(profile)/edit");
+  };
+  const handleSettings = () => router.push("/(settings)");
+  const handleShareProfile = () => console.log("Share profile");
+  const handleFollowersPress = () => {
+    if (profile) router.push(`/(profile)/followers?userId=${profile.id}`);
+  };
+  const handleFollowingPress = () => {
+    if (profile) router.push(`/(profile)/followers?userId=${profile.id}&tab=following`);
+  };
+  const handlePostPress = (post: PostItem, index: number, tab?: TabType) => {
+    console.log("Open post:", post.id, "tab:", tab);
+  };
+  const handleHighlightPress = (highlight: Highlight) => {
+    console.log("Open highlight:", highlight.id);
+  };
+
+  // Loading state
+  if (isLoading || !profile) {
+    return <ProfileSkeleton showTopBar={true} />;
   }
 
   return (
-    <PageScreen>
-      {() => (
-        <>
-          <View style={styles.header}>
-            <View style={styles.headerTop}>
-              <Text style={styles.title}>Profil</Text>
-              <View style={styles.headerActions}>
-                <NotificationBell />
-                <Pressable
-                  style={styles.settingsButton}
-                  onPress={() => router.push("/(settings)")}
-                  accessible={true}
-                  accessibilityLabel="Ayarlar"
-                  accessibilityRole="button"
-                >
-                  <Settings size={24} color={colors.textPrimary} />
-                </Pressable>
-              </View>
-            </View>
-          </View>
+    <View style={styles.container}>
+      {/* Top Bar */}
+      <ProfileTopBar
+        username={profile.username || ""}
+        isOwnProfile={true}
+        currentProfileType={currentProfileType}
+        hasShadowProfile={hasShadowProfile}
+        onProfileSwitch={handleProfileSwitch}
+        onCreatePost={handleCreatePost}
+        onMenuPress={handleMenuPress}
+      />
 
-          {shadowProfile && (
-            <View style={styles.tabContainer}>
-              <Pressable
-                style={[
-                  styles.tab,
-                  activeTab === "real" && styles.tabActive,
-                  { borderBottomColor: activeTab === "real" ? colors.accent : colors.border }
-                ]}
-                onPress={() => setActiveTab("real")}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "real" && styles.tabTextActive,
-                    { color: activeTab === "real" ? colors.accent : colors.textSecondary }
-                  ]}
-                >
-                  👤 Normal Profil
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.tab,
-                  activeTab === "shadow" && styles.tabActive,
-                  { borderBottomColor: activeTab === "shadow" ? colors.accent : colors.border }
-                ]}
-                onPress={() => setActiveTab("shadow")}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "shadow" && styles.tabTextActive,
-                    { color: activeTab === "shadow" ? colors.accent : colors.textSecondary }
-                  ]}
-                >
-                  🎭 Gölge Profil
-                </Text>
-              </Pressable>
-            </View>
-          )}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.accent}
+          />
+        }
+      >
+        {/* Header */}
+        <ProfileHeader
+          profile={profile}
+          stats={stats}
+          onFollowersPress={handleFollowersPress}
+          onFollowingPress={handleFollowingPress}
+        />
 
-          {profile && (
-            <View style={[styles.profileCard, activeTab === "shadow" && styles.profileCardShadow]}>
-              <View style={styles.avatarSection}>
-                {(activeTab === "shadow" ? shadowProfile : profile)?.avatar_url ? (
-                  <Image
-                    source={{
-                      uri: (activeTab === "shadow" ? shadowProfile : profile)?.avatar_url || ""
-                    }}
-                    style={styles.avatar}
-                    accessible={true}
-                    accessibilityLabel={
-                      activeTab === "shadow" ? "Gölge profil fotoğrafı" : "Profil fotoğrafı"
-                    }
-                  />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <Text style={styles.avatarPlaceholderText}>
-                      {(activeTab === "shadow" ? shadowProfile : profile)?.display_name
-                        ?.charAt(0)
-                        .toUpperCase() || "?"}
-                    </Text>
-                  </View>
-                )}
-              </View>
+        {/* Actions */}
+        <ProfileActions
+          viewMode="own"
+          onEditProfilePress={handleEditProfile}
+          onSettingsPress={handleSettings}
+          onShareProfilePress={handleShareProfile}
+        />
 
-              <View style={styles.profileInfo}>
-                <Text style={styles.displayName}>
-                  {(activeTab === "shadow" ? shadowProfile : profile)?.display_name}
-                </Text>
-                {(activeTab === "shadow" ? shadowProfile : profile)?.bio && (
-                  <Text style={styles.bio}>
-                    {(activeTab === "shadow" ? shadowProfile : profile)?.bio}
-                  </Text>
-                )}
+        {/* Story Highlights */}
+        <StoryHighlights
+          highlights={highlights}
+          isOwnProfile={true}
+          onHighlightPress={handleHighlightPress}
+        />
 
-                <View style={styles.badgeRow}>
-                  {(activeTab === "shadow" ? shadowProfile : profile)?.is_creator && (
-                    <View style={[styles.badge, activeTab === "shadow" && styles.badgeShadow]}>
-                      <Text style={styles.badgeText}>Creator</Text>
-                    </View>
-                  )}
-                  <View style={[styles.badge, activeTab === "shadow" && styles.badgeShadow]}>
-                    <Text style={styles.badgeText}>
-                      {(activeTab === "shadow" ? shadowProfile : profile)?.gender}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+        {/* Blocked Users Link */}
+        <Pressable
+          style={styles.blockedUsersButton}
+          onPress={() => router.push("/(profile)/blocked-users")}
+        >
+          <Ban size={20} color={colors.accent} />
+          <Text style={styles.blockedUsersText}>Engellenen Kullanıcılar</Text>
+        </Pressable>
 
-              <View style={styles.buttonGroup}>
-                <Pressable
-                  style={styles.editButton}
-                  onPress={() =>
-                    router.push(
-                      activeTab === "shadow" ? "/(profile)/shadow-edit" : "/(profile)/edit"
-                    )
-                  }
-                  accessible={true}
-                  accessibilityLabel={
-                    activeTab === "shadow" ? "Gölge profili düzenle" : "Profili düzenle"
-                  }
-                  accessibilityRole="button"
-                >
-                  <Edit2 size={20} color={colors.textPrimary} />
-                </Pressable>
-              </View>
-            </View>
-          )}
-
-          <Pressable
-            style={styles.statsSection}
-            onPress={() => router.push(`/(profile)/followers?userId=${profile?.id}`)}
-            accessible={true}
-            accessibilityLabel={`Takipçiler ${followersStats.followers_count}, Takip Edilen ${followersStats.following_count}`}
-            accessibilityRole="button"
-          >
-            <View style={styles.statItem}>
-              <Users size={20} color={colors.accent} />
-              <View>
-                <Text style={styles.statLabel}>Takipçiler</Text>
-                <Text style={styles.statValue}>{followersStats.followers_count}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.statItem}>
-              <Heart size={20} color={colors.accent} />
-              <View>
-                <Text style={styles.statLabel}>Takip Edilen</Text>
-                <Text style={styles.statValue}>{followersStats.following_count}</Text>
-              </View>
-            </View>
-          </Pressable>
-
-          {/* Blocked Users Button */}
-          <Pressable
-            style={styles.blockedUsersButton}
-            onPress={() => router.push("/(profile)/blocked-users")}
-            accessible={true}
-            accessibilityLabel="Engellenen kullanıcılar"
-            accessibilityRole="button"
-          >
-            <Ban size={20} color={colors.accent} />
-            <Text style={[styles.blockedUsersButtonText, { color: colors.textPrimary }]}>
-              Engellenen Kullanıcılar
-            </Text>
-          </Pressable>
-        </>
-      )}
-    </PageScreen>
+        {/* Tabs */}
+        <ProfileTabs
+          posts={posts}
+          exclusivePosts={exclusivePosts}
+          reels={reels}
+          isSubscribed={true}
+          onPostPress={handlePostPress}
+          onSubscribe={() => {}}
+        />
+      </ScrollView>
+    </View>
   );
 }
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    centerContainer: {
+    container: {
       flex: 1,
-      justifyContent: "center",
-      alignItems: "center"
+      backgroundColor: colors.background
     },
-    errorText: {
-      color: colors.textPrimary,
-      fontSize: 16
-    },
-    header: {
-      gap: 16,
-      marginBottom: 24
-    },
-    headerTop: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between"
-    },
-    title: {
-      color: colors.textPrimary,
-      fontSize: 28,
-      fontWeight: "700"
-    },
-    headerActions: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12
-    },
-    settingsButton: {
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border
-    },
-    profileCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-      padding: 20,
-      borderRadius: 16,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: 24
-    },
-    avatarSection: {
-      alignItems: "center"
-    },
-    avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: 40
-    },
-    avatarPlaceholder: {
-      backgroundColor: colors.accent,
-      justifyContent: "center",
-      alignItems: "center"
-    },
-    avatarPlaceholderText: {
-      color: colors.background,
-      fontSize: 32,
-      fontWeight: "700"
-    },
-    profileInfo: {
-      flex: 1,
-      gap: 8
-    },
-    displayName: {
-      color: colors.textPrimary,
-      fontSize: 20,
-      fontWeight: "700"
-    },
-    bio: {
-      color: colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 20
-    },
-    badgeRow: {
-      flexDirection: "row",
-      gap: 8,
-      flexWrap: "wrap"
-    },
-    badge: {
-      backgroundColor: colors.accentSoft,
-      paddingVertical: 4,
-      paddingHorizontal: 12,
-      borderRadius: 12
-    },
-    badgeText: {
-      color: colors.textPrimary,
-      fontSize: 12,
-      fontWeight: "600"
-    },
-    editButton: {
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: colors.accent,
-      justifyContent: "center",
-      alignItems: "center"
-    },
-    statsSection: {
-      flexDirection: "row",
-      gap: 16,
-      padding: 20,
-      borderRadius: 16,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border
-    },
-    statItem: {
-      flex: 1,
-      flexDirection: "row",
-      gap: 12,
-      alignItems: "center"
-    },
-    statLabel: {
-      color: colors.textSecondary,
-      fontSize: 12
-    },
-    statValue: {
-      color: colors.textPrimary,
-      fontSize: 18,
-      fontWeight: "700"
-    },
-    divider: {
-      width: 1,
-      height: "100%",
-      backgroundColor: colors.border
+    scrollView: {
+      flex: 1
     },
     blockedUsersButton: {
       flexDirection: "row",
@@ -486,61 +290,15 @@ const createStyles = (colors: ThemeColors) =>
       gap: 12,
       padding: 16,
       marginHorizontal: 16,
-      marginBottom: 16,
+      marginTop: 8,
       borderRadius: 12,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border
     },
-    blockedUsersButtonText: {
-      fontSize: 14,
-      fontWeight: "600"
-    },
-    tabContainer: {
-      flexDirection: "row",
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      marginBottom: 16,
-      marginHorizontal: 16
-    },
-    tab: {
-      flex: 1,
-      paddingVertical: 12,
-      borderBottomWidth: 2,
-      borderBottomColor: "transparent",
-      alignItems: "center"
-    },
-    tabActive: {
-      borderBottomColor: colors.accent
-    },
-    tabText: {
+    blockedUsersText: {
       fontSize: 14,
       fontWeight: "600",
-      color: colors.textSecondary
-    },
-    tabTextActive: {
-      color: colors.accent
-    },
-    buttonGroup: {
-      flexDirection: "row",
-      gap: 8
-    },
-    shadowEditButton: {
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: colors.accentSoft,
-      borderWidth: 1,
-      borderColor: colors.accent,
-      justifyContent: "center",
-      alignItems: "center"
-    },
-    profileCardShadow: {
-      borderColor: colors.accent,
-      borderWidth: 2
-    },
-    badgeShadow: {
-      backgroundColor: colors.accentSoft,
-      borderColor: colors.accent,
-      borderWidth: 1
+      color: colors.textPrimary
     }
   });

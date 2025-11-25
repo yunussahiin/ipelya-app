@@ -37,8 +37,8 @@ function TrendingCreatorItem({ creator }: { creator: Creator }) {
 
   const handlePress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/profile/${creator.id}`);
-  }, [creator.id, router]);
+    router.push(`/profile/${creator.username}`);
+  }, [creator.username, router]);
 
   return (
     <AnimatedPressable

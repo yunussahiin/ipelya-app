@@ -34,6 +34,7 @@
     "expo-device": "~8.0.9",
     "expo-file-system": "~19.0.19",
     "expo-haptics": "~15.0.7",
+    "expo-iap": "^3.1.35",
     "expo-image": "~3.0.10",
     "expo-image-manipulator": "~14.0.7",
     "expo-image-picker": "~17.0.8",

@@ -124,7 +124,7 @@ function SlideItem({
     if (slide.ctaAction) {
       slide.ctaAction();
     } else {
-      router.push(`/profile/${slide.mainCreator.id}`);
+      router.push(`/profile/${slide.mainCreator.username}`);
     }
   }, [slide, router]);
 

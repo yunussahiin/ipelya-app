@@ -64,8 +64,8 @@ export function HeroCreatorCard({ creator, scrollY, onFollow }: HeroCreatorCardP
 
   const handlePress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/profile/${creator.id}`);
-  }, [creator.id, router]);
+    router.push(`/profile/${creator.username}`);
+  }, [creator.username, router]);
 
   const handleFollow = useCallback(() => {
     onFollow?.(creator.id);

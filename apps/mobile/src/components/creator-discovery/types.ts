@@ -179,8 +179,36 @@ export const MOCK_CREATORS: Creator[] = [
   }
 ];
 
+// Gerçek creator (database'den)
+export const REAL_CREATOR: Creator = {
+  id: "ae64c880-13cc-4bf5-bc24-0498a4cd8b4b",
+  username: "yunuscre",
+  displayName: "Creator account",
+  avatarUrl: "https://ojkyisyjsbgbfytrmmlz.supabase.co/storage/v1/object/public/avatars/5905dbac-a6cb-4c12-b2ae-baccaf554976/5905dbac-a6cb-4c12-b2ae-baccaf554976_1763507946773.jpg",
+  coverUrl: null,
+  bio: "bu hesap creator erkek",
+  followerCount: 0,
+  likeCount: 0,
+  postCount: 0,
+  category: "lifestyle",
+  isFollowing: false,
+  isOnline: true,
+  isVerified: false
+};
+
 // Mock hero slides
 export const MOCK_HERO_SLIDES: HeroSlide[] = [
+  {
+    id: "slide-real",
+    type: "featured",
+    title: "Gerçek Creator",
+    subtitle: "yunuscre ile Tanış",
+    description: "Sistemdeki gerçek creator hesabını keşfet",
+    ctaText: "Profili Gör",
+    mainCreator: REAL_CREATOR,
+    surroundingCreators: MOCK_CREATORS.slice(0, 4),
+    gradientColors: ["#0f0f0f", "#1a1a2e", "#2d2d44"]
+  },
   {
     id: "slide-1",
     type: "featured",
