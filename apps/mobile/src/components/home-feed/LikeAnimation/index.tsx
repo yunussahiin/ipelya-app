@@ -60,7 +60,7 @@ export function LikeAnimation({ visible, onAnimationEnd }: LikeAnimationProps) {
 
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
-      <Heart size={80} color="#FF6B9D" fill="#FF6B9D" />
+      <Heart size={80} color="#FFFFFF" fill="#FFFFFF" strokeWidth={1.5} />
     </Animated.View>
   );
 }

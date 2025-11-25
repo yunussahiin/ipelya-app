@@ -500,8 +500,39 @@ Bu todo-list, İpelya Home Feed sisteminin tam implementasyonu için gerekli tü
 - Intensity slider (placeholder)
 - Türkçe comment'ler ✅
 
-**Toplam:** 16 component oluşturuldu
+**Component 17: CreatePollModal** (apps/mobile/src/components/home-feed/CreatePollModal/)
+- Anket oluşturma modal'ı
+- Dynamic options (2-6 seçenek)
+- Multiple choice toggle
+- Expiration date picker (1h, 6h, 24h, 3d, 1w)
+- create-poll API entegrasyonu
+- Theme-aware styling
+- Haptic feedback
+- Türkçe comment'ler ✅
+
+**Component 18: CreateMiniPostModal** (apps/mobile/src/components/home-feed/CreateMiniPostModal/)
+- Mini post oluşturma modal'ı
+- Short text input (max 280 chars)
+- Background color selection (6 gradient/solid options)
+- Quick emoji picker
+- Live preview
+- create-mini-post API entegrasyonu
+- Theme-aware styling
+- Türkçe comment'ler ✅
+
+**Component 19: IntentSelector** (apps/mobile/src/components/home-feed/IntentSelector/)
+- Dating intent seçici
+- 4 intent type (meet_new, activity_partner, flirt, serious_relationship)
+- Multiple selection (max 3)
+- Priority-based ordering
+- update-intent API entegrasyonu
+- Theme-aware styling
+- Haptic feedback
+- Türkçe comment'ler ✅
+
+**Toplam:** 19 component oluşturuldu
 **Durum:** ✅ Phase 5 TAMAMLANDI (2025-11-24 04:45 UTC+03:00)
+**Güncelleme:** 2025-11-25 00:00 UTC+03:00 - 3 yeni component eklendi
 **Lokasyon:** apps/mobile/src/components/home-feed/
 **Sonraki:** Phase 6 - Mobile Advanced Features (Hooks & State Management)
 
@@ -777,6 +808,67 @@ Bu todo-list, İpelya Home Feed sisteminin tam implementasyonu için gerekli tü
 - [x] Performance optimization (React.memo, useCallback)
 - [x] Image optimization (expo-image already used)
 - [x] Video optimization (expo-video migration completed)
+- [x] FlashList migration (FlatList → FlashList, 5-10x faster)
+- [x] Instagram-style "Yeni gönderiler" button (30s polling, animated)
+- [x] FlashList optimizations (getItemType, onViewableItemsChanged, ListFooterComponent)
+- [x] Analytics tracking ready (viewable items tracking for post views)
+- [x] Theme-aware components (ErrorFeedState, EmptyFeedState, PostActions)
+- [x] Comment Sheet UI/UX (Instagram-style, dark/light mode, emoji picker, user avatar)
+- [x] Comment Sheet placeholder fix (dinamik post owner username)
+- [x] CreatePostModal keyboard bug fix (keyboardShouldPersistTaps, blurOnSubmit)
+- [ ] Comment Sheet API integration (get-comments, create-comment)
+- [ ] Post analytics sheet (owner'lar için view/engagement stats)
+- [ ] Stories feature (ListHeaderComponent)
+- [ ] Vibe/Intent filters UI (header tabs)
+
+### Phase 10 API Entegrasyonları (2025-11-25) ✅
+
+**API Ready → Frontend Entegrasyonu Tamamlandı:**
+
+1. **ShareMenu** → `share-post` API ✅
+   - DM share, External share (native), Copy link, Story share
+   - Haptic feedback, loading states, success alerts
+   - Theme-aware styling
+
+2. **MentionInput** → `search-mentions` API ✅
+   - Debounced search (300ms)
+   - Autocomplete dropdown with user avatars
+   - Loading & empty states
+
+3. **PollCard** → `vote-poll` API ✅
+   - Optimistic update (instant UI feedback)
+   - Time remaining countdown
+   - Checkbox/radio indicators
+   - Progress bar animation
+
+4. **VibeMatchBlock** → `update-vibe` API ✅
+   - Intensity selector (1-5 dots)
+   - Feed refresh on vibe change
+   - Haptic feedback
+
+5. **SuggestionsRow** → `get-suggestions` API ✅
+   - Auto-fetch on mount
+   - Vibe match badge (>70%)
+   - Follow button placeholder
+
+6. **CrystalGiftModal** → `send-crystal-gift` API ✅
+   - 5 gift types with emojis
+   - Message input (200 chars)
+   - Success alert with gift emoji
+
+7. **CreatePollModal** → `create-poll` API ✅ (YENİ)
+   - Dynamic options (2-6)
+   - Multiple choice toggle
+   - Expiration picker
+
+8. **CreateMiniPostModal** → `create-mini-post` API ✅ (YENİ)
+   - Background color selection
+   - Live preview
+   - Quick emoji picker
+
+9. **IntentSelector** → `update-intent` API ✅ (YENİ)
+   - Multi-select (max 3)
+   - Priority-based ordering
 
 ---
 
@@ -840,10 +932,10 @@ Bu todo-list, İpelya Home Feed sisteminin tam implementasyonu için gerekli tü
 
 ## 📊 Progress Tracking
 
-**Toplam Görev:** 184
-**Tamamlanan:** 103 (Phase 1-8: 98 + Eksikler: 5)
-**Kalan:** 81
-**İlerleme:** %56 🚀
+**Toplam Görev:** 188
+**Tamamlanan:** 109 (Phase 1-10: 103 + FlashList: 6)
+**Kalan:** 79
+**İlerleme:** %58 🚀
 
 **Oluşturulan Dökümanlar:**
 - ✅ 01-SYSTEM-ARCHITECTURE.md (Sistem Mimarisi)
@@ -920,6 +1012,63 @@ Bu todo-list, İpelya Home Feed sisteminin tam implementasyonu için gerekli tü
 
 ---
 
-**Son Güncelleme:** 2025-11-24 04:15 UTC+03:00
-**Durum:** Phase 1 Tamamlandı ✅
-**Sonraki Adım:** Phase 2 - Database Schema & Migrations
+**Son Güncelleme:** 2025-11-25 03:40 UTC+03:00
+**Durum:** Phase 10 Devam Ediyor 🚀
+**Son İşlem:** ContentCreator MediaPicker refactor (BottomSheet album picker)
+**Sonraki Adım:** Test edilecek componentler (aşağıda)
+
+---
+
+## 🧪 Test Edilecekler
+
+| Component        | Durum          | Test Yöntemi                                            |
+| ---------------- | -------------- | ------------------------------------------------------- |
+| ShareMenu        | ✅ Entegre      | Post'ta share butonuna bas → seçenekleri test et        |
+| MentionInput     | ✅ Entegre      | CreatePostModal'da @username yaz → autocomplete test et |
+| PollCard         | ✅ Entegre      | Feed'de anket varsa oy ver                              |
+| CreatePollModal  | ✅ Entegre      | FeedScreen'e entegre et ve test et                      |
+| VibeMatchBlock   | ⏳ Test Gerekli | Feed'de vibe seç → feed filtreleme test et              |
+| SuggestionsRow   | ⏳ Test Gerekli | Feed'de önerilen profilleri gör                         |
+| CrystalGiftModal | ⏳ Test Gerekli | Profil sayfasından hediye gönder                        |
+| MiniPostCreator  | ✅ Entegre      | ContentCreator → MİNİ tab'ı                             |
+| IntentSelector   | ⏳ Test Gerekli | Profil ayarlarına entegre et                            |
+
+### Vibe (Mini Post) Sistemi - Güncellenmiş Yapı
+
+**⚠️ ÖNEMLİ DEĞİŞİKLİK (25.11.2025):**
+- `mini_posts` tablosu **SİLİNDİ**
+- Vibe'lar artık `posts` tablosunda `post_type='vibe'` olarak saklanıyor
+- Bu sayede like, comment, share gibi tüm özellikler otomatik çalışıyor
+
+**Lokasyon:** 
+- Creator: `apps/mobile/src/components/home-feed/ContentCreator/MiniPostCreator.tsx`
+- Card: `apps/mobile/src/components/home-feed/MiniPostCard/index.tsx`
+- Eski Modal: `apps/mobile/src/components/home-feed/CreateMiniPostModal/` (kullanılmıyor)
+
+**Özellikler:**
+- **Vibe modu:** Kısa metin (max 100 karakter) + renkli arka plan
+- **Metin modu:** Uzun metin (max 480 karakter) + anket desteği
+- 6 farklı arka plan rengi seçimi (gradient/solid)
+- Hızlı emoji picker (sadece Vibe modunda)
+- Canlı önizleme
+
+**ContentCreator Entegrasyonu:**
+- Tab: "YAZI" (eski adı: MİNİ)
+- 2 mod: Vibe (renkli kart) / Metin (uzun yazı + anket)
+- Post oluşturulunca feed otomatik yenilenir
+
+**API:** `create-mini-post` Edge Function
+- Request: `{ content, background_style?, is_anon? }`
+- Response: `{ success, data: Post }`
+- **Artık `posts` tablosuna `post_type='vibe'` olarak kaydediyor**
+
+**is_anon Özelliği:**
+- Anonim paylaşım desteği (Shadow profil sistemi ile ilişkili)
+- `is_anon: true` olduğunda kullanıcı adı "Anonim" olarak gösterilir
+- Shadow profil: Kullanıcının gizli/anonim profili
+- Real profil: Kullanıcının gerçek profili
+
+**Veritabanı:**
+- Tablo: `posts` (post_type='vibe')
+- Columns: `background_style`, `is_anon`, `caption` (içerik)
+- Like/Comment/Share: Standart post API'leri ile çalışır

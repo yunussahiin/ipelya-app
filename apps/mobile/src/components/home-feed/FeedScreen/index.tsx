@@ -23,10 +23,12 @@ import React, { useState } from "react";
 import { StyleSheet, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus } from "lucide-react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "@/theme/ThemeProvider";
 import { FeedList } from "../FeedList";
 import { FeedHeader } from "../FeedHeader";
 import { TabBar } from "../TabBar";
-import { CreatePostModal } from "../CreatePostModal";
+import { ContentCreator, CreatedContent } from "../ContentCreator";
 import { useCreatePost } from "../../../hooks/home-feed/useCreatePost";
 
 type FeedTab = "feed" | "trending" | "following";
@@ -36,12 +38,14 @@ interface FeedScreenProps {
 }
 
 export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
+  const { colors } = useTheme();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FeedTab>(initialTab);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { mutateAsync: createPost, isPending } = useCreatePost();
+  const { mutateAsync: createPost } = useCreatePost();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header: Logo, notifications, messages */}
       <FeedHeader />
 
@@ -60,27 +64,41 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
       <FeedList tab={activeTab} />
 
       {/* FAB: Create post */}
-      <Pressable style={styles.fab} onPress={() => setShowCreateModal(true)}>
-        <Plus size={24} color="#FFFFFF" />
+      <Pressable
+        style={[styles.fab, { backgroundColor: colors.accent }]}
+        onPress={() => setShowCreateModal(true)}
+      >
+        <Plus size={24} color={colors.buttonPrimaryText} />
       </Pressable>
 
-      {/* Create Post Modal */}
-      <CreatePostModal
+      {/* Content Creator */}
+      <ContentCreator
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSubmit={async ({ caption, media }) => {
+        initialTab="story"
+        onContentCreated={async (content: CreatedContent) => {
           try {
-            const mediaUris = media.map((m) => m.uri);
+            // Mini post zaten kendi API'sini çağırıyor, tekrar createPost çağırma
+            if (content.type === "mini") {
+              // Feed zaten MiniPostCreator'da yenileniyor
+              return;
+            }
+
+            const mediaUris = content.media?.map((m) => m.path) || [];
             await createPost({
-              caption,
+              caption: content.caption,
               visibility: "public",
               post_type: "standard",
               profile_type: "real",
-              mediaUris
+              mediaUris: content.poll ? [] : mediaUris,
+              poll_options: content.poll?.options,
+              poll_question: content.poll?.question
             });
-            Alert.alert("✅ Başarılı", "Post oluşturuldu!");
+            // Feed'i yenile
+            await queryClient.invalidateQueries({ queryKey: ["feed"] });
+            Alert.alert("✅ Başarılı", "İçerik oluşturuldu!");
           } catch (error) {
-            Alert.alert("❌ Hata", "Post oluşturulurken hata oluştu.");
+            Alert.alert("❌ Hata", "İçerik oluşturulurken hata oluştu.");
           }
         }}
       />
@@ -90,8 +108,7 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF"
+    flex: 1
   },
   fab: {
     position: "absolute",
@@ -100,7 +117,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#F472B6",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",

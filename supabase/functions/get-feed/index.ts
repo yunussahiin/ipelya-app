@@ -73,22 +73,62 @@ Deno.serve(async (req) => {
 
     console.log('📝 Posts fetched:', posts?.length || 0);
 
-    // Format feed items
-    const feedItems = (posts || []).map((post) => ({
+    // Fetch polls with user profile
+    const { data: polls, error: pollsError } = await supabase
+      .from('polls')
+      .select(`
+        *,
+        profiles!inner(user_id, username, display_name, avatar_url),
+        poll_options(*)
+      `)
+      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (pollsError) {
+      console.error('❌ Polls fetch error:', pollsError);
+    }
+
+    console.log('📊 Polls fetched:', polls?.length || 0);
+
+    // Format post feed items
+    const postItems = (posts || []).map((post) => ({
       id: `post_${post.id}`,
       content_type: 'post',
       content: {
         ...post,
         user: post.profiles,
         media: post.post_media
-      }
+      },
+      created_at: post.created_at
     }));
+
+    // Format poll feed items
+    const pollItems = (polls || []).map((poll) => ({
+      id: `poll_${poll.id}`,
+      content_type: 'poll',
+      content: {
+        ...poll,
+        user: poll.profiles,
+        options: poll.poll_options,
+        total_votes: poll.poll_options?.reduce((sum: number, opt: any) => sum + (opt.votes_count || 0), 0) || 0
+      },
+      created_at: poll.created_at
+    }));
+
+    // Merge and sort by created_at
+    const allItems = [...postItems, ...pollItems].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    // Remove created_at from final items (not needed in response)
+    const feedItems = allItems.map(({ created_at, ...item }) => item);
 
     // Determine next cursor
     const hasMore = posts && posts.length === limit;
     const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].created_at : null;
 
-    console.log('🎉 Feed generated:', { items: feedItems.length, hasMore });
+    console.log('🎉 Feed generated:', { posts: postItems.length, polls: pollItems.length, total: feedItems.length, hasMore });
 
     return new Response(JSON.stringify({
       success: true,

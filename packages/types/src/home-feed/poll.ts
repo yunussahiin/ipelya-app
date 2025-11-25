@@ -38,6 +38,7 @@ export interface Poll {
   
   // Content
   question: string;
+  caption?: string; // Gönderi içeriği (question'dan farklıysa)
   options: PollOption[];
   
   // Settings

@@ -15,14 +15,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     backgroundColor: "#000000"
   },
   updates: {
+    url: "https://u.expo.dev/ef2464e9-74a9-4b09-9ff6-a936e9cdc65a",
     fallbackToCacheTimeout: 0
+  },
+  runtimeVersion: {
+    policy: "appVersion"
   },
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: false,
     bundleIdentifier: "com.ipelya.mobile",
+    usesAppleSignIn: true,
     infoPlist: {
-      ITSAppUsesNonExemptEncryption: false
+      ITSAppUsesNonExemptEncryption: false,
+      NSCameraUsageDescription: "İçerik oluşturmak için kamera erişimi gereklidir.",
+      NSMicrophoneUsageDescription: "Video kaydetmek için mikrofon erişimi gereklidir.",
+      NSPhotoLibraryUsageDescription: "Fotoğraf ve video seçmek için galeri erişimi gereklidir."
     },
     config: {
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -39,7 +47,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#000000"
     },
-    permissions: ["NOTIFICATIONS"]
+    permissions: [
+      "NOTIFICATIONS",
+      "CAMERA",
+      "RECORD_AUDIO",
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE"
+    ]
   },
   plugins: [
     "expo-router",
@@ -59,7 +73,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       }
     ],
     "expo-maps",
-    "expo-video"
+    "expo-video",
+    [
+      "react-native-vision-camera",
+      {
+        cameraPermissionText: "İçerik oluşturmak için kamera erişimi gereklidir.",
+        enableMicrophonePermission: true,
+        microphonePermissionText: "Video kaydetmek için mikrofon erişimi gereklidir."
+      }
+    ],
+    [
+      "expo-media-library",
+      {
+        photosPermission: "Fotoğraf ve video seçmek için galeri erişimi gereklidir.",
+        savePhotosPermission: "Çekilen fotoğrafları kaydetmek için izin gereklidir."
+      }
+    ]
   ],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,

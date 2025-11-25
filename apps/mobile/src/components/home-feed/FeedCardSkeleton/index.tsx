@@ -11,8 +11,10 @@
 
 import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Animated } from "react-native";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export function FeedCardSkeleton() {
+  const { colors } = useTheme();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -38,30 +40,32 @@ export function FeedCardSkeleton() {
   });
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       {/* Header: Avatar + Name */}
       <View style={styles.header}>
-        <Animated.View style={[styles.avatar, { opacity }]} />
+        <Animated.View style={[styles.avatar, { opacity, backgroundColor: colors.border }]} />
         <View style={styles.headerText}>
-          <Animated.View style={[styles.name, { opacity }]} />
-          <Animated.View style={[styles.time, { opacity }]} />
+          <Animated.View style={[styles.name, { opacity, backgroundColor: colors.border }]} />
+          <Animated.View style={[styles.time, { opacity, backgroundColor: colors.border }]} />
         </View>
       </View>
 
       {/* Media placeholder */}
-      <Animated.View style={[styles.media, { opacity }]} />
+      <Animated.View style={[styles.media, { opacity, backgroundColor: colors.border }]} />
 
       {/* Actions */}
       <View style={styles.actions}>
-        <Animated.View style={[styles.actionButton, { opacity }]} />
-        <Animated.View style={[styles.actionButton, { opacity }]} />
-        <Animated.View style={[styles.actionButton, { opacity }]} />
+        <Animated.View style={[styles.actionButton, { opacity, backgroundColor: colors.border }]} />
+        <Animated.View style={[styles.actionButton, { opacity, backgroundColor: colors.border }]} />
+        <Animated.View style={[styles.actionButton, { opacity, backgroundColor: colors.border }]} />
       </View>
 
       {/* Caption */}
       <View style={styles.caption}>
-        <Animated.View style={[styles.captionLine, { opacity }]} />
-        <Animated.View style={[styles.captionLine, { opacity, width: "60%" }]} />
+        <Animated.View style={[styles.captionLine, { opacity, backgroundColor: colors.border }]} />
+        <Animated.View
+          style={[styles.captionLine, { opacity, width: "60%", backgroundColor: colors.border }]}
+        />
       </View>
     </View>
   );
@@ -69,7 +73,6 @@ export function FeedCardSkeleton() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     marginBottom: 16,
     shadowColor: "#000",
@@ -88,8 +91,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#E5E7EB"
+    borderRadius: 20
   },
   headerText: {
     flex: 1,
@@ -98,19 +100,16 @@ const styles = StyleSheet.create({
   name: {
     height: 16,
     width: 120,
-    borderRadius: 4,
-    backgroundColor: "#E5E7EB"
+    borderRadius: 4
   },
   time: {
     height: 12,
     width: 80,
-    borderRadius: 4,
-    backgroundColor: "#E5E7EB"
+    borderRadius: 4
   },
   media: {
     width: "100%",
-    aspectRatio: 4 / 5,
-    backgroundColor: "#E5E7EB"
+    aspectRatio: 4 / 5
   },
   actions: {
     flexDirection: "row",
@@ -120,8 +119,7 @@ const styles = StyleSheet.create({
   actionButton: {
     width: 60,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: "#E5E7EB"
+    borderRadius: 12
   },
   caption: {
     padding: 12,
@@ -131,7 +129,6 @@ const styles = StyleSheet.create({
   captionLine: {
     height: 14,
     width: "100%",
-    borderRadius: 4,
-    backgroundColor: "#E5E7EB"
+    borderRadius: 4
   }
 });

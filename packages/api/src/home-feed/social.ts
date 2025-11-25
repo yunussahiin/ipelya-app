@@ -119,3 +119,26 @@ export async function sendCrystalGift(
   
   return response.json();
 }
+
+/**
+ * Like Comment
+ * Yorum beğenme/beğenmeden kaldırma (toggle)
+ */
+export async function likeComment(
+  supabaseUrl: string,
+  accessToken: string,
+  commentId: string
+): Promise<{ success: boolean; action?: 'liked' | 'unliked'; error?: string }> {
+  const url = `${supabaseUrl}/functions/v1/like-comment`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ comment_id: commentId }),
+  });
+  
+  return response.json();
+}

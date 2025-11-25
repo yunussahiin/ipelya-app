@@ -44,32 +44,34 @@ export function PostMedia({ media, onPress, onDoubleTap }: PostMediaProps) {
   const { width: screenWidth } = useWindowDimensions();
   const lastTap = useRef<number>(0);
 
-  // Create video players for each video media
-  const videoPlayers = media
-    .filter((item) => item.media_type === "video")
-    .map((item) => ({
-      id: item.id,
-      player: useVideoPlayer(item.media_url, (player) => {
-        player.loop = true;
-        player.muted = false;
-      })
-    }));
+  // Early return BEFORE hooks is not allowed - check after all hooks
+  const hasMedia = media && media.length > 0;
 
-  if (!media || media.length === 0) return null;
+  // Get first video URL for single video player (hooks must be called unconditionally)
+  const firstVideoUrl = hasMedia
+    ? media.find((item) => item.media_type === "video")?.media_url
+    : null;
+
+  // Single video player for the first video (hooks can't be in loops)
+  const videoPlayer = useVideoPlayer(firstVideoUrl || "", (player) => {
+    player.loop = true;
+    player.muted = false;
+  });
+
+  if (!hasMedia) return null;
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / screenWidth);
     setActiveIndex(index);
 
-    // Play/pause videos based on active index
-    videoPlayers.forEach(({ player }, idx) => {
-      if (idx === index) {
-        player.play();
-      } else {
-        player.pause();
-      }
-    });
+    // Play/pause video based on active index
+    const currentMedia = media[index];
+    if (currentMedia?.media_type === "video" && videoPlayer) {
+      videoPlayer.play();
+    } else if (videoPlayer) {
+      videoPlayer.pause();
+    }
   };
 
   const handleMediaPress = (index: number) => {
@@ -111,7 +113,8 @@ export function PostMedia({ media, onPress, onDoubleTap }: PostMediaProps) {
         style={styles.carousel}
       >
         {media.map((item, index) => {
-          const videoPlayerData = videoPlayers.find((vp) => vp.id === item.id);
+          // Use single video player for first video only
+          const isFirstVideo = item.media_type === "video" && item.media_url === firstVideoUrl;
 
           return (
             <Pressable
@@ -119,9 +122,9 @@ export function PostMedia({ media, onPress, onDoubleTap }: PostMediaProps) {
               onPress={() => handleMediaPress(index)}
               style={[styles.mediaItem, { width: screenWidth }]}
             >
-              {item.media_type === "video" && videoPlayerData ? (
+              {item.media_type === "video" && isFirstVideo && videoPlayer ? (
                 <VideoView
-                  player={videoPlayerData.player}
+                  player={videoPlayer}
                   style={styles.image}
                   contentFit="cover"
                   nativeControls

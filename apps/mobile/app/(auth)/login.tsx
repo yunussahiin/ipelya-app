@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
+import { AppleButton } from "@invertase/react-native-apple-authentication";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -201,24 +202,16 @@ export default function LoginScreen() {
         <Text style={styles.magicLinkButtonText}>📧 Magic Link Gönder</Text>
       </Pressable>
 
-      {/* Apple Sign-In Button (iOS only) */}
+      {/* Apple Sign-In Button (iOS only) - Native Button */}
       {Platform.OS === "ios" && (
-        <Pressable
-          onPress={handleAppleSignIn}
-          disabled={isLoading}
-          style={({ pressed }) => [
-            styles.socialButton,
-            styles.appleButton,
-            {
-              opacity: isLoading || pressed ? 0.7 : 1
-            }
-          ]}
-          accessible={true}
-          accessibilityLabel="Apple ile giriş yap"
-          accessibilityRole="button"
-        >
-          <Text style={styles.appleButtonText}>🍎 Apple ile Giriş Yap</Text>
-        </Pressable>
+        <View style={styles.appleButtonContainer}>
+          <AppleButton
+            buttonStyle={AppleButton.Style.BLACK}
+            buttonType={AppleButton.Type.SIGN_IN}
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+          />
+        </View>
       )}
     </AuthScreen>
   );
@@ -327,15 +320,14 @@ function createStyles(colors: Record<string, string>) {
       fontSize: 16,
       lineHeight: 24
     },
-    appleButton: {
-      backgroundColor: "#000000",
-      borderColor: "#000000"
+    appleButtonContainer: {
+      width: "100%",
+      height: 50,
+      marginBottom: 12
     },
-    appleButtonText: {
-      color: "#FFFFFF",
-      fontWeight: "600",
-      fontSize: 16,
-      lineHeight: 24
+    appleButton: {
+      width: "100%",
+      height: 50
     }
   });
 }

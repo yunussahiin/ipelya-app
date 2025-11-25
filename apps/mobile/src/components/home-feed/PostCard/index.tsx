@@ -30,6 +30,7 @@ import { PostMedia } from "../PostMedia";
 import { PostActions } from "../PostActions";
 import { PostCaption } from "../PostCaption";
 import { CommentSheet } from "../CommentSheet";
+import { ShareMenu } from "../ShareMenu";
 
 interface PostCardProps {
   post: Post;
@@ -48,11 +49,17 @@ export const PostCard = React.memo(function PostCard({
 }: PostCardProps) {
   const { colors } = useTheme();
   const [showCommentSheet, setShowCommentSheet] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   const handleComment = () => {
     console.log("💬 Comment button pressed, opening sheet...");
     setShowCommentSheet(true);
     onComment?.();
+  };
+
+  const handleShare = () => {
+    console.log("📤 Share button pressed, opening menu...");
+    setShowShareMenu(true);
   };
 
   return (
@@ -84,7 +91,7 @@ export const PostCard = React.memo(function PostCard({
         isLiked={post.is_liked || false}
         onLike={onLike}
         onComment={handleComment}
-        onShare={onShare}
+        onShare={handleShare}
       />
 
       {/* Comment Sheet */}
@@ -92,7 +99,15 @@ export const PostCard = React.memo(function PostCard({
         postId={post.id}
         visible={showCommentSheet}
         onClose={() => setShowCommentSheet(false)}
-        currentUserAvatar={post.user?.avatar_url}
+        postOwnerUsername={post.user?.username || post.user?.display_name}
+      />
+
+      {/* Share Menu */}
+      <ShareMenu
+        visible={showShareMenu}
+        postId={post.id}
+        onDismiss={() => setShowShareMenu(false)}
+        onSuccess={() => onShare?.()}
       />
 
       {/* Caption: Text with mentions */}

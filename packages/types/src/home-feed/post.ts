@@ -21,7 +21,7 @@ export type PostVisibility = 'public' | 'friends' | 'private';
  * Post Type
  * Post'un tipi
  */
-export type PostType = 'standard' | 'time_capsule' | 'anon';
+export type PostType = 'standard' | 'time_capsule' | 'anon' | 'poll';
 
 /**
  * Media Type
@@ -118,7 +118,8 @@ export interface MiniPost {
   user_id: string;
   user?: PostUser;
   profile_type: 'real' | 'shadow';
-  content: string; // Max 280 chars
+  content: string; // Max 100 chars (Vibe)
+  background_style?: string; // gradient_pink, gradient_blue, etc.
   is_anon: boolean;
   likes_count: number;
   replies_count: number;
@@ -169,6 +170,8 @@ export interface CreatePostRequest {
   post_type?: PostType;
   expires_at?: string;
   profile_type?: 'real' | 'shadow';
+  poll_options?: string[]; // Anket seçenekleri
+  poll_question?: string; // Anket sorusu
 }
 
 /**
@@ -179,6 +182,7 @@ export interface CreateMiniPostRequest {
   content: string;
   is_anon?: boolean;
   profile_type?: 'real' | 'shadow';
+  background_style?: string;
 }
 
 /**
