@@ -25,7 +25,7 @@ import {
   UIManager
 } from "react-native";
 import { Image } from "expo-image";
-import { Heart, Trash2 } from "lucide-react-native";
+import { Heart, Trash2, Gift } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useRouter } from "expo-router";
 
@@ -41,6 +41,7 @@ export interface Comment {
     username: string;
     display_name?: string;
     avatar_url?: string;
+    is_creator?: boolean;
   };
   content: string;
   created_at: string;
@@ -60,6 +61,7 @@ interface CommentItemProps {
   onHideDeleteMenu: () => void;
   isReply?: boolean;
   onLoadReplies?: (commentId: string) => void;
+  onShowLikers?: (commentId: string) => void;
 }
 
 export function CommentItem({
@@ -71,7 +73,8 @@ export function CommentItem({
   onShowDeleteMenu,
   onHideDeleteMenu,
   isReply = false,
-  onLoadReplies
+  onLoadReplies,
+  onShowLikers
 }: CommentItemProps) {
   const { colors } = useTheme();
   const router = useRouter();
@@ -215,19 +218,34 @@ export function CommentItem({
           )}
         </View>
 
-        {/* Like Button - Right Side */}
-        <Pressable style={styles.likeButton} onPress={() => onLike(comment.id)}>
-          <Heart
-            size={12}
-            color={comment.is_liked ? colors.accent : colors.textMuted}
-            fill={comment.is_liked ? colors.accent : "none"}
-          />
-          {comment.likes_count > 0 && (
-            <Text style={[styles.likeCount, { color: colors.textMuted }]}>
-              {comment.likes_count}
-            </Text>
+        {/* Right Side Actions */}
+        <View style={styles.rightActions}>
+          {/* Gift Button - Only for creators */}
+          {comment.user.is_creator && (
+            <Pressable
+              style={styles.giftButton}
+              onPress={() => console.log("Send gift to:", comment.user.username)}
+            >
+              <Gift size={14} color={colors.textMuted} />
+            </Pressable>
           )}
-        </Pressable>
+
+          {/* Like Button */}
+          <Pressable style={styles.likeButton} onPress={() => onLike(comment.id)}>
+            <Heart
+              size={12}
+              color={comment.is_liked ? colors.accent : colors.textMuted}
+              fill={comment.is_liked ? colors.accent : "none"}
+            />
+            {comment.likes_count > 0 && (
+              <Pressable onPress={() => onShowLikers?.(comment.id)}>
+                <Text style={[styles.likeCount, { color: colors.textMuted }]}>
+                  {comment.likes_count}
+                </Text>
+              </Pressable>
+            )}
+          </Pressable>
+        </View>
       </Pressable>
 
       {/* Replies List - Animated with vertical line */}
@@ -249,6 +267,7 @@ export function CommentItem({
                     showDeleteMenu={showDeleteMenu}
                     onShowDeleteMenu={onShowDeleteMenu}
                     onHideDeleteMenu={onHideDeleteMenu}
+                    onShowLikers={onShowLikers}
                     isReply={true}
                   />
                 </View>
@@ -366,10 +385,19 @@ const styles = StyleSheet.create({
   replyContent: {
     flex: 1
   },
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8
+  },
+  giftButton: {
+    padding: 4,
+    marginTop: 2
+  },
   likeButton: {
     alignItems: "center",
-    gap: 2,
-    paddingTop: 4
+    justifyContent: "center",
+    minWidth: 24
   },
   likeCount: {
     fontSize: 11,

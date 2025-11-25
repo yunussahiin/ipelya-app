@@ -11,7 +11,7 @@
  * - Pull to close
  */
 
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -26,8 +26,10 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { useProfileStore } from "@/store/profile.store";
 import { useAuthStore } from "@/store/auth.store";
 import { getPostDetails, commentPost, searchMentions, likeComment } from "@ipelya/api/home-feed";
+import { supabase } from "@/lib/supabaseClient";
 import { CommentItem, Comment } from "./CommentItem";
 import { CommentFooter, CommentFooterRef, MentionUser } from "./CommentFooter";
+import { CommentLikersSheet } from "./CommentLikersSheet";
 
 interface CommentSheetProps {
   postId: string;
@@ -51,24 +53,50 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
 
+  // Reply state
+  const [replyTo, setReplyTo] = useState<{ username: string; commentId: string } | null>(null);
+
+  // Likers sheet state
+  const [likersCommentId, setLikersCommentId] = useState<string | null>(null);
+  const [showLikersSheet, setShowLikersSheet] = useState(false);
+
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
   const accessToken = sessionToken || "";
 
   // User avatar - mevcut kullanıcının avatarı (yorum yazan kişi)
-  const userAvatar =
-    profile?.avatarUrl ||
-    `https://api.dicebear.com/7.x/avataaars/png?seed=${profile?.id || "default"}`;
+  const [userAvatar, setUserAvatar] = useState<string | undefined>(profile?.avatarUrl);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log("👤 Profile:", profile);
-    console.log("🖼️ User Avatar:", userAvatar);
-    if (!profile) {
-      console.warn(
-        "⚠️ Profile store is null! Profile data needs to be fetched and set after auth."
-      );
-    }
-  }, [profile, userAvatar]);
+  // Fetch current user's avatar from Supabase if not in store
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (profile?.avatarUrl) {
+        setUserAvatar(profile.avatarUrl);
+        return;
+      }
+
+      try {
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("avatar_url")
+            .eq("user_id", user.id)
+            .eq("type", "real")
+            .single();
+
+          if (profileData?.avatar_url) {
+            setUserAvatar(profileData.avatar_url);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error fetching user avatar:", error);
+      }
+    };
+
+    fetchUserAvatar();
+  }, [profile?.avatarUrl]);
 
   // Snap points
   const snapPoints = useMemo(() => ["50%", "90%"], []);
@@ -120,14 +148,17 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
 
       setLoading(true);
       try {
-        console.log("💬 Creating comment:", commentText);
+        console.log("💬 Creating comment:", commentText, "replyTo:", replyTo);
         const response = await commentPost(supabaseUrl, accessToken, {
           post_id: postId,
-          content: commentText.trim()
+          content: commentText.trim(),
+          parent_comment_id: replyTo?.commentId // Yanıt ise parent_comment_id gönder
         });
 
         if (response.success) {
           console.log("✅ Comment created successfully");
+          // Clear reply state
+          setReplyTo(null);
           // Refresh comments
           await fetchComments();
         } else {
@@ -139,7 +170,7 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
         setLoading(false);
       }
     },
-    [loading, accessToken, supabaseUrl, postId, fetchComments]
+    [loading, accessToken, supabaseUrl, postId, fetchComments, replyTo]
   );
 
   // Mention query handler - debounced search
@@ -204,9 +235,11 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
         loading={loading}
         userAvatar={userAvatar}
         postOwnerUsername={postOwnerUsername}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
       />
     ),
-    [loading, handleSubmitComment, handleMentionQuery, userAvatar, postOwnerUsername]
+    [loading, handleSubmitComment, handleMentionQuery, userAvatar, postOwnerUsername, replyTo]
   );
 
   // Toggle comment like - recursive helper for nested comments
@@ -258,15 +291,45 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
     setShowDeleteMenu(null);
   };
 
+  // Handle reply - find comment and set reply state
+  const handleReply = (commentId: string) => {
+    // Find comment in list (including nested replies)
+    const findComment = (comments: Comment[]): Comment | undefined => {
+      for (const c of comments) {
+        if (c.id === commentId) return c;
+        if (c.replies) {
+          const found = findComment(c.replies);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+
+    const comment = findComment(comments);
+    if (comment) {
+      setReplyTo({
+        username: comment.user.username,
+        commentId: comment.id
+      });
+    }
+  };
+
+  // Show likers sheet
+  const handleShowLikers = (commentId: string) => {
+    setLikersCommentId(commentId);
+    setShowLikersSheet(true);
+  };
+
   const renderComment = ({ item }: { item: Comment }) => (
     <CommentItem
       comment={item}
       onLike={handleLikeComment}
-      onReply={(id) => console.log("Reply to:", id)}
+      onReply={handleReply}
       onDelete={handleDeleteComment}
       showDeleteMenu={showDeleteMenu === item.id}
       onShowDeleteMenu={setShowDeleteMenu}
       onHideDeleteMenu={() => setShowDeleteMenu(null)}
+      onShowLikers={handleShowLikers}
     />
   );
 
@@ -380,6 +443,16 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
           />
         )}
       </SafeAreaView>
+
+      {/* Comment Likers Sheet */}
+      <CommentLikersSheet
+        commentId={likersCommentId}
+        visible={showLikersSheet}
+        onClose={() => {
+          setShowLikersSheet(false);
+          setLikersCommentId(null);
+        }}
+      />
     </BottomSheetModal>
   );
 }

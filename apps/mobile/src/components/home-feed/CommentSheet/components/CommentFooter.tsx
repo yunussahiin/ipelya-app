@@ -18,7 +18,7 @@ import {
   BottomSheetFooterProps,
   BottomSheetTextInput
 } from "@gorhom/bottom-sheet";
-import { Send } from "lucide-react-native";
+import { Send, X } from "lucide-react-native";
 import { ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -32,14 +32,17 @@ export interface MentionUser {
 
 export interface CommentFooterRef {
   insertMention: (username: string) => void;
+  setReplyTo: (username: string | null) => void;
 }
 
 interface CommentFooterProps extends BottomSheetFooterProps {
-  onSubmitComment: (text: string) => void;
+  onSubmitComment: (text: string, parentCommentId?: string) => void;
   onMentionQuery: (query: string | null) => void;
   loading: boolean;
   userAvatar?: string;
   postOwnerUsername?: string;
+  replyTo?: { username: string; commentId: string } | null;
+  onCancelReply?: () => void;
 }
 
 // Popular emojis - Instagram style
@@ -47,14 +50,33 @@ const POPULAR_EMOJIS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮"
 
 export const CommentFooter = React.forwardRef<CommentFooterRef, CommentFooterProps>(
   function CommentFooter(
-    { onSubmitComment, onMentionQuery, loading, userAvatar, postOwnerUsername, ...props },
+    {
+      onSubmitComment,
+      onMentionQuery,
+      loading,
+      userAvatar,
+      postOwnerUsername,
+      replyTo,
+      onCancelReply,
+      ...props
+    },
     ref
   ) {
     const { colors } = useTheme();
 
     // Internal state - klavye kapanma sorununu çözer
     const [comment, setComment] = useState("");
+    const [replyUsername, setReplyUsername] = useState<string | null>(null);
     const inputRef = useRef<React.ElementRef<typeof BottomSheetTextInput>>(null);
+
+    // Reply mode değiştiğinde input'u güncelle
+    useEffect(() => {
+      if (replyTo) {
+        setReplyUsername(replyTo.username);
+        setComment(`@${replyTo.username} `);
+        inputRef.current?.focus();
+      }
+    }, [replyTo]);
 
     // Mention detection - parent'a bildir
     useEffect(() => {
@@ -68,7 +90,7 @@ export const CommentFooter = React.forwardRef<CommentFooterRef, CommentFooterPro
       }
     }, [comment, onMentionQuery]);
 
-    // Ref ile insertMention'ı parent'a expose et
+    // Ref ile insertMention ve setReplyTo'yu parent'a expose et
     useImperativeHandle(
       ref,
       () => ({
@@ -82,10 +104,27 @@ export const CommentFooter = React.forwardRef<CommentFooterRef, CommentFooterPro
             console.log("🟢 New comment:", newComment);
             return newComment;
           });
+        },
+        setReplyTo: (username: string | null) => {
+          if (username) {
+            setReplyUsername(username);
+            setComment(`@${username} `);
+            inputRef.current?.focus();
+          } else {
+            setReplyUsername(null);
+            setComment("");
+          }
         }
       }),
       []
     );
+
+    // Cancel reply
+    const handleCancelReply = () => {
+      setReplyUsername(null);
+      setComment("");
+      onCancelReply?.();
+    };
 
     // Emoji press
     const handleEmojiPress = useCallback((emoji: string) => {
@@ -127,6 +166,18 @@ export const CommentFooter = React.forwardRef<CommentFooterRef, CommentFooterPro
               ))}
             </ScrollView>
           </View>
+
+          {/* Reply Banner - Instagram style */}
+          {replyUsername && (
+            <View style={[styles.replyBanner, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.replyText, { color: colors.textMuted }]}>
+                {replyUsername}'e yanıt veriyorsun
+              </Text>
+              <Pressable onPress={handleCancelReply} hitSlop={8}>
+                <X size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          )}
 
           {/* Input Container */}
           <View
@@ -218,6 +269,17 @@ const styles = StyleSheet.create({
   },
   mentionEmptyText: {
     fontSize: 14
+  },
+  replyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 0.5
+  },
+  replyText: {
+    fontSize: 13
   },
   emojiBar: {
     paddingVertical: 12,
