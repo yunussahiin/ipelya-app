@@ -15,7 +15,7 @@
  * - API entegrasyonu
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { X, Palette, Type, Sparkles, BarChart3, Plus, Trash2 } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
-import { createMiniPost } from "@ipelya/api/home-feed";
+import { createMiniPost, createPost } from "@ipelya/api/home-feed";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CreatedContent } from "./index";
@@ -69,6 +69,7 @@ export function MiniPostCreator({ onComplete, onClose }: MiniPostCreatorProps) {
   const [content, setContent] = useState("");
   const [selectedBg, setSelectedBg] = useState(BACKGROUND_COLORS[0]);
   const [loading, setLoading] = useState(false);
+  const isSubmitting = useRef(false); // Double submit engelleme
 
   // Anket state (sadece metin modunda)
   const [showPoll, setShowPoll] = useState(false);
@@ -141,23 +142,79 @@ export function MiniPostCreator({ onComplete, onClose }: MiniPostCreatorProps) {
 
   // Submit handler
   const handleSubmit = async () => {
+    // Double submit engelle - ref ile anında kontrol (state'ten önce!)
+    if (isSubmitting.current) {
+      console.log("⚠️ Double submit blocked by ref");
+      return;
+    }
+    if (loading) {
+      console.log("⚠️ Double submit blocked by loading state");
+      return;
+    }
+
+    // Hemen ref'i set et - bu senkron olduğu için anında çalışır
+    isSubmitting.current = true;
+    // Loading state'i de hemen set et
+    setLoading(true);
+
     if (!content.trim()) {
+      isSubmitting.current = false;
+      setLoading(false);
       Alert.alert("❌ Hata", "Lütfen bir şeyler yazın.");
       return;
     }
 
-    setLoading(true);
+    // Metin modunda anket varsa seçenekleri kontrol et
+    if (mode === "text" && showPoll) {
+      const filledOptions = pollOptions.filter((opt) => opt.trim());
+      if (filledOptions.length < 2) {
+        isSubmitting.current = false;
+        setLoading(false);
+        Alert.alert("❌ Hata", "Anket için en az 2 seçenek girin.");
+        return;
+      }
+    }
+
+    console.log("📤 Submitting post...", { mode, showPoll });
     try {
-      const response = await createMiniPost(supabaseUrl, accessToken, {
-        content: content.trim(),
-        background_style: mode === "card" ? selectedBg.id : undefined
-      });
+      let response;
+
+      if (mode === "card") {
+        // Vibe modu - createMiniPost API
+        response = await createMiniPost(supabaseUrl, accessToken, {
+          content: content.trim(),
+          background_style: selectedBg.id
+        });
+      } else {
+        // Metin modu - createPost API
+        if (showPoll) {
+          // Anket varsa - sadece poll oluştur (post oluşturma)
+          // content: genel metin/konu başlığı (caption olarak kaydedilir)
+          // pollQuestion: anket sorusu (question olarak kaydedilir)
+          const question = pollQuestion.trim() || content.trim(); // Anket sorusu yoksa content kullan
+          console.log("📊 Creating poll only...", { caption: content.trim(), question });
+          response = await createPost(supabaseUrl, accessToken, {
+            caption: content.trim(),
+            poll_question: question,
+            poll_options: pollOptions.filter((opt) => opt.trim())
+          });
+          console.log("📊 Poll response:", response.success);
+        } else {
+          // Anket yoksa - normal standard post
+          console.log("📝 Creating standard post...");
+          response = await createPost(supabaseUrl, accessToken, {
+            caption: content.trim(),
+            post_type: "standard"
+          });
+          console.log("📝 Post response:", response.success);
+        }
+      }
 
       if (response.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         queryClient.invalidateQueries({ queryKey: ["feed"] });
         onComplete({
-          type: "mini",
+          type: mode === "card" ? "mini" : "post",
           caption: content.trim()
         });
       } else {
@@ -167,6 +224,7 @@ export function MiniPostCreator({ onComplete, onClose }: MiniPostCreatorProps) {
       Alert.alert("❌ Hata", "Bir sorun oluştu");
     } finally {
       setLoading(false);
+      isSubmitting.current = false;
     }
   };
 
@@ -182,8 +240,11 @@ export function MiniPostCreator({ onComplete, onClose }: MiniPostCreatorProps) {
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Yazı</Text>
         <Pressable
           onPress={handleSubmit}
-          disabled={!content.trim() || loading}
-          style={[styles.shareButton, (!content.trim() || loading) && { opacity: 0.5 }]}
+          disabled={!content.trim() || loading || isSubmitting.current}
+          style={[
+            styles.shareButton,
+            (!content.trim() || loading || isSubmitting.current) && { opacity: 0.5 }
+          ]}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.accent} />

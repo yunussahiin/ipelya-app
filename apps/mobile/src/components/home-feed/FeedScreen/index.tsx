@@ -78,8 +78,9 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
         initialTab="story"
         onContentCreated={async (content: CreatedContent) => {
           try {
-            // Mini post zaten kendi API'sini çağırıyor, tekrar createPost çağırma
-            if (content.type === "mini") {
+            // Mini post ve text post (MiniPostCreator'dan gelen) zaten kendi API'sini çağırıyor
+            // Tekrar createPost çağırma
+            if (content.type === "mini" || content.type === "post") {
               // Feed zaten MiniPostCreator'da yenileniyor
               return;
             }

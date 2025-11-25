@@ -33,6 +33,8 @@ export async function createPost(
 ): Promise<{ success: boolean; data?: Post; error?: string }> {
   const url = `${supabaseUrl}/functions/v1/create-post`;
   
+  console.log('🌐 API createPost called:', JSON.stringify(data));
+  
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -42,7 +44,9 @@ export async function createPost(
     body: JSON.stringify(data),
   });
   
-  return response.json();
+  const result = await response.json();
+  console.log('🌐 API createPost response:', result.success);
+  return result;
 }
 
 /**

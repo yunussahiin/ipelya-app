@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Switch } from "react-native";
-import { ArrowLeft, Eye, Lock } from "lucide-react-native";
+import { ArrowLeft, Eye, Lock, UserCheck, ChevronRight } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { PageScreen } from "@/components/layout/PageScreen";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
+
+type TagPermission = "following" | "followers" | "nobody";
 
 /**
  * Privacy Settings Screen
@@ -11,13 +13,28 @@ import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
  * Gizlilik ayarlarını yönetir:
  * - Çevrimiçi durumu göster/gizle
  * - Direkt mesajlara izin ver/engelle
+ * - Etiketlenme izinleri
  */
 export default function PrivacyScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const [onlineStatus, setOnlineStatus] = useState(true);
   const [allowMessages, setAllowMessages] = useState(true);
+  const [tagPermission, setTagPermission] = useState<TagPermission>("following");
+  const [showTagOptions, setShowTagOptions] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const tagPermissionLabels: Record<TagPermission, string> = {
+    following: "Takip ettiklerim",
+    followers: "Takipçilerim",
+    nobody: "Hiç kimse"
+  };
+
+  const handleTagPermissionChange = (permission: TagPermission) => {
+    setTagPermission(permission);
+    setShowTagOptions(false);
+    // TODO: API'ye kaydet
+  };
 
   return (
     <PageScreen showNavigation={false}>
@@ -79,6 +96,63 @@ export default function PrivacyScreen() {
                   thumbColor="#fff"
                 />
               </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Etiketlenme</Text>
+            <View style={styles.settingsCard}>
+              <Pressable
+                style={styles.settingRow}
+                onPress={() => setShowTagOptions(!showTagOptions)}
+              >
+                <View style={styles.settingContent}>
+                  <UserCheck size={20} color={colors.accent} />
+                  <View style={styles.settingText}>
+                    <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+                      Beni Kimler Etiketleyebilsin?
+                    </Text>
+                    <Text style={styles.settingHint}>
+                      Gönderilerde ve hikayelerde etiketlenme izni
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.valueContainer}>
+                  <Text style={[styles.valueText, { color: colors.accent }]}>
+                    {tagPermissionLabels[tagPermission]}
+                  </Text>
+                  <ChevronRight size={18} color={colors.textMuted} />
+                </View>
+              </Pressable>
+
+              {showTagOptions && (
+                <View style={[styles.optionsContainer, { borderTopColor: colors.border }]}>
+                  {(["following", "followers", "nobody"] as TagPermission[]).map((option) => (
+                    <Pressable
+                      key={option}
+                      style={[
+                        styles.optionRow,
+                        tagPermission === option && { backgroundColor: colors.accent + "15" }
+                      ]}
+                      onPress={() => handleTagPermissionChange(option)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          { color: tagPermission === option ? colors.accent : colors.textPrimary }
+                        ]}
+                      >
+                        {tagPermissionLabels[option]}
+                      </Text>
+                      {tagPermission === option && (
+                        <View style={[styles.checkmark, { backgroundColor: colors.accent }]}>
+                          <Text style={styles.checkmarkText}>✓</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
 
@@ -182,5 +256,44 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
       fontSize: 13,
       lineHeight: 18
+    },
+    valueContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4
+    },
+    valueText: {
+      fontSize: 14,
+      fontWeight: "500"
+    },
+    optionsContainer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      gap: 4
+    },
+    optionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 8
+    },
+    optionText: {
+      fontSize: 15,
+      fontWeight: "500"
+    },
+    checkmark: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    checkmarkText: {
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: "700"
     }
   });

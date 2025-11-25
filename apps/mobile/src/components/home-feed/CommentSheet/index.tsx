@@ -2,17 +2,10 @@
  * Comment Sheet Component
  *
  * Amaç: Post yorumlarını gösteren bottom sheet
- *
- * Özellikler:
- * - Bottom sheet (alttan yukarı açılır)
- * - Yorum listesi (CommentItem)
- * - Yorum yazma input (CommentFooter)
- * - Keyboard aware
- * - Pull to close
  */
 
-import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React, { useRef, useCallback, useMemo, useEffect } from "react";
+import { View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   BottomSheetModal,
@@ -23,115 +16,58 @@ import {
 import { Send } from "lucide-react-native";
 import { Image } from "expo-image";
 import { useTheme } from "@/theme/ThemeProvider";
-import { useProfileStore } from "@/store/profile.store";
-import { useAuthStore } from "@/store/auth.store";
-import { getPostDetails, commentPost, searchMentions, likeComment } from "@ipelya/api/home-feed";
-import { supabase } from "@/lib/supabaseClient";
-import { CommentItem, Comment } from "./CommentItem";
-import { CommentFooter, CommentFooterRef, MentionUser } from "./CommentFooter";
-import { CommentLikersSheet } from "./CommentLikersSheet";
-
-interface CommentSheetProps {
-  postId: string;
-  visible: boolean;
-  onClose: () => void;
-  postOwnerUsername?: string; // Post sahibinin username'i
-}
+import {
+  CommentItem,
+  Comment,
+  CommentFooter,
+  CommentFooterRef,
+  MentionUser,
+  CommentLikersSheet
+} from "./components";
+import { useCommentSheet } from "./hooks";
+import { styles } from "./styles";
+import type { CommentSheetProps } from "./types";
 
 export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: CommentSheetProps) {
   const { colors } = useTheme();
-  const { profile } = useProfileStore();
-  const { sessionToken } = useAuthStore();
-  const [loading, setLoading] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const footerRef = useRef<CommentFooterRef>(null);
 
-  // Mention state
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
-  const [mentionLoading, setMentionLoading] = useState(false);
-
-  // Reply state
-  const [replyTo, setReplyTo] = useState<{ username: string; commentId: string } | null>(null);
-
-  // Likers sheet state
-  const [likersCommentId, setLikersCommentId] = useState<string | null>(null);
-  const [showLikersSheet, setShowLikersSheet] = useState(false);
-
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-  const accessToken = sessionToken || "";
-
-  // User avatar - mevcut kullanıcının avatarı (yorum yazan kişi)
-  const [userAvatar, setUserAvatar] = useState<string | undefined>(profile?.avatarUrl);
-
-  // Fetch current user's avatar from Supabase if not in store
-  useEffect(() => {
-    const fetchUserAvatar = async () => {
-      if (profile?.avatarUrl) {
-        setUserAvatar(profile.avatarUrl);
-        return;
-      }
-
-      try {
-        const {
-          data: { user }
-        } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("avatar_url")
-            .eq("user_id", user.id)
-            .eq("type", "real")
-            .single();
-
-          if (profileData?.avatar_url) {
-            setUserAvatar(profileData.avatar_url);
-          }
-        }
-      } catch (error) {
-        console.error("❌ Error fetching user avatar:", error);
-      }
-    };
-
-    fetchUserAvatar();
-  }, [profile?.avatarUrl]);
+  // Hook'tan tüm state ve actions
+  const {
+    loading,
+    comments,
+    showDeleteMenu,
+    mentionQuery,
+    mentionUsers,
+    mentionLoading,
+    replyTo,
+    likersCommentId,
+    showLikersSheet,
+    userAvatar,
+    fetchComments,
+    handleSubmitComment,
+    handleMentionQuery,
+    handleLikeComment,
+    handleDeleteComment,
+    handleReply,
+    handleShowLikers,
+    closeLikersSheet,
+    setShowDeleteMenu,
+    setReplyTo,
+    setMentionQuery,
+    setMentionUsers
+  } = useCommentSheet({ postId });
 
   // Snap points
   const snapPoints = useMemo(() => ["50%", "90%"], []);
 
-  // Fetch comments
-  const fetchComments = useCallback(async () => {
-    if (!postId || !accessToken) return;
-
-    try {
-      console.log("💬 Fetching comments for post:", postId);
-      const response = await getPostDetails(supabaseUrl, accessToken, postId);
-
-      if (response.success && response.data) {
-        // response.data Post tipinde, comments ayrı bir property olabilir
-        const postData = response.data as { comments?: Comment[] };
-        const fetchedComments = postData.comments || [];
-        setComments(fetchedComments);
-        console.log("✅ Comments fetched:", fetchedComments.length);
-      } else {
-        console.error("❌ Failed to fetch comments:", response.error);
-      }
-    } catch (error) {
-      console.error("❌ Error fetching comments:", error);
-    }
-  }, [postId, supabaseUrl, accessToken]);
-
   // Open/close sheet
-  React.useEffect(() => {
-    console.log("📝 CommentSheet visible changed:", visible);
+  useEffect(() => {
     if (visible) {
-      console.log("🔼 Presenting modal...");
       bottomSheetRef.current?.present();
       fetchComments();
     } else {
-      console.log("🔽 Dismissing modal...");
       bottomSheetRef.current?.dismiss();
     }
   }, [visible, fetchComments]);
@@ -141,82 +77,19 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
     onClose();
   }, [onClose]);
 
-  // Submit comment - CommentFooter'dan çağrılır
-  const handleSubmitComment = useCallback(
-    async (commentText: string) => {
-      if (!commentText.trim() || loading || !accessToken) return;
-
-      setLoading(true);
-      try {
-        console.log("💬 Creating comment:", commentText, "replyTo:", replyTo);
-        const response = await commentPost(supabaseUrl, accessToken, {
-          post_id: postId,
-          content: commentText.trim(),
-          parent_comment_id: replyTo?.commentId // Yanıt ise parent_comment_id gönder
-        });
-
-        if (response.success) {
-          console.log("✅ Comment created successfully");
-          // Clear reply state
-          setReplyTo(null);
-          // Refresh comments
-          await fetchComments();
-        } else {
-          console.error("❌ Failed to create comment:", response.error);
-        }
-      } catch (error) {
-        console.error("❌ Error creating comment:", error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [loading, accessToken, supabaseUrl, postId, fetchComments, replyTo]
-  );
-
-  // Mention query handler - debounced search
-  const handleMentionQuery = useCallback(
-    async (query: string | null) => {
-      setMentionQuery(query);
-
-      if (!query) {
-        setMentionUsers([]);
-        setMentionLoading(false);
-        return;
-      }
-
-      setMentionLoading(true);
-      try {
-        const response = await searchMentions(supabaseUrl, accessToken, query, 6);
-        if (response.success && response.data?.users) {
-          setMentionUsers(response.data.users);
-        } else {
-          setMentionUsers([]);
-        }
-      } catch (error) {
-        console.error("Mention search error:", error);
-        setMentionUsers([]);
-      } finally {
-        setMentionLoading(false);
-      }
-    },
-    [supabaseUrl, accessToken]
-  );
-
   // Mention seçildiğinde
-  const handleSelectMention = useCallback((username: string) => {
-    console.log("🔵 handleSelectMention called:", username);
-    console.log("🔵 footerRef.current:", footerRef.current);
-    if (footerRef.current) {
-      footerRef.current.insertMention(username);
-      console.log("✅ insertMention called");
-    } else {
-      console.error("❌ footerRef.current is null!");
-    }
-    setMentionQuery(null);
-    setMentionUsers([]);
-  }, []);
+  const handleSelectMention = useCallback(
+    (username: string) => {
+      if (footerRef.current) {
+        footerRef.current.insertMention(username);
+      }
+      setMentionQuery(null);
+      setMentionUsers([]);
+    },
+    [setMentionQuery, setMentionUsers]
+  );
 
-  // Backdrop component
+  // Backdrop
   const renderBackdrop = useCallback(
     (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
       <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
@@ -224,7 +97,7 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
     []
   );
 
-  // Footer component - Input area
+  // Footer
   const renderFooter = useCallback(
     (props: BottomSheetFooterProps) => (
       <CommentFooter
@@ -239,101 +112,46 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
         onCancelReply={() => setReplyTo(null)}
       />
     ),
-    [loading, handleSubmitComment, handleMentionQuery, userAvatar, postOwnerUsername, replyTo]
+    [loading, handleSubmitComment, handleMentionQuery, userAvatar, postOwnerUsername, replyTo, setReplyTo]
   );
 
-  // Toggle comment like - recursive helper for nested comments
-  const updateCommentLike = (comments: Comment[], commentId: string): Comment[] => {
-    return comments.map((c) => {
-      if (c.id === commentId) {
-        const isLiked = c.is_liked || false;
-        return {
-          ...c,
-          is_liked: !isLiked,
-          likes_count: isLiked ? Math.max(0, c.likes_count - 1) : c.likes_count + 1
-        };
-      }
-      // Check replies
-      if (c.replies && c.replies.length > 0) {
-        return {
-          ...c,
-          replies: updateCommentLike(c.replies, commentId)
-        };
-      }
-      return c;
-    });
-  };
-
-  const handleLikeComment = async (commentId: string) => {
-    // Optimistic update
-    setComments((prev) => updateCommentLike(prev, commentId));
-
-    // API call
-    try {
-      const response = await likeComment(supabaseUrl, accessToken, commentId);
-      console.log("❤️ Like comment response:", response);
-      if (!response.success) {
-        // Revert on error
-        setComments((prev) => updateCommentLike(prev, commentId));
-      }
-    } catch (error) {
-      console.error("❌ Like comment error:", error);
-      // Revert on error
-      setComments((prev) => updateCommentLike(prev, commentId));
-    }
-  };
-
-  // Delete comment
-  const handleDeleteComment = (commentId: string) => {
-    // TODO: API call to delete comment
-    console.log("🗑️ Deleting comment:", commentId);
-    setComments((prev) => prev.filter((c) => c.id !== commentId));
-    setShowDeleteMenu(null);
-  };
-
-  // Handle reply - find comment and set reply state
-  const handleReply = (commentId: string) => {
-    // Find comment in list (including nested replies)
-    const findComment = (comments: Comment[]): Comment | undefined => {
-      for (const c of comments) {
-        if (c.id === commentId) return c;
-        if (c.replies) {
-          const found = findComment(c.replies);
-          if (found) return found;
-        }
-      }
-      return undefined;
-    };
-
-    const comment = findComment(comments);
-    if (comment) {
-      setReplyTo({
-        username: comment.user.username,
-        commentId: comment.id
-      });
-    }
-  };
-
-  // Show likers sheet
-  const handleShowLikers = (commentId: string) => {
-    setLikersCommentId(commentId);
-    setShowLikersSheet(true);
-  };
-
-  const renderComment = ({ item }: { item: Comment }) => (
-    <CommentItem
-      comment={item}
-      onLike={handleLikeComment}
-      onReply={handleReply}
-      onDelete={handleDeleteComment}
-      showDeleteMenu={showDeleteMenu === item.id}
-      onShowDeleteMenu={setShowDeleteMenu}
-      onHideDeleteMenu={() => setShowDeleteMenu(null)}
-      onShowLikers={handleShowLikers}
-    />
+  // Comment item
+  const renderComment = useCallback(
+    ({ item }: { item: Comment }) => (
+      <CommentItem
+        comment={item}
+        onLike={handleLikeComment}
+        onReply={handleReply}
+        onDelete={handleDeleteComment}
+        showDeleteMenu={showDeleteMenu === item.id}
+        onShowDeleteMenu={setShowDeleteMenu}
+        onHideDeleteMenu={() => setShowDeleteMenu(null)}
+        onShowLikers={handleShowLikers}
+      />
+    ),
+    [handleLikeComment, handleReply, handleDeleteComment, showDeleteMenu, setShowDeleteMenu, handleShowLikers]
   );
 
-  console.log("🎭 CommentSheet render:", { visible, postId });
+  // Mention item
+  const renderMentionItem = useCallback(
+    ({ item }: { item: MentionUser }) => (
+      <Pressable onPress={() => handleSelectMention(item.username)} style={styles.mentionItem}>
+        <Image
+          source={{
+            uri: item.avatar_url || `https://api.dicebear.com/7.x/avataaars/png?seed=${item.id}`
+          }}
+          style={styles.mentionAvatar}
+        />
+        <View style={styles.mentionInfo}>
+          <Text style={[styles.mentionUsername, { color: colors.textPrimary }]}>{item.username}</Text>
+          {item.display_name && (
+            <Text style={[styles.mentionName, { color: colors.textMuted }]}>{item.display_name}</Text>
+          )}
+        </View>
+      </Pressable>
+    ),
+    [colors, handleSelectMention]
+  );
 
   return (
     <BottomSheetModal
@@ -356,70 +174,34 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Yorumlar</Text>
           <Pressable onPress={handleClose} style={styles.closeButton}>
-            <Send
-              size={24}
-              color={colors.textPrimary}
-              style={{ transform: [{ rotate: "45deg" }] }}
-            />
+            <Send size={24} color={colors.textPrimary} style={{ transform: [{ rotate: "45deg" }] }} />
           </Pressable>
         </View>
 
-        {/* Mention aktifken kullanıcıları göster, değilse yorumları */}
+        {/* Content */}
         {mentionQuery ? (
           <BottomSheetFlatList
             data={mentionUsers}
             keyExtractor={(item: MentionUser) => item.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.list}
-            renderItem={({ item }: { item: MentionUser }) => (
-              <Pressable
-                onPress={() => handleSelectMention(item.username)}
-                style={styles.mentionItem}
-              >
-                <Image
-                  source={{
-                    uri:
-                      item.avatar_url ||
-                      `https://api.dicebear.com/7.x/avataaars/png?seed=${item.id}`
-                  }}
-                  style={styles.mentionAvatar}
-                />
-                <View style={styles.mentionInfo}>
-                  <Text style={[styles.mentionUsername, { color: colors.textPrimary }]}>
-                    {item.username}
-                  </Text>
-                  {item.display_name && (
-                    <Text style={[styles.mentionName, { color: colors.textMuted }]}>
-                      {item.display_name}
-                    </Text>
-                  )}
-                </View>
-              </Pressable>
-            )}
+            renderItem={renderMentionItem}
             ListEmptyComponent={
               mentionLoading ? (
                 <View style={styles.skeletonContainer}>
                   {[1, 2, 3].map((i) => (
                     <View key={i} style={styles.skeletonItem}>
-                      <View
-                        style={[styles.skeletonAvatar, { backgroundColor: colors.surfaceAlt }]}
-                      />
+                      <View style={[styles.skeletonAvatar, { backgroundColor: colors.surfaceAlt }]} />
                       <View style={styles.skeletonInfo}>
-                        <View
-                          style={[styles.skeletonUsername, { backgroundColor: colors.surfaceAlt }]}
-                        />
-                        <View
-                          style={[styles.skeletonName, { backgroundColor: colors.surfaceAlt }]}
-                        />
+                        <View style={[styles.skeletonUsername, { backgroundColor: colors.surfaceAlt }]} />
+                        <View style={[styles.skeletonName, { backgroundColor: colors.surfaceAlt }]} />
                       </View>
                     </View>
                   ))}
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                    Kullanıcı bulunamadı
-                  </Text>
+                  <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>Kullanıcı bulunamadı</Text>
                 </View>
               )
             }
@@ -432,261 +214,16 @@ export function CommentSheet({ postId, visible, onClose, postOwnerUsername }: Co
             contentContainerStyle={styles.list}
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, { color: colors.textPrimary }]}>
-                  Henüz yorum yok
-                </Text>
-                <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-                  Konuşmayı başlat.
-                </Text>
+                <Text style={[styles.emptyText, { color: colors.textPrimary }]}>Henüz yorum yok</Text>
+                <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Konuşmayı başlat.</Text>
               </View>
             }
           />
         )}
       </SafeAreaView>
 
-      {/* Comment Likers Sheet */}
-      <CommentLikersSheet
-        commentId={likersCommentId}
-        visible={showLikersSheet}
-        onClose={() => {
-          setShowLikersSheet(false);
-          setLikersCommentId(null);
-        }}
-      />
+      {/* Likers Sheet */}
+      <CommentLikersSheet commentId={likersCommentId} visible={showLikersSheet} onClose={closeLikersSheet} />
     </BottomSheetModal>
   );
 }
-
-const styles = StyleSheet.create({
-  sheetBackground: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16
-  },
-  indicator: {
-    width: 36,
-    height: 5
-  },
-  container: {
-    flex: 1
-  },
-  listContainer: {
-    flex: 1
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 0.5
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center"
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  list: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 200 // Footer yüksekliği için padding (emoji bar ~68 + input ~56 + safe area ~54 + extra)
-  },
-  commentItem: {
-    flexDirection: "row",
-    marginBottom: 20,
-    gap: 12
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16
-  },
-  commentContent: {
-    flex: 1,
-    marginLeft: 12
-  },
-  commentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4
-  },
-  username: {
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  timeAgo: {
-    fontSize: 12
-  },
-  commentText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8
-  },
-  commentActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16
-  },
-  commentActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4
-  },
-  commentActionText: {
-    fontSize: 12,
-    fontWeight: "500"
-  },
-  timestamp: {
-    fontSize: 12
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60
-  },
-  emptyText: {
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 4
-  },
-  emptySubtext: {
-    fontSize: 14
-  },
-  emojiPicker: {
-    paddingVertical: 12,
-    borderTopWidth: 0.5
-  },
-  emojiList: {
-    paddingHorizontal: 16,
-    gap: 8
-  },
-  emojiButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  emoji: {
-    fontSize: 28
-  },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 0.5,
-    gap: 8
-  },
-  input: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 14,
-    maxHeight: 100
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  sendButtonDisabled: {
-    opacity: 0.5
-  },
-  commentWrapper: {
-    position: "relative"
-  },
-  deleteMenu: {
-    position: "absolute",
-    right: 16,
-    top: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000
-  },
-  deleteMenuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8
-  },
-  deleteMenuText: {
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  // Mention styles
-  mentionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    gap: 12
-  },
-  mentionAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22
-  },
-  mentionInfo: {
-    flex: 1
-  },
-  mentionUsername: {
-    fontSize: 15,
-    fontWeight: "600"
-  },
-  mentionName: {
-    fontSize: 13,
-    marginTop: 2
-  },
-  // Skeleton styles
-  skeletonContainer: {
-    paddingHorizontal: 16
-  },
-  skeletonItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    gap: 12
-  },
-  skeletonAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22
-  },
-  skeletonInfo: {
-    flex: 1,
-    gap: 8
-  },
-  skeletonUsername: {
-    width: 120,
-    height: 14,
-    borderRadius: 4
-  },
-  skeletonName: {
-    width: 80,
-    height: 12,
-    borderRadius: 4
-  }
-});

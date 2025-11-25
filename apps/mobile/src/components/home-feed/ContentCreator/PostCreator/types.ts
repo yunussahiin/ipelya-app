@@ -21,7 +21,7 @@ export interface PostSettings {
   hideComments: boolean;
   hideLikes: boolean;
   hideShareCount: boolean;
-  audience: "followers" | "close_friends";
+  audience: "followers" | "subscribers"; // subscribers = ücretli aboneler (creator'lar için)
 }
 
 export type PostStep = "media" | "details";

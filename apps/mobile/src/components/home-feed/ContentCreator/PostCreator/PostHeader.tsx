@@ -5,6 +5,7 @@
 
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, ChevronLeft } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -21,9 +22,10 @@ interface PostHeaderProps {
 
 export function PostHeader({ title, onClose, onBack, rightAction }: PostHeaderProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, { borderBottomColor: colors.border }]}>
+    <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: insets.top }]}>
       <Pressable onPress={onBack || onClose} style={styles.headerButton}>
         {onBack ? (
           <ChevronLeft size={28} color={colors.textPrimary} />

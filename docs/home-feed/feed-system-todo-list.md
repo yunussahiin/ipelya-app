@@ -1012,10 +1012,10 @@ Bu todo-list, İpelya Home Feed sisteminin tam implementasyonu için gerekli tü
 
 ---
 
-**Son Güncelleme:** 2025-11-25 03:40 UTC+03:00
+**Son Güncelleme:** 2025-11-25 05:46 UTC+03:00
 **Durum:** Phase 10 Devam Ediyor 🚀
-**Son İşlem:** ContentCreator MediaPicker refactor (BottomSheet album picker)
-**Sonraki Adım:** Test edilecek componentler (aşağıda)
+**Son İşlem:** PostDetails modüler refactor, Hedef Kitle & Diğer Seçenekler ekranları
+**Sonraki Adım:** Kişileri Etiketle (Tag People) sistemi
 
 ---
 
@@ -1072,3 +1072,120 @@ Bu todo-list, İpelya Home Feed sisteminin tam implementasyonu için gerekli tü
 - Tablo: `posts` (post_type='vibe')
 - Columns: `background_style`, `is_anon`, `caption` (içerik)
 - Like/Comment/Share: Standart post API'leri ile çalışır
+
+---
+
+### PostDetails Modüler Refactor (25.11.2025)
+
+**Yapılan İşlemler:**
+- `PostDetails.tsx` büyük component'i modüler yapıya ayrıldı
+- Yeni klasör yapısı: `PostDetails/`
+  - `index.tsx` - Ana component
+  - `types.ts` - TypeScript interfaces
+  - `styles.ts` - StyleSheet tanımları
+  - `hooks/usePostDetails.ts` - State ve logic hook'u
+  - `components/` - Alt componentler
+    - `MediaPreview.tsx` - Seçilen medya önizlemesi
+    - `MenuItem.tsx` - Ayar menü öğesi (chevron destekli)
+    - `PollSection.tsx` - Anket oluşturma UI
+    - `AudienceSheet.tsx` - Hedef kitle seçimi (full screen modal)
+    - `OtherOptionsSheet.tsx` - Diğer seçenekler (yorum/beğeni/paylaşım gizleme)
+
+**Hedef Kitle Sistemi:**
+- `subscriptions` tablosu oluşturuldu (ücretli abonelik)
+- `get-audience-stats` Edge Function deploy edildi
+- Seçenekler: Takipçiler / Abonelerim (sadece creator'lar için)
+- Full screen modal ile seçim
+
+**Diğer Seçenekler:**
+- Yorum yapmayı kapat (Switch)
+- Beğenme sayısını gizle (Switch + açıklama)
+- Paylaşım sayısını gizle (Switch + açıklama)
+
+**PostSettings Type:**
+```typescript
+interface PostSettings {
+  audience: "followers" | "subscribers";
+  hideComments: boolean;
+  hideLikes: boolean;
+  hideShareCount: boolean;
+}
+```
+
+---
+
+### Kişileri Etiketle (Tag People) Sistemi - PLANLAMA
+
+**📌 1. Kullanıcı Arama (People Search)**
+- Kullanıcı adı/isim tabanlı arama
+- Sık etkileşimde olunan kullanıcılar üstte
+- Debounced arama (300ms)
+- Öneri sistemi: recent, mutual, matched users
+
+**📌 2. Fotoğraf Üzerinde Pozisyon Belirleme**
+- Görüntü üzerine dokunarak etiket konumu belirleme
+- Koordinatlar yüzde (%) olarak normalize edilir
+- Fotoğraf yeniden boyutlandığında etiketler kaymaz
+
+**📌 3. Veritabanı Yapısı**
+```sql
+-- post_tags tablosu
+CREATE TABLE post_tags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+  media_index INTEGER DEFAULT 0, -- Hangi medyada (carousel için)
+  tagged_user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  position_x DECIMAL(5,2) NOT NULL, -- 0-100 arası yüzde
+  position_y DECIMAL(5,2) NOT NULL, -- 0-100 arası yüzde
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(post_id, media_index, tagged_user_id)
+);
+```
+
+**📌 4. Bildirim Sistemi**
+- Post yayınlandığında etiketlenen kişiye bildirim
+- "X seni bir gönderide etiketledi"
+- Kullanıcı etiketleri onaylayabilir/reddedebilir (opsiyonel)
+
+**📌 5. UI Componentleri**
+- `TagPeopleSheet.tsx` - Kişi arama ve seçme (full screen)
+- `TagMarker.tsx` - Fotoğraf üzerinde etiket balonu
+- `TagOverlay.tsx` - Etiketleri gösteren overlay
+
+**📌 6. Profilde "Etiketlenenler" Sekmesi**
+- Kullanıcının etiketlendiği tüm postlar
+- Grid veya liste görünümü
+- Etiketleri kaldırma/gizleme seçeneği
+
+**Kullanılacak Paketler:**
+- `react-native-gesture-handler` - Dokunma ve sürükleme
+- `react-native-reanimated` - Animasyonlu etiket balonları
+- `@tanstack/react-query` - Arama cache'leme
+- `expo-image` - Hızlı fotoğraf render
+
+**Durum:** 🚧 Geliştirme Devam Ediyor
+
+**Tamamlanan:**
+- ✅ `post_tags` tablosu oluşturuldu (25.11.2025)
+  - `id`, `post_id`, `media_index`, `tagged_user_id`
+  - `position_x`, `position_y` (0-100 yüzde)
+  - `status`: pending, approved, rejected, hidden
+  - RLS policies: Post sahibi ekleyebilir/silebilir, etiketlenen kişi durumu güncelleyebilir
+- ✅ `search-users` Edge Function deploy edildi
+  - Kullanıcı adı/isim ile arama
+  - Son etkileşimde bulunan kullanıcılar önerisi
+  - Debounced arama desteği
+- ✅ `TagPeopleSheet` component oluşturuldu
+  - Full screen modal
+  - Kullanıcı arama ve seçme
+  - Seçilen kullanıcılar chip olarak gösterilir
+  - Max 20 kişi etiketlenebilir
+- ✅ `PostDetails` entegrasyonu tamamlandı
+  - "Kişileri etiketle" menü item'ı aktif
+  - Seçilen kişi sayısı gösteriliyor
+
+**Bekleyen:**
+- ⏳ Fotoğraf üzerinde pozisyon belirleme UI
+- ⏳ Etiket balonları gösterimi (TagMarker, TagOverlay)
+- ⏳ Bildirim sistemi entegrasyonu
+- ⏳ Profilde "Etiketlenenler" sekmesi

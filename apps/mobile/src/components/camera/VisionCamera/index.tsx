@@ -107,6 +107,7 @@ export function VisionCamera({
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
   const [currentMode, setCurrentMode] = useState<CameraMode>(mode);
+  const [zoomDisplay, setZoomDisplay] = useState(1);
 
   // Camera device & format
   const device = useCameraDevice(cameraPosition, {
@@ -127,6 +128,11 @@ export function VisionCamera({
     zoom: zoom.value
   }));
 
+  // Update zoom display helper
+  const updateZoomDisplay = useCallback((value: number) => {
+    setZoomDisplay(value);
+  }, []);
+
   // Pinch-to-zoom gesture
   const pinchGesture = Gesture.Pinch()
     .onBegin(() => {
@@ -134,12 +140,14 @@ export function VisionCamera({
     })
     .onUpdate((event) => {
       const z = zoomOffset.value * event.scale;
-      zoom.value = interpolate(
+      const newZoom = interpolate(
         z,
         [1, 10],
         [device?.minZoom ?? 1, Math.min(device?.maxZoom ?? 10, 10)],
         Extrapolation.CLAMP
       );
+      zoom.value = newZoom;
+      runOnJS(updateZoomDisplay)(newZoom);
     });
 
   // Tap-to-focus gesture
@@ -438,7 +446,7 @@ export function VisionCamera({
 
           {/* Zoom Indicator */}
           <View style={styles.zoomIndicator}>
-            <Text style={styles.zoomText}>{zoom.value.toFixed(1)}x</Text>
+            <Text style={styles.zoomText}>{zoomDisplay.toFixed(1)}x</Text>
           </View>
         </>
       )}

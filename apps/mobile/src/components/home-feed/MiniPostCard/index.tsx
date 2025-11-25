@@ -105,14 +105,16 @@ export const MiniPostCard = React.memo(function MiniPostCard({
       {/* Header: PostCard ile aynı */}
       <PostHeader user={miniPost.user} timestamp={miniPost.created_at} onUserPress={onUserPress} />
 
-      {/* Vibe Kartı (Medya yerine) - Double tap to like */}
+      {/* Vibe Kartı - Double tap to like */}
       <Pressable onPress={handleDoubleTap} style={[styles.vibeCard, { backgroundColor }]}>
         {/* Like Animation */}
         <LikeAnimation
           visible={showLikeAnimation}
           onAnimationEnd={() => setShowLikeAnimation(false)}
         />
-        <Text style={styles.vibeContent}>{miniPost.content || (miniPost as any).caption}</Text>
+        <Text style={styles.vibeContent}>
+          {miniPost.content || (miniPost as unknown as { caption: string }).caption}
+        </Text>
       </Pressable>
 
       {/* Actions: PostCard ile aynı */}

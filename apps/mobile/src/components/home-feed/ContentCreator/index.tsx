@@ -94,16 +94,20 @@ export function ContentCreator({
       translateX.value = event.translationX;
     })
     .onEnd((event) => {
+      "worklet";
       const threshold = SCREEN_WIDTH / 4;
+      const idx = currentIndex.value;
 
-      if (event.translationX < -threshold && currentIndex.value < TABS.length - 1) {
+      if (event.translationX < -threshold && idx < TABS.length - 1) {
         // Swipe left - next tab
-        currentIndex.value += 1;
-        runOnJS(handleTabChange)(TABS[currentIndex.value]);
-      } else if (event.translationX > threshold && currentIndex.value > 0) {
+        const newIndex = idx + 1;
+        currentIndex.value = newIndex;
+        runOnJS(handleTabChange)(TABS[newIndex]);
+      } else if (event.translationX > threshold && idx > 0) {
         // Swipe right - previous tab
-        currentIndex.value -= 1;
-        runOnJS(handleTabChange)(TABS[currentIndex.value]);
+        const newIndex = idx - 1;
+        currentIndex.value = newIndex;
+        runOnJS(handleTabChange)(TABS[newIndex]);
       }
 
       translateX.value = withSpring(0);
