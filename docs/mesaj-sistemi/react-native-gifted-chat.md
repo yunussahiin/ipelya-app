@@ -19,12 +19,13 @@
 | ✅ Türkçe Tarih         | Tamamlandı | "Bugün", "Dün", "25 Kasım" formatı       |
 | ✅ Safe Area            | Tamamlandı | KeyboardAvoidingView ile                 |
 | ✅ Skeleton Loading     | Tamamlandı | Animasyonlu skeleton bubble'lar          |
-| ⚠️ Read Receipts        | Kısmi      | UI var, edge function güncellenmeli      |
-| 🔧 Reply to Message     | Yapılacak  | Swipe + reply preview                    |
-| 🔧 Long Press Actions   | Yapılacak  | Copy, reply, delete menüsü               |
-| 🔧 Image/Video Messages | Yapılacak  | Media picker + render                    |
-| 🔧 Audio Messages       | Yapılacak  | Recording + playback                     |
-| 🔧 Message Reactions    | Yapılacak  | Emoji picker                             |
+| ✅ Reply to Message     | Tamamlandı | Context menu + reply preview in bubble   |
+| ✅ Long Press Actions   | Tamamlandı | Copy, reply, edit, delete menüsü         |
+| ✅ Image/Video Messages | Tamamlandı | MediaPicker + Storage upload + render    |
+| ✅ Image Viewer         | Tamamlandı | WhatsApp tarzı swipe gallery + toolbar   |
+| ✅ Read Receipts        | Tamamlandı | useMarkAsRead hook + edge function       |
+| ✅ Audio Messages       | Tamamlandı | AudioRecorder + AudioPlayer components   |
+| ✅ Message Reactions    | Tamamlandı | ReactionBar + Emoji picker modal         |
 
 ---
 
@@ -384,6 +385,66 @@ npx expo install react-native-gifted-chat
 - Eski mesajları yükleme
 - Typing indicator
 - Media mesajları
+
+---
+
+## Audio Messages
+
+### AudioRecorder Component
+- Mikrofon ikonuna tıklayınca otomatik kayıt başlar
+- Kayıt sırasında: İptal (X), Süre göstergesi, Durdur butonu
+- Önizleme: Sil, Play/Pause, Gönder butonu
+- `expo-av` kullanılıyor
+
+### AudioPlayer Component
+- Play/Pause butonu
+- Progress bar (animasyonlu)
+- Süre göstergesi (position / duration)
+- Ses bittikten sonra tekrar oynatılabilir
+
+### Kullanım
+```tsx
+// GiftedChat'e renderMessageAudio prop'u geçir
+<GiftedChat
+  renderMessageAudio={renderMessageAudio}
+  ...
+/>
+
+// IMessage'da audio property'si kullan
+const message = {
+  _id: 1,
+  audio: 'https://example.com/audio.m4a',
+  audioDuration: 13, // saniye
+  ...
+};
+```
+
+---
+
+## Message Reactions
+
+### ReactionBar Component
+- Mevcut tepkileri gösterir (emoji + count)
+- Tıklayınca tepki ekler/kaldırır
+- "+" butonu ile emoji picker açılır
+- WhatsApp tarzı default emojiler: ❤️ 😂 😮 😢 😡 👍
+
+### Kullanım
+```tsx
+// ChatBubble'a onReact ve onRemoveReaction prop'ları geçir
+<ChatBubble
+  onReact={(messageId, emoji) => addReaction({ messageId, emoji })}
+  onRemoveReaction={(messageId, emoji) => removeReaction({ messageId, emoji })}
+  ...
+/>
+
+// IMessageWithReply'da reactions property'si
+interface MessageReaction {
+  emoji: string;
+  count: number;
+  hasReacted: boolean;
+}
+```
 
 ---
 

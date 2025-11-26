@@ -7,18 +7,20 @@
  * Gifted Chat kullanarak mesaj listesi, input alanı ve realtime desteği.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
   View,
   Text,
-  TouchableOpacity
+  TouchableOpacity,
+  Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
+import { supabase } from "@/lib/supabaseClient";
 import {
   GiftedChat,
   SystemMessage,
@@ -41,7 +43,12 @@ dayjs.locale("tr");
 
 import { useTheme } from "@/theme/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { useConversationPresence, useTypingIndicator } from "@/hooks/messaging";
+import {
+  useConversationPresence,
+  useTypingIndicator,
+  useAddReaction,
+  useRemoveReaction
+} from "@/hooks/messaging";
 import { ChatHeader } from "./components/ChatHeader";
 import { ChatLoading } from "./components/ChatLoading";
 import { ChatBubble } from "./components/ChatBubble";
@@ -54,7 +61,12 @@ import {
   ChatScrollToBottom
 } from "./components/ChatInputToolbar";
 import { ChatDay, ChatTime } from "./components/ChatDateTime";
+import { ImageViewer } from "./components/ImageViewer";
+import { AudioRecorder } from "./components/AudioRecorder";
+import { AudioPlayer } from "./components/AudioPlayer";
 import { useChatMessages } from "./hooks/useChatMessages";
+import { MediaPicker, type SelectedMedia } from "@/components/messaging/components/MediaPicker";
+import { uploadMedia } from "@/services/media-upload.service";
 
 // =============================================
 // COMPONENT
@@ -89,17 +101,93 @@ export function GiftedChatScreen() {
     userUsername: user?.user_metadata?.username
   });
 
+  // Reply state
+  const [replyToMessage, setReplyToMessage] = useState<IMessage | null>(null);
+
+  // Media picker state
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Reaction hooks
+  const { mutate: addReaction } = useAddReaction();
+  const { mutate: removeReaction } = useRemoveReaction();
+
+  // Image viewer state - mesaj bilgisiyle birlikte
+  const [viewerMessage, setViewerMessage] = useState<IMessage | null>(null);
+
+  // Audio recording state
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+
+  // Tüm medya mesajlarını filtrele (image/video)
+  const allMediaMessages = useMemo(() => {
+    return messages.filter((m) => m.image || m.video);
+  }, [messages]);
+
+  // Handle camera press - open media picker with camera
+  const handleCameraPress = useCallback(() => {
+    setShowMediaPicker(true);
+  }, []);
+
+  // Handle mic press - show audio recorder
+  const handleMicPress = useCallback(() => {
+    setShowAudioRecorder(true);
+  }, []);
+
+  // Handle audio recording complete
+  const handleAudioComplete = useCallback(
+    async (uri: string, duration: number) => {
+      setShowAudioRecorder(false);
+      console.log("[Audio] Recording complete:", uri, duration);
+
+      if (!user?.id) {
+        Alert.alert("Hata", "Kullanıcı oturumu bulunamadı");
+        return;
+      }
+
+      // Get session for upload
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        Alert.alert("Hata", "Oturum bulunamadı");
+        return;
+      }
+
+      // Upload audio file
+      try {
+        setIsUploadingMedia(true);
+        console.log("[Audio] Uploading:", uri);
+        const result = await uploadMedia(uri, user.id, "message-media", session.access_token);
+        console.log("[Audio] Upload success:", result.url);
+
+        // Send audio message
+        handleSend([], undefined, {
+          content_type: "audio",
+          media_url: result.url,
+          media_metadata: { duration }
+        });
+      } catch (error) {
+        console.error("[Audio] Upload failed:", error);
+        Alert.alert("Hata", "Ses dosyası yüklenemedi");
+      } finally {
+        setIsUploadingMedia(false);
+      }
+    },
+    [user?.id, handleSend]
+  );
+
   // Send message wrapper
   const onSend = useCallback(
     (newMessages: IMessage[] = []) => {
-      handleSend(newMessages);
+      // Pass reply_to_id if replying to a message
+      const replyToId = replyToMessage ? String(replyToMessage._id) : undefined;
+      console.log("[Send] Sending with replyToId:", replyToId);
+      handleSend(newMessages, replyToId);
+      setReplyToMessage(null); // Clear reply after sending
       stopTyping();
     },
-    [handleSend, stopTyping]
+    [handleSend, stopTyping, replyToMessage]
   );
-
-  // Reply state
-  const [replyToMessage, setReplyToMessage] = useState<IMessage | null>(null);
 
   // Message actions handlers
   const handleReply = useCallback((message: IMessage) => {
@@ -119,6 +207,72 @@ export function GiftedChatScreen() {
     console.log("Delete message:", message._id);
   }, []);
 
+  // Reaction handlers
+  const handleReact = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!conversationId) return;
+      console.log("[Reaction] Adding:", messageId, emoji);
+      addReaction({ messageId, emoji, conversationId });
+    },
+    [conversationId, addReaction]
+  );
+
+  const handleRemoveReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!conversationId) return;
+      console.log("[Reaction] Removing:", messageId, emoji);
+      removeReaction({ messageId, emoji, conversationId });
+    },
+    [conversationId, removeReaction]
+  );
+
+  // Media seçildiğinde upload ve gönder
+  const handleMediaSelect = useCallback(
+    async (media: SelectedMedia) => {
+      if (!user?.id || !conversationId) return;
+
+      setIsUploadingMedia(true);
+      try {
+        // Get access token
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error("No access token");
+        }
+
+        // Upload media
+        console.log("[Media] Uploading:", media.type, media.uri);
+        const result = await uploadMedia(media.uri, user.id, "message-media", session.access_token);
+        console.log("[Media] Upload success:", result.url);
+
+        // Create message with media
+        const mediaMessage: IMessage = {
+          _id: `temp_media_${Date.now()}`,
+          text: "",
+          createdAt: new Date(),
+          user: {
+            _id: user.id,
+            name: user.user_metadata?.display_name || "Ben",
+            avatar: user.user_metadata?.avatar_url
+          },
+          image: media.type === "image" ? result.url : undefined,
+          video: media.type === "video" ? result.url : undefined
+        };
+
+        // Send message
+        handleSend([mediaMessage]);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        console.error("[Media] Upload error:", error);
+        Alert.alert("Hata", "Medya yüklenirken bir hata oluştu");
+      } finally {
+        setIsUploadingMedia(false);
+      }
+    },
+    [user?.id, conversationId, handleSend]
+  );
+
   // =============================================
   // RENDER FUNCTIONS (memoized)
   // =============================================
@@ -132,9 +286,12 @@ export function GiftedChatScreen() {
         onReply={handleReply}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onImagePress={setViewerMessage}
+        onReact={handleReact}
+        onRemoveReaction={handleRemoveReaction}
       />
     ),
-    [colors, user?.id, handleReply, handleEdit, handleDelete]
+    [colors, user?.id, handleReply, handleEdit, handleDelete, handleReact, handleRemoveReaction]
   );
 
   const renderInputToolbar = useCallback(
@@ -162,12 +319,21 @@ export function GiftedChatScreen() {
   );
 
   const renderSend = useCallback(
-    (props: SendProps<IMessage>) => <ChatSendButton props={props} colors={colors} />,
-    [colors]
+    (props: SendProps<IMessage>) => (
+      <ChatSendButton
+        props={props}
+        colors={colors}
+        onCameraPress={handleCameraPress}
+        onMicPress={handleMicPress}
+      />
+    ),
+    [colors, handleCameraPress, handleMicPress]
   );
 
   const renderActions = useCallback(
-    (props: ActionsProps) => <ChatActionsButton props={props} colors={colors} />,
+    (props: ActionsProps) => (
+      <ChatActionsButton props={props} colors={colors} onPress={() => setShowMediaPicker(true)} />
+    ),
     [colors]
   );
 
@@ -184,6 +350,27 @@ export function GiftedChatScreen() {
   const renderLoadEarlier = useCallback(() => <ChatLoadEarlier colors={colors} />, [colors]);
 
   const renderScrollToBottom = useCallback(() => <ChatScrollToBottom colors={colors} />, [colors]);
+
+  // Audio message renderer
+  const renderMessageAudio = useCallback(
+    (props: any) => {
+      const { currentMessage } = props;
+      if (!currentMessage?.audio) return null;
+
+      const isOwnMessage = currentMessage.user._id === user?.id;
+      return (
+        <View style={{ padding: 8, minWidth: 200 }}>
+          <AudioPlayer
+            uri={currentMessage.audio}
+            duration={currentMessage.audioDuration}
+            colors={colors}
+            isOwnMessage={isOwnMessage}
+          />
+        </View>
+      );
+    },
+    [colors, user?.id]
+  );
 
   // System message (örn: "Sohbet başladı", "X sohbete katıldı")
   const renderSystemMessage = useCallback(
@@ -325,6 +512,7 @@ export function GiftedChatScreen() {
           renderDay={renderDay}
           renderTime={renderTime}
           renderSystemMessage={renderSystemMessage}
+          renderMessageAudio={renderMessageAudio}
           renderFooter={renderFooter}
           renderAccessory={renderAccessory}
           renderAvatar={null}
@@ -394,6 +582,33 @@ export function GiftedChatScreen() {
 
       {/* Bottom safe area spacer */}
       <View style={{ height: insets.bottom, backgroundColor: colors.background }} />
+
+      {/* Media Picker Modal */}
+      <MediaPicker
+        visible={showMediaPicker}
+        onClose={() => setShowMediaPicker(false)}
+        onSelect={handleMediaSelect}
+      />
+
+      {/* WhatsApp Style Image Viewer */}
+      <ImageViewer
+        visible={!!viewerMessage}
+        currentMessage={viewerMessage}
+        allMediaMessages={allMediaMessages}
+        onClose={() => setViewerMessage(null)}
+        onMediaChange={setViewerMessage}
+      />
+
+      {/* Audio Recorder Modal */}
+      {showAudioRecorder && (
+        <View style={styles.audioRecorderOverlay}>
+          <AudioRecorder
+            colors={colors}
+            onRecordingComplete={handleAudioComplete}
+            onCancel={() => setShowAudioRecorder(false)}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -408,6 +623,14 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1
+  },
+  audioRecorderOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 100
   }
 });
 

@@ -8,10 +8,55 @@ import type { IMessage } from 'react-native-gifted-chat';
 import type { Message, CreateMessageRequest } from '@ipelya/types';
 
 /**
+ * Reaction type
+ */
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  hasReacted: boolean;
+}
+
+/**
+ * Extended IMessage with reply, audio duration, and reactions support
+ */
+export interface IMessageWithReply extends IMessage {
+  replyTo?: {
+    _id: string;
+    text: string;
+    user: {
+      _id: string;
+      name: string;
+    };
+  };
+  audioDuration?: number; // saniye cinsinden
+  reactions?: MessageReaction[];
+}
+
+/**
  * İpelya Message -> Gifted Chat IMessage
  */
-export function toGiftedMessage(message: Message): IMessage {
+export function toGiftedMessage(message: Message): IMessageWithReply {
   const isPending = 'tempId' in message;
+  
+  // Reply bilgisi - Supabase array veya obje dönebilir
+  const rawReplyToData = (message as any).reply_to;
+  // Array ise ilk elemanı al, değilse direkt kullan
+  const rawReplyTo = Array.isArray(rawReplyToData) ? rawReplyToData[0] : rawReplyToData;
+  const hasValidReply = message.reply_to_id && rawReplyTo && rawReplyTo.id;
+  
+  // Debug: reply_to kontrolü
+  // if (message.reply_to_id) {
+  //   console.log("[toGiftedMessage] reply_to_id:", message.reply_to_id, "hasValidReply:", hasValidReply, "rawReplyTo:", rawReplyTo);
+  // }
+  
+  const replyTo = hasValidReply ? {
+    _id: rawReplyTo.id,
+    text: rawReplyTo.content || '',
+    user: {
+      _id: rawReplyTo.sender_id,
+      name: rawReplyTo.sender_profile?.display_name || 'Kullanıcı',
+    },
+  } : undefined;
   
   return {
     _id: isPending ? (message as any).tempId : message.id,
@@ -24,10 +69,15 @@ export function toGiftedMessage(message: Message): IMessage {
     },
     image: message.content_type === 'image' ? message.media_url || undefined : undefined,
     video: message.content_type === 'video' ? message.media_url || undefined : undefined,
+    audio: message.content_type === 'audio' ? message.media_url || undefined : undefined,
+    // Audio duration (saniye cinsinden)
+    audioDuration: message.media_metadata?.duration,
     // Message status
     sent: message.status === 'sent' || message.status === 'delivered' || message.status === 'read',
     received: message.status === 'delivered' || message.status === 'read',
     pending: isPending || message.status === 'sending',
+    // Reply
+    replyTo,
   };
 }
 

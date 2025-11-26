@@ -88,6 +88,7 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: async (request: CreateMessageRequest) => {
       console.log("[useSendMessage] mutationFn called:", request.conversation_id);
+      console.log("[useSendMessage] reply_to_id:", request.reply_to_id);
       
       // Session al
       const { data: { session } } = await supabase.auth.getSession();

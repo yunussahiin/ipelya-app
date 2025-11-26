@@ -14,6 +14,7 @@ import {
   useSendMessage,
   useMessageRealtime,
   useConversation,
+  useMarkAsRead,
   messageKeys,
 } from "@/hooks/messaging";
 import { useConversationStore } from "@/store/messaging";
@@ -48,21 +49,32 @@ export function useChatMessages({
   // Send message mutation
   const { mutate: sendMessage, isPending: isSending } = useSendMessage();
 
+  // Mark as read mutation
+  const { mutate: markAsRead } = useMarkAsRead();
+
   // Realtime subscription
   useMessageRealtime(conversationId);
 
-  // Convert messages to Gifted Chat format (filter duplicates)
+  // Convert messages to Gifted Chat format (filter duplicates, prefer messages with reply_to)
   const messages = useMemo(() => {
     if (!data?.pages) return [];
     const allMessages = data.pages.flatMap((page) => page.data);
-    // Filter duplicate IDs (for realtime + optimistic collision)
-    const seen = new Set<string>();
-    const uniqueMessages = allMessages.filter((m) => {
-      const id = m.id;
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
+    
+    // Use Map to deduplicate, preferring messages with reply_to
+    const messageMap = new Map<string, any>();
+    for (const m of allMessages) {
+      const existing = messageMap.get(m.id);
+      if (!existing) {
+        messageMap.set(m.id, m);
+      } else {
+        // Prefer the version with reply_to if reply_to_id exists
+        if (m.reply_to_id && m.reply_to && !existing.reply_to) {
+          messageMap.set(m.id, m);
+        }
+      }
+    }
+    
+    const uniqueMessages = Array.from(messageMap.values());
     return toGiftedMessages(uniqueMessages);
   }, [data?.pages]);
 
@@ -78,12 +90,31 @@ export function useChatMessages({
     };
   }, [conversationId]);
 
+  // Mark last message as read when messages load
+  useEffect(() => {
+    if (!conversationId || !data?.pages?.[0]?.data?.[0]) return;
+    
+    const lastMessage = data.pages[0].data[0];
+    // Only mark as read if it's not our own message
+    if (lastMessage.sender_id !== userId) {
+      markAsRead({ conversationId, messageId: lastMessage.id });
+    }
+  }, [conversationId, data?.pages?.[0]?.data?.[0]?.id, userId, markAsRead]);
+
+  // Media options for audio/video/image messages
+  interface MediaOptions {
+    content_type?: "text" | "image" | "video" | "audio";
+    media_url?: string;
+    media_metadata?: Record<string, any>;
+  }
+
   // Send message with optimistic update
   const onSend = useCallback(
-    (newMessages: IMessage[] = []) => {
-      if (newMessages.length === 0) return;
+    (newMessages: IMessage[] = [], replyToId?: string, mediaOptions?: MediaOptions) => {
+      // Allow empty messages if media options provided (for audio)
+      if (newMessages.length === 0 && !mediaOptions) return;
 
-      const message = newMessages[0];
+      const message = newMessages[0] || { text: "", _id: "", createdAt: new Date(), user: { _id: userId || "" } };
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Optimistic update - add message immediately
@@ -93,17 +124,40 @@ export function useChatMessages({
       queryClient.setQueryData(messageKeys.list(conversationId), (oldData: any) => {
         if (!oldData?.pages?.[0]) return oldData;
 
-        const newMessageData: Message = {
+        // Find reply_to message from existing messages
+        let replyToMessage = null;
+        if (replyToId) {
+          for (const page of oldData.pages) {
+            const found = page.data.find((m: Message) => m.id === replyToId);
+            if (found) {
+              replyToMessage = {
+                id: found.id,
+                content: found.content,
+                content_type: found.content_type,
+                sender_id: found.sender_id,
+                sender_profile: found.sender_profile,
+              };
+              break;
+            }
+          }
+        }
+
+        // Determine content type and media URL
+        const contentType = mediaOptions?.content_type || (message.image ? "image" : message.video ? "video" : "text");
+        const mediaUrl = mediaOptions?.media_url || message.image || message.video || null;
+
+        const newMessageData = {
           id: tempId,
           conversation_id: conversationId,
           sender_id: userId || "",
           sender_profile_id: null,
-          content: message.text,
-          content_type: "text",
-          media_url: null,
+          content: message.text || "",
+          content_type: contentType,
+          media_url: mediaUrl,
           media_thumbnail_url: null,
           media_metadata: null,
-          reply_to_id: null,
+          reply_to_id: replyToId || null,
+          reply_to: replyToMessage,
           forwarded_from_id: null,
           status: "sending",
           is_edited: false,
@@ -126,7 +180,7 @@ export function useChatMessages({
             avatar_url: userAvatarUrl || null,
             username: userUsername || "",
           },
-        } as Message;
+        };
 
         return {
           ...oldData,
@@ -140,25 +194,54 @@ export function useChatMessages({
         };
       });
 
-      // Send to API
+      // Send to API - determine content type
+      const apiContentType = mediaOptions?.content_type || (message.image ? "image" : message.video ? "video" : "text");
+      const apiMediaUrl = mediaOptions?.media_url || message.image || message.video || undefined;
+      
       const request: CreateMessageRequest = {
         conversation_id: conversationId,
-        content: message.text,
-        content_type: "text",
+        content: message.text || "",
+        content_type: apiContentType,
+        media_url: apiMediaUrl,
+        media_metadata: mediaOptions?.media_metadata,
+        reply_to_id: replyToId,
       };
+      console.log("[useChatMessages] Sending request:", { contentType: apiContentType, hasMedia: !!apiMediaUrl, replyToId });
 
       sendMessage(request, {
         onSuccess: (realMessage) => {
-          // Replace optimistic message with real message
+          // Replace optimistic message with real message, preserving reply_to
           queryClient.setQueryData(messageKeys.list(conversationId), (oldData: any) => {
             if (!oldData?.pages?.[0]) return oldData;
+            
+            // Find the optimistic message to get its reply_to
+            let preservedReplyTo = null;
+            for (const page of oldData.pages) {
+              const found = page.data.find((m: any) => m.id === tempId);
+              if (found?.reply_to) {
+                preservedReplyTo = found.reply_to;
+                break;
+              }
+            }
+            
+            console.log("[useChatMessages] onSuccess - preserving reply_to:", preservedReplyTo ? "yes" : "no");
+            
             return {
               ...oldData,
               pages: oldData.pages.map((page: any, index: number) => {
                 if (index === 0) {
                   return {
                     ...page,
-                    data: page.data.map((m: Message) => (m.id === tempId ? realMessage : m)),
+                    data: page.data.map((m: any) => {
+                      if (m.id === tempId) {
+                        // Preserve reply_to from optimistic message
+                        return {
+                          ...realMessage,
+                          reply_to: preservedReplyTo,
+                        };
+                      }
+                      return m;
+                    }),
                   };
                 }
                 return page;

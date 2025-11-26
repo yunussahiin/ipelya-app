@@ -95,36 +95,65 @@ function ChatComposerComponent({ props, colors, onTextChanged }: ChatComposerPro
 export const ChatComposer = memo(ChatComposerComponent);
 
 // =============================================
-// SEND BUTTON
+// SEND BUTTON (with mic/camera when no text)
 // =============================================
 
 interface ChatSendButtonProps {
   props: SendProps<IMessage>;
   colors: ThemeColors;
+  onCameraPress?: () => void;
+  onMicPress?: () => void;
 }
 
-function ChatSendButtonComponent({ props, colors }: ChatSendButtonProps) {
+function ChatSendButtonComponent({
+  props,
+  colors,
+  onCameraPress,
+  onMicPress
+}: ChatSendButtonProps) {
   // Text var mı kontrol et
   const hasText = !!props.text?.trim().length;
 
+  // Text varken send butonu göster
+  if (hasText) {
+    return (
+      <View style={styles.sendButtonWrapper}>
+        <Send
+          {...props}
+          containerStyle={{
+            justifyContent: "center",
+            alignItems: "center"
+          }}
+        >
+          <View style={[styles.sendButton, { backgroundColor: colors.accent }]}>
+            <Ionicons name="send" size={18} color="#fff" />
+          </View>
+        </Send>
+      </View>
+    );
+  }
+
+  // Text yokken kamera + mikrofon göster
   return (
-    <View style={styles.sendButtonWrapper}>
-      <Send
-        {...props}
-        containerStyle={{
-          justifyContent: "center",
-          alignItems: "center"
-        }}
-        sendButtonProps={{
-          disabled: !hasText
+    <View style={styles.mediaButtonsWrapper}>
+      <View
+        style={[styles.iconButton, { backgroundColor: "transparent" }]}
+        onTouchEnd={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onCameraPress?.();
         }}
       >
-        <View
-          style={[styles.sendButton, { backgroundColor: hasText ? colors.accent : colors.surface }]}
-        >
-          <Ionicons name="send" size={18} color={hasText ? "#fff" : colors.textMuted} />
-        </View>
-      </Send>
+        <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
+      </View>
+      <View
+        style={[styles.iconButton, { backgroundColor: "transparent" }]}
+        onTouchEnd={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onMicPress?.();
+        }}
+      >
+        <Ionicons name="mic-outline" size={24} color={colors.textSecondary} />
+      </View>
     </View>
   );
 }
@@ -222,6 +251,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  mediaButtonsWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 4
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
     justifyContent: "center",
     alignItems: "center"
   },

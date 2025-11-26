@@ -68,9 +68,31 @@ export function useMessageRealtime(conversationId: string) {
             .eq("type", "real")
             .single();
 
+          // Reply bilgisini çek (eğer varsa)
+          let replyTo = null;
+          if (newMessage.reply_to_id) {
+            const { data: replyMessage } = await supabase
+              .from("messages")
+              .select(`
+                id,
+                content,
+                content_type,
+                sender_id,
+                sender_profile:profiles!sender_profile_id (
+                  id,
+                  display_name,
+                  username
+                )
+              `)
+              .eq("id", newMessage.reply_to_id)
+              .single();
+            replyTo = replyMessage;
+          }
+
           const messageWithProfile = {
             ...newMessage,
             sender_profile: profile || null,
+            reply_to: replyTo,
           };
 
           console.log("[Realtime] Adding message to React Query cache:", messageWithProfile.id);

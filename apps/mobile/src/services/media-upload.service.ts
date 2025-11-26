@@ -70,7 +70,7 @@ function validateFileSize(size: number, type: 'image' | 'video' | 'audio'): bool
 export async function uploadMedia(
   uri: string,
   userId: string,
-  bucket: 'post-media' | 'voice-moments' | 'stories',
+  bucket: 'post-media' | 'voice-moments' | 'stories' | 'message-media',
   accessToken: string
 ): Promise<UploadResult> {
   try {
@@ -148,7 +148,7 @@ export async function uploadMedia(
 export async function uploadMultipleMedia(
   uris: string[],
   userId: string,
-  bucket: 'post-media' | 'voice-moments' | 'stories',
+  bucket: 'post-media' | 'voice-moments' | 'stories' | 'message-media',
   accessToken: string
 ): Promise<UploadResult[]> {
   const results: UploadResult[] = [];
@@ -166,7 +166,7 @@ export async function uploadMultipleMedia(
  */
 export async function deleteMedia(
   path: string,
-  bucket: 'post-media' | 'voice-moments' | 'stories'
+  bucket: 'post-media' | 'voice-moments' | 'stories' | 'message-media'
 ): Promise<void> {
   const { error } = await supabase.storage
     .from(bucket)
