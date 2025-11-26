@@ -17,6 +17,7 @@ import { useDebounce } from "@/hooks";
 import { supabase } from "@/lib/supabaseClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { useConversationStore } from "@/store/messaging";
 import { UserSearchItem } from "./components/UserSearchItem";
 import { RecentContacts } from "./components/RecentContacts";
 import { NewChatSkeleton } from "./components/NewChatSkeleton";
@@ -85,18 +86,23 @@ export function NewChatScreen() {
       if (isCreating) return;
 
       setIsCreating(true);
-      console.log("[NewChat] Creating conversation with:", user.username, user.user_id);
+      const startTime = Date.now();
+      console.log("[NewChat] Starting conversation creation with:", user.username, user.user_id);
 
       try {
         // Edge function ile sohbet oluştur/bul
+        console.log("[NewChat] Getting auth session...");
         const { data: session } = await supabase.auth.getSession();
         const token = session?.session?.access_token;
+        console.log("[NewChat] Auth session took:", Date.now() - startTime, "ms");
 
         if (!token) {
           console.error("[NewChat] No auth token");
           return;
         }
 
+        console.log("[NewChat] Calling create-conversation edge function...");
+        const fetchStart = Date.now();
         const response = await fetch(
           `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/create-conversation`,
           {
@@ -111,8 +117,10 @@ export function NewChatScreen() {
             })
           }
         );
+        console.log("[NewChat] Edge function took:", Date.now() - fetchStart, "ms");
 
         const result = await response.json();
+        console.log("[NewChat] Response:", JSON.stringify(result).substring(0, 200));
 
         if (!response.ok || !result.success) {
           console.error("[NewChat] Error:", result.error);
@@ -122,9 +130,31 @@ export function NewChatScreen() {
         console.log(
           "[NewChat] Conversation:",
           result.existing ? "found" : "created",
-          result.data.id
+          result.data.id,
+          "- Total time:",
+          Date.now() - startTime,
+          "ms"
         );
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
+        // Conversation'ı store'a ekle (ChatScreen'de tekrar fetch etmeye gerek kalmasın)
+        const conv = result.data;
+        useConversationStore.getState().addConversation({
+          id: conv.id,
+          type: conv.type,
+          name: conv.name,
+          avatar_url: conv.avatar_url,
+          last_message_at: conv.last_message_at,
+          unread_count: 0,
+          is_muted: false,
+          other_participant: {
+            user_id: user.user_id,
+            display_name: user.display_name,
+            avatar_url: user.avatar_url,
+            username: user.username
+          }
+        });
+
+        console.log("[NewChat] Navigating to chat screen...");
         router.replace(`/(messages)/${result.data.id}`);
       } catch (error) {
         console.error("[NewChat] Failed to create conversation:", error);

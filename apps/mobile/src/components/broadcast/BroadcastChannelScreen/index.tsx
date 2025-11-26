@@ -29,11 +29,10 @@ export function BroadcastChannelScreen() {
   const { colors } = useTheme();
   const { channelId } = useLocalSearchParams<{ channelId: string }>();
 
-  // Kanal bilgisi
+  // Kanal bilgisi (sadece okuma - selector sorun değil)
   const channel = useBroadcastStore((s) =>
     [...s.myChannels, ...s.joinedChannels].find((c) => c.id === channelId)
   );
-  const setActiveChannel = useBroadcastStore((s) => s.setActiveChannel);
 
   // Mesajlar
   const {
@@ -52,10 +51,10 @@ export function BroadcastChannelScreen() {
   // Aktif kanal
   useEffect(() => {
     if (channelId) {
-      setActiveChannel(channelId);
+      useBroadcastStore.getState().setActiveChannel(channelId);
     }
-    return () => setActiveChannel(null);
-  }, [channelId, setActiveChannel]);
+    return () => useBroadcastStore.getState().setActiveChannel(null);
+  }, [channelId]);
 
   // Daha fazla yükle
   const handleLoadMore = useCallback(() => {

@@ -54,9 +54,9 @@ export function ChatSettingsScreen() {
     ]);
   }, [conversationId, archiveConversation, router]);
 
-  // Sessize al
+  // Sessize al/aç
   const handleMute = useCallback(() => {
-    const isMuted = conversation?.is_muted;
+    const isMuted = conversation?.is_muted ?? false;
     muteConversation({
       conversationId: conversationId || "",
       mute: !isMuted

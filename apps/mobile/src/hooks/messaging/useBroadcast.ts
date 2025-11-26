@@ -55,52 +55,131 @@ export const broadcastKeys = {
  * Creator'ın kendi kanallarını getirir
  */
 export function useMyBroadcastChannels() {
-  const setMyChannels = useBroadcastStore((s) => s.setMyChannels);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: broadcastKeys.myChannels(),
-    queryFn: getMyBroadcastChannels,
-    select: (data) => {
-      setMyChannels(data);
-      return data;
+    queryFn: async () => {
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("broadcast_channels")
+        .select("*")
+        .eq("creator_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     },
   });
+
+  // Store'u data değiştiğinde güncelle
+  useEffect(() => {
+    if (query.data) {
+      useBroadcastStore.getState().setMyChannels(query.data);
+    }
+  }, [query.data]);
+
+  return query;
 }
 
 /**
  * Kullanıcının üye olduğu kanalları getirir
  */
 export function useJoinedBroadcastChannels() {
-  const setJoinedChannels = useBroadcastStore((s) => s.setJoinedChannels);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: broadcastKeys.joinedChannels(),
-    queryFn: getJoinedBroadcastChannels,
-    select: (data) => {
-      setJoinedChannels(data);
-      return data;
+    queryFn: async () => {
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("broadcast_channel_members")
+        .select(`
+          channel:broadcast_channels (
+            id,
+            name,
+            description,
+            avatar_url,
+            member_count,
+            message_count,
+            creator_id,
+            access_type,
+            is_active,
+            created_at
+          )
+        `)
+        .eq("user_id", user.id)
+        .is("left_at", null);
+
+      if (error) throw error;
+      
+      // Flatten channels
+      const channels = (data || [])
+        .map((item: any) => item.channel)
+        .filter(Boolean);
+      
+      return channels;
     },
   });
+
+  // Store'u data değiştiğinde güncelle
+  useEffect(() => {
+    if (query.data) {
+      useBroadcastStore.getState().setJoinedChannels(query.data);
+    }
+  }, [query.data]);
+
+  return query;
 }
 
 /**
- * Tüm kanalları getirir (hem sahip olunan hem üye olunan)
+ * Tüm kanalları getirir (Edge Function ile)
  */
 export function useBroadcastChannels() {
-  const myChannelsQuery = useMyBroadcastChannels();
-  const joinedChannelsQuery = useJoinedBroadcastChannels();
+  const query = useQuery({
+    queryKey: broadcastKeys.channels(),
+    queryFn: async () => {
+      // Session al
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return { myChannels: [], joinedChannels: [] };
+
+      // Edge function ile kanalları getir
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-broadcast-channels`,
+        {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Kanallar yüklenemedi");
+
+      return result.data || { myChannels: [], joinedChannels: [] };
+    },
+    staleTime: 1000 * 60 * 5, // 5 dakika cache
+  });
+
+  // Store'u güncelle
+  useEffect(() => {
+    if (query.data) {
+      useBroadcastStore.getState().setMyChannels(query.data.myChannels);
+      useBroadcastStore.getState().setJoinedChannels(query.data.joinedChannels);
+    }
+  }, [query.data]);
 
   return {
-    data: {
-      myChannels: myChannelsQuery.data || [],
-      joinedChannels: joinedChannelsQuery.data || [],
-    },
-    isLoading: myChannelsQuery.isLoading || joinedChannelsQuery.isLoading,
-    isError: myChannelsQuery.isError || joinedChannelsQuery.isError,
-    refetch: () => {
-      myChannelsQuery.refetch();
-      joinedChannelsQuery.refetch();
-    },
+    data: query.data || { myChannels: [], joinedChannels: [] },
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
   };
 }
 
@@ -120,13 +199,12 @@ export function useBroadcastChannel(channelId: string) {
  */
 export function useCreateBroadcastChannel() {
   const queryClient = useQueryClient();
-  const addChannel = useBroadcastStore((s) => s.addChannel);
 
   return useMutation({
     mutationFn: (request: CreateBroadcastChannelRequest) =>
       createBroadcastChannel(request),
     onSuccess: (channel) => {
-      addChannel(channel, true);
+      useBroadcastStore.getState().addChannel(channel, true);
       queryClient.invalidateQueries({ queryKey: broadcastKeys.myChannels() });
     },
   });
@@ -137,7 +215,6 @@ export function useCreateBroadcastChannel() {
  */
 export function useUpdateBroadcastChannel() {
   const queryClient = useQueryClient();
-  const updateChannel = useBroadcastStore((s) => s.updateChannel);
 
   return useMutation({
     mutationFn: ({
@@ -148,7 +225,7 @@ export function useUpdateBroadcastChannel() {
       updates: Partial<CreateBroadcastChannelRequest>;
     }) => updateBroadcastChannel(channelId, updates),
     onSuccess: (channel) => {
-      updateChannel(channel.id, channel);
+      useBroadcastStore.getState().updateChannel(channel.id, channel);
       queryClient.invalidateQueries({
         queryKey: broadcastKeys.channel(channel.id),
       });
@@ -177,12 +254,11 @@ export function useJoinBroadcastChannel() {
  */
 export function useLeaveBroadcastChannel() {
   const queryClient = useQueryClient();
-  const removeChannel = useBroadcastStore((s) => s.removeChannel);
 
   return useMutation({
     mutationFn: (channelId: string) => leaveBroadcastChannel(channelId),
     onSuccess: (_, channelId) => {
-      removeChannel(channelId);
+      useBroadcastStore.getState().removeChannel(channelId);
       queryClient.invalidateQueries({
         queryKey: broadcastKeys.joinedChannels(),
       });
@@ -198,10 +274,7 @@ export function useLeaveBroadcastChannel() {
  * Kanal mesajlarını getirir (infinite scroll)
  */
 export function useBroadcastMessages(channelId: string) {
-  const setMessages = useBroadcastStore((s) => s.setMessages);
-  const addMessages = useBroadcastStore((s) => s.addMessages);
-
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: broadcastKeys.channelMessages(channelId),
     queryFn: async ({ pageParam }) => {
       const result = await getBroadcastMessages({
@@ -209,24 +282,29 @@ export function useBroadcastMessages(channelId: string) {
         limit: 20,
         cursor: pageParam,
       });
-      return result;
+      return { ...result, isFirstPage: !pageParam };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!channelId,
-    select: (data) => {
-      const allMessages = data.pages.flatMap((page) => page.data);
-
-      if (data.pages.length === 1) {
-        setMessages(channelId, allMessages);
-      } else {
-        const lastPage = data.pages[data.pages.length - 1];
-        addMessages(channelId, lastPage.data);
-      }
-
-      return allMessages;
-    },
   });
+
+  // Store'u data değiştiğinde güncelle
+  const pages = query.data?.pages;
+  useEffect(() => {
+    if (!pages || pages.length === 0) return;
+
+    const store = useBroadcastStore.getState();
+    const lastPage = pages[pages.length - 1];
+
+    if (pages.length === 1) {
+      store.setMessages(channelId, lastPage.data);
+    } else {
+      store.addMessages(channelId, lastPage.data);
+    }
+  }, [pages, channelId]);
+
+  return query;
 }
 
 /**
@@ -234,13 +312,12 @@ export function useBroadcastMessages(channelId: string) {
  */
 export function useSendBroadcastMessage() {
   const queryClient = useQueryClient();
-  const addMessage = useBroadcastStore((s) => s.addMessage);
 
   return useMutation({
     mutationFn: (request: SendBroadcastMessageRequest) =>
       sendBroadcastMessage(request),
     onSuccess: (message) => {
-      addMessage(message.channel_id, message);
+      useBroadcastStore.getState().addMessage(message.channel_id, message);
       queryClient.invalidateQueries({
         queryKey: broadcastKeys.channelMessages(message.channel_id),
       });
@@ -256,13 +333,10 @@ export function useSendBroadcastMessage() {
  * Yayın mesajına tepki ekler
  */
 export function useAddBroadcastReaction() {
-  const updateMessage = useBroadcastStore((s) => s.updateMessage);
-
   return useMutation({
     mutationFn: ({
       messageId,
       emoji,
-      channelId,
     }: {
       messageId: string;
       emoji: string;
@@ -270,9 +344,9 @@ export function useAddBroadcastReaction() {
     }) => addBroadcastReaction(messageId, emoji),
     onMutate: async ({ channelId, messageId, emoji }) => {
       // Optimistic update
-      updateMessage(channelId, messageId, {
+      useBroadcastStore.getState().updateMessage(channelId, messageId, {
         my_reaction: emoji,
-        reaction_count: 1, // Bu değer doğru hesaplanmalı
+        reaction_count: 1,
       });
     },
   });
@@ -282,13 +356,10 @@ export function useAddBroadcastReaction() {
  * Yayın mesajından tepki kaldırır
  */
 export function useRemoveBroadcastReaction() {
-  const updateMessage = useBroadcastStore((s) => s.updateMessage);
-
   return useMutation({
     mutationFn: ({
       messageId,
       emoji,
-      channelId,
     }: {
       messageId: string;
       emoji: string;
@@ -296,7 +367,7 @@ export function useRemoveBroadcastReaction() {
     }) => removeBroadcastReaction(messageId, emoji),
     onMutate: async ({ channelId, messageId }) => {
       // Optimistic update
-      updateMessage(channelId, messageId, {
+      useBroadcastStore.getState().updateMessage(channelId, messageId, {
         my_reaction: null,
       });
     },
@@ -339,8 +410,6 @@ export function useVoteBroadcastPoll() {
  */
 export function useBroadcastRealtime(channelId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const addMessage = useBroadcastStore((s) => s.addMessage);
-  const updateMessage = useBroadcastStore((s) => s.updateMessage);
 
   useEffect(() => {
     if (!channelId) return;
@@ -358,7 +427,7 @@ export function useBroadcastRealtime(channelId: string) {
       },
       (payload: RealtimePostgresChangesPayload<{ [key: string]: unknown }>) => {
         const newMessage = payload.new as BroadcastMessage;
-        addMessage(channelId, newMessage);
+        useBroadcastStore.getState().addMessage(channelId, newMessage);
       }
     );
 
@@ -373,7 +442,7 @@ export function useBroadcastRealtime(channelId: string) {
       },
       (payload: RealtimePostgresChangesPayload<{ [key: string]: unknown }>) => {
         const updatedMessage = payload.new as BroadcastMessage;
-        updateMessage(channelId, updatedMessage.id, updatedMessage);
+        useBroadcastStore.getState().updateMessage(channelId, updatedMessage.id, updatedMessage);
       }
     );
 

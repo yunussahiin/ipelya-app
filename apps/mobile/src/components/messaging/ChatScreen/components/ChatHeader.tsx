@@ -28,7 +28,7 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
 
   // Online durumu
   const otherUserId = conversation?.other_participant?.user_id || "";
-  const { isOnline, lastSeen } = useUserOnlineStatus(otherUserId);
+  const { isOnline } = useUserOnlineStatus(otherUserId);
 
   const displayName =
     conversation?.name || conversation?.other_participant?.display_name || "Sohbet";

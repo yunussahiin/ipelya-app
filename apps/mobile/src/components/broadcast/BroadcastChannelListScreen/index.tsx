@@ -44,8 +44,6 @@ export function BroadcastChannelListScreen() {
     isRefetching: isRefetchingJoined
   } = useJoinedBroadcastChannels();
 
-  const setActiveChannel = useBroadcastStore((s) => s.setActiveChannel);
-
   const isLoading = isLoadingMy || isLoadingJoined;
   const isRefetching = isRefetchingMy || isRefetchingJoined;
 
@@ -58,10 +56,10 @@ export function BroadcastChannelListScreen() {
   // Kanal tıklama
   const handleChannelPress = useCallback(
     (channel: BroadcastChannel) => {
-      setActiveChannel(channel.id);
+      useBroadcastStore.getState().setActiveChannel(channel.id);
       router.push(`/broadcast/${channel.id}`);
     },
-    [router, setActiveChannel]
+    [router]
   );
 
   // Section data

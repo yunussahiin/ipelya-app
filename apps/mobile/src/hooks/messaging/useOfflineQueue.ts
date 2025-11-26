@@ -43,8 +43,6 @@ const MAX_RETRY_COUNT = 3;
 
 export function useOfflineQueue() {
   const { mutateAsync: sendMessage } = useSendMessage();
-  const addPendingMessage = useMessageStore((s) => s.addPendingMessage);
-  const removePendingMessage = useMessageStore((s) => s.removePendingMessage);
   
   const isProcessing = useRef(false);
   const queueRef = useRef<QueuedMessage[]>([]);
@@ -88,16 +86,16 @@ export function useOfflineQueue() {
       await saveQueue();
 
       // Pending mesaj olarak store'a ekle
-      addPendingMessage(request.conversation_id, {
+      useMessageStore.getState().addPendingMessage(request.conversation_id, {
         tempId: queuedMessage.id,
         ...request,
         status: "pending",
-      });
+      } as any);
 
       console.log(`[OfflineQueue] Mesaj kuyruğa eklendi: ${queuedMessage.id}`);
       return queuedMessage.id;
     },
-    [saveQueue, addPendingMessage]
+    [saveQueue]
   );
 
   // Kuyruğu işle
@@ -127,7 +125,7 @@ export function useOfflineQueue() {
         await sendMessage(queuedMessage.request);
 
         // Pending mesajı kaldır
-        removePendingMessage(
+        useMessageStore.getState().removePendingMessage(
           queuedMessage.request.conversation_id,
           queuedMessage.id
         );
@@ -144,7 +142,7 @@ export function useOfflineQueue() {
           failedMessages.push(queuedMessage);
         } else {
           // Max retry'a ulaştı, mesajı failed olarak işaretle
-          removePendingMessage(
+          useMessageStore.getState().removePendingMessage(
             queuedMessage.request.conversation_id,
             queuedMessage.id
           );

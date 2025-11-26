@@ -9,16 +9,9 @@
  */
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabaseClient";
 import { useMessageStore } from "@/store/messaging";
-import {
-  getMessages,
-  sendMessage,
-  editMessage,
-  deleteMessage,
-  markAsRead,
-  addReaction,
-  removeReaction,
-} from "@ipelya/api";
+import { addReaction, removeReaction } from "@ipelya/api";
 import type {
   CreateMessageRequest,
   UpdateMessageRequest,
@@ -49,29 +42,37 @@ export function useMessages(conversationId: string) {
   const query = useInfiniteQuery({
     queryKey: messageKeys.list(conversationId),
     queryFn: async ({ pageParam }) => {
-      const result = await getMessages({
-        conversationId,
-        limit: 50,
-        cursor: pageParam,
+      // Session al
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
+
+      // Edge function ile mesajları getir
+      const params = new URLSearchParams({
+        conversation_id: conversationId,
+        limit: "50",
       });
+      if (pageParam) params.set("cursor", pageParam);
 
-      // Store'u queryFn içinde güncelle (side effect olarak)
-      const store = useMessageStore.getState();
-      if (!pageParam) {
-        // İlk sayfa
-        store.setMessages(conversationId, result.data);
-      } else {
-        // Sonraki sayfalar
-        store.addMessages(conversationId, result.data);
-      }
-      store.setHasMore(conversationId, !!result.nextCursor);
-      store.setCursor(conversationId, result.nextCursor);
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-messages?${params}`,
+        {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+        }
+      );
 
-      return result;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Mesajlar yüklenemedi");
+
+      return { data: result.data || [], nextCursor: result.nextCursor, isFirstPage: !pageParam };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!conversationId,
+    staleTime: 1000 * 60 * 2, // 2 dakika cache
+    refetchOnWindowFocus: false,
   });
 
   return query;
@@ -81,19 +82,55 @@ export function useMessages(conversationId: string) {
  * Mesaj gönderir (optimistic update ile)
  */
 export function useSendMessage() {
-  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const addPendingMessage = useMessageStore((s) => s.addPendingMessage);
-  const removePendingMessage = useMessageStore((s) => s.removePendingMessage);
-  const confirmPendingMessage = useMessageStore((s) => s.confirmPendingMessage);
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CreateMessageRequest) => sendMessage(request),
+    mutationFn: async (request: CreateMessageRequest) => {
+      console.log("[useSendMessage] mutationFn called:", request.conversation_id);
+      
+      // Session al
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
+
+      // Edge function ile mesaj gönder
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/send-message`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            conversation_id: request.conversation_id,
+            content: request.content,
+            content_type: request.content_type,
+            media_url: request.media_url,
+            media_thumbnail_url: request.media_thumbnail_url,
+            media_metadata: request.media_metadata,
+            reply_to_id: request.reply_to_id,
+            is_shadow: request.is_shadow,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Mesaj gönderilemedi");
+      }
+
+      console.log("[useSendMessage] mutationFn result:", result.data?.id);
+      return result.data;
+    },
     onMutate: async (request) => {
+      console.log("[useSendMessage] onMutate - adding pending message");
       // Optimistic update - pending mesaj ekle
       const tempId = `temp_${Date.now()}`;
+      const store = useMessageStore.getState();
 
-      addPendingMessage(request.conversation_id, {
+      store.addPendingMessage(request.conversation_id, {
         tempId,
         conversation_id: request.conversation_id,
         sender_id: user?.id || "",
@@ -124,35 +161,70 @@ export function useSendMessage() {
       return { tempId, conversationId: request.conversation_id };
     },
     onSuccess: (message, _, context) => {
+      console.log("[useSendMessage] onSuccess - message id:", message?.id);
       if (context) {
-        // Pending mesajı gerçek mesajla değiştir
-        confirmPendingMessage(context.conversationId, context.tempId, message);
+        // Pending mesajı kaldır
+        useMessageStore.getState().removePendingMessage(context.conversationId, context.tempId);
+        
+        // React Query cache'ine gerçek mesajı ekle
+        queryClient.setQueryData(
+          messageKeys.list(context.conversationId),
+          (oldData: any) => {
+            if (!oldData?.pages?.[0]) return oldData;
+            return {
+              ...oldData,
+              pages: [
+                {
+                  ...oldData.pages[0],
+                  data: [message, ...oldData.pages[0].data],
+                },
+                ...oldData.pages.slice(1),
+              ],
+            };
+          }
+        );
       }
     },
-    onError: (_, request, context) => {
+    onError: (error, _, context) => {
+      console.error("[useSendMessage] onError:", error);
       if (context) {
         // Hata durumunda pending mesajı kaldır
-        removePendingMessage(context.conversationId, context.tempId);
+        useMessageStore.getState().removePendingMessage(context.conversationId, context.tempId);
       }
     },
   });
 }
 
 /**
- * Mesajı düzenler
+ * Mesajı düzenler (Edge Function)
  */
 export function useEditMessage() {
-  const queryClient = useQueryClient();
-  const updateMessage = useMessageStore((s) => s.updateMessage);
-
   return useMutation({
-    mutationFn: (request: UpdateMessageRequest) => editMessage(request),
-    onMutate: async (request) => {
-      // Mesajın conversation_id'sini bulmamız gerekiyor
-      // Bu bilgi request'te yok, o yüzden sadece server response'u bekliyoruz
+    mutationFn: async (request: UpdateMessageRequest) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/edit-message`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            message_id: request.message_id,
+            content: request.content,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Mesaj düzenlenemedi");
+      return result.data;
     },
     onSuccess: (message) => {
-      updateMessage(message.conversation_id, message.id, {
+      useMessageStore.getState().updateMessage(message.conversation_id, message.id, {
         content: message.content,
         is_edited: true,
         edited_at: message.edited_at,
@@ -162,28 +234,45 @@ export function useEditMessage() {
 }
 
 /**
- * Mesajı siler
+ * Mesajı siler (Edge Function)
  */
 export function useDeleteMessage() {
-  const queryClient = useQueryClient();
-  const removeMessage = useMessageStore((s) => s.removeMessage);
-  const updateMessage = useMessageStore((s) => s.updateMessage);
-
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       request,
       conversationId,
     }: {
       request: DeleteMessageRequest;
       conversationId: string;
-    }) => deleteMessage(request),
+    }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-message`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            message_id: request.message_id,
+            delete_for: request.delete_for,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Mesaj silinemedi");
+      return { request, conversationId };
+    },
     onSuccess: (_, { request, conversationId }) => {
+      const store = useMessageStore.getState();
       if (request.delete_for === "everyone") {
-        // Tamamen kaldır
-        removeMessage(conversationId, request.message_id);
+        store.removeMessage(conversationId, request.message_id);
       } else {
-        // Sadece görünümden gizle (UI'da handle edilecek)
-        updateMessage(conversationId, request.message_id, {
+        store.updateMessage(conversationId, request.message_id, {
           is_deleted: true,
         });
       }
@@ -192,19 +281,39 @@ export function useDeleteMessage() {
 }
 
 /**
- * Mesajı okundu olarak işaretler
+ * Mesajı okundu olarak işaretler (Edge Function)
  */
 export function useMarkAsRead() {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       conversationId,
       messageId,
     }: {
       conversationId: string;
       messageId: string;
-    }) => markAsRead(conversationId, messageId),
+    }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/mark-as-read`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            message_id: messageId,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Okundu işaretlenemedi");
+      return result;
+    },
   });
 }
 
@@ -212,22 +321,15 @@ export function useMarkAsRead() {
  * Mesaja tepki ekler
  */
 export function useAddReaction() {
-  const updateMessage = useMessageStore((s) => s.updateMessage);
-
   return useMutation({
     mutationFn: ({
       messageId,
       emoji,
-      conversationId,
     }: {
       messageId: string;
       emoji: string;
       conversationId: string;
     }) => addReaction(messageId, emoji),
-    onSuccess: (reaction, { conversationId, messageId }) => {
-      // Mesajın reactions'ına ekle
-      // Bu kısım realtime ile de güncellenecek
-    },
   });
 }
 
@@ -235,21 +337,14 @@ export function useAddReaction() {
  * Mesajdan tepki kaldırır
  */
 export function useRemoveReaction() {
-  const updateMessage = useMessageStore((s) => s.updateMessage);
-
   return useMutation({
     mutationFn: ({
       messageId,
       emoji,
-      conversationId,
     }: {
       messageId: string;
       emoji: string;
       conversationId: string;
     }) => removeReaction(messageId, emoji),
-    onSuccess: (_, { conversationId, messageId }) => {
-      // Mesajın reactions'ından kaldır
-      // Bu kısım realtime ile de güncellenecek
-    },
   });
 }

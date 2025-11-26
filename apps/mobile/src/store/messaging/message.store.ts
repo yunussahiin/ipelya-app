@@ -10,7 +10,7 @@
 
 import { create } from "zustand";
 import { useMemo } from "react";
-import { shallow } from "zustand/shallow";
+import { useShallow } from "zustand/react/shallow";
 import type { Message } from "@ipelya/types";
 
 // =============================================
@@ -280,15 +280,14 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
 
 /**
  * Sohbetin mesajlarını döndürür (pending dahil)
- * useMemo ile cache'lenir - infinite loop önlenir
+ * useShallow ile stable reference sağlanır
  */
 export const useConversationMessages = (conversationId: string) => {
   const { messages, pending } = useMessageStore(
-    (state) => ({
-      messages: state.messages[conversationId] || [],
-      pending: state.pendingMessages[conversationId] || []
-    }),
-    shallow
+    useShallow((state) => ({
+      messages: state.messages[conversationId] ?? [],
+      pending: state.pendingMessages[conversationId] ?? [],
+    }))
   );
 
   // Pending mesajları başa ekle - useMemo ile cache'le
@@ -302,9 +301,7 @@ export const useConversationMessages = (conversationId: string) => {
  * Sohbetin loading more durumunu döndürür
  */
 export const useIsLoadingMore = (conversationId: string) => {
-  return useMessageStore(
-    (state) => state.isLoadingMore[conversationId] || false
-  );
+  return useMessageStore((state) => state.isLoadingMore[conversationId] ?? false);
 };
 
 /**

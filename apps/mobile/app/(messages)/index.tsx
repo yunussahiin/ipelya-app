@@ -16,8 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
-import { useConversations } from "@/hooks/messaging";
-import { useBroadcastChannels } from "@/hooks/messaging";
+import { useConversations, useBroadcastChannels } from "@/hooks/messaging";
+import { useConversationStore } from "@/store/messaging";
 import { Ionicons } from "@expo/vector-icons";
 
 // Components
@@ -52,12 +52,11 @@ export default function MessagesIndexPage() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // DM Conversations
-  const {
-    data: conversations,
-    isLoading: conversationsLoading,
-    refetch: refetchConversations
-  } = useConversations();
+  // DM Conversations - React Query ile fetch et
+  const { isLoading: conversationsLoading, refetch: refetchConversations } = useConversations();
+
+  // Store'dan conversations al (realtime güncellemeler için)
+  const conversations = useConversationStore((state) => state.conversations);
 
   // Broadcast Channels (sadece üye olunanlar)
   const {

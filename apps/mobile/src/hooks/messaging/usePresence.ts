@@ -15,6 +15,9 @@ import { useAuth } from "@/hooks/useAuth";
 import type { UserPresence, PresenceStatus } from "@ipelya/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+// Stable empty array reference
+const EMPTY_TYPING_ARRAY: string[] = [];
+
 // =============================================
 // HOOKS
 // =============================================
@@ -26,9 +29,6 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 export function useGlobalPresence() {
   const { user } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const setOnlineUsers = usePresenceStore((s) => s.setOnlineUsers);
-  const setOnlineUser = usePresenceStore((s) => s.setOnlineUser);
-  const removeOnlineUser = usePresenceStore((s) => s.removeOnlineUser);
 
   useEffect(() => {
     if (!user) return;
@@ -54,20 +54,20 @@ export function useGlobalPresence() {
         }
       });
 
-      setOnlineUsers(users);
+      usePresenceStore.getState().setOnlineUsers(users);
     });
 
     // Join event - yeni kullanıcı online oldu
     channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
       if (newPresences && newPresences.length > 0) {
         const presence = newPresences[0] as UserPresence;
-        setOnlineUser(key, presence);
+        usePresenceStore.getState().setOnlineUser(key, presence);
       }
     });
 
     // Leave event - kullanıcı offline oldu
     channel.on("presence", { event: "leave" }, ({ key }) => {
-      removeOnlineUser(key);
+      usePresenceStore.getState().removeOnlineUser(key);
     });
 
     // Subscribe ve track
@@ -118,9 +118,6 @@ export function useConversationPresence(conversationId: string) {
   const { user } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const setTyping = usePresenceStore((s) => s.setTyping);
-  const clearTyping = usePresenceStore((s) => s.clearTyping);
-  const clearAllTyping = usePresenceStore((s) => s.clearAllTyping);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -137,10 +134,11 @@ export function useConversationPresence(conversationId: string) {
 
       if (user_id === user.id) return; // Kendi typing event'imizi ignore et
 
+      const store = usePresenceStore.getState();
       if (is_typing) {
-        setTyping(conversationId, user_id);
+        store.setTyping(conversationId, user_id);
       } else {
-        clearTyping(conversationId, user_id);
+        store.clearTyping(conversationId, user_id);
       }
     });
 
@@ -150,7 +148,7 @@ export function useConversationPresence(conversationId: string) {
     // Cleanup
     return () => {
       channel.unsubscribe();
-      clearAllTyping(conversationId);
+      usePresenceStore.getState().clearAllTyping(conversationId);
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
@@ -236,7 +234,7 @@ export function useIsUserOnline(userId: string): boolean {
  */
 export function useTypingIndicator(conversationId: string) {
   const typingUserIds = usePresenceStore(
-    (s) => s.typingUsers[conversationId] || []
+    (s) => s.typingUsers[conversationId] ?? EMPTY_TYPING_ARRAY
   );
   return typingUserIds;
 }

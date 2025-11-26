@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { useDeviceToken } from "@/hooks/useDeviceToken";
 import { useNotificationListener } from "@/hooks/useNotificationListener";
+import { useGlobalMessageRealtime } from "@/hooks/messaging";
 import { createSessionFromUrl } from "@/services/oauth.service";
 
 // React Query client
@@ -29,6 +30,9 @@ function AppStack() {
   // Initialize push notifications
   const deviceToken = useDeviceToken();
   useNotificationListener();
+
+  // Global message realtime (sohbet listesinde yeni mesaj bildirimi için)
+  useGlobalMessageRealtime();
 
   // Setup deep linking for OAuth callbacks
   useEffect(() => {

@@ -5,28 +5,35 @@
  * Tarih: 2025-11-26
  *
  * Mesaj listesi, input alanı ve realtime desteği.
- * Inverted FlashList ile mesajlar gösterilir.
+ * FlashList v2 maintainVisibleContentPosition ile chat UX.
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useLocalSearchParams } from "expo-router";
+import { useShallow } from "zustand/react/shallow";
 import { useTheme } from "@/theme/ThemeProvider";
 import {
   useMessages,
-  useMarkAsRead,
   useMessageRealtime,
-  useConversationPresence
+  useConversationPresence,
+  useConversation
 } from "@/hooks/messaging";
-import { useConversationStore, useConversationMessages } from "@/store/messaging";
+import { useConversationStore, useMessageStore } from "@/store/messaging";
 import { ChatHeader } from "./components/ChatHeader";
 import { MessageBubble } from "../components/MessageBubble";
 import { MessageInput } from "../components/MessageInput";
 import { TypingIndicator } from "./components/TypingIndicator";
 import { ChatSkeleton } from "./components/ChatSkeleton";
 import type { Message } from "@ipelya/types";
+
+// =============================================
+// CONSTANTS
+// =============================================
+
+const EMPTY_ARRAY: Message[] = [];
 
 // =============================================
 // COMPONENT
@@ -36,13 +43,50 @@ export function ChatScreen() {
   const { colors } = useTheme();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
 
-  // Mesajlar
-  const { isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useMessages(
-    conversationId || ""
+  // Conversation bilgisini yükle
+  useConversation(conversationId || "");
+
+  // Mesajları yükle - React Query'den direkt al
+  const { data, isLoading, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useMessages(conversationId || "");
+
+  console.log(
+    "[ChatScreen] isLoading:",
+    isLoading,
+    "isFetching:",
+    isFetching,
+    "pages:",
+    data?.pages?.length
   );
 
-  // Store'dan mesajları al (realtime güncellemeler için)
-  const messages = useConversationMessages(conversationId || "");
+  // React Query'den mesajları flatten et (en yeniden en eskiye - inverted list için doğru sıra)
+  const queryMessages = useMemo(() => {
+    if (!data?.pages) {
+      console.log("[ChatScreen] No pages yet");
+      return EMPTY_ARRAY;
+    }
+    // API'den gelen mesajlar en yeniden en eskiye sıralı - inverted list için bu doğru
+    const messages = data.pages.flatMap((page) => page.data);
+    console.log("[ChatScreen] Query messages count:", messages.length);
+    return messages;
+  }, [data?.pages]);
+
+  // Store'dan sadece pending mesajları al
+  const storePending = useMessageStore(
+    useShallow((state) => state.pendingMessages[conversationId || ""] ?? EMPTY_ARRAY)
+  );
+
+  // Pending mesajları + Query mesajları (inverted list için pending en başta = en altta görünür)
+  const allMessages = useMemo(() => {
+    const combined = [...storePending, ...queryMessages];
+    console.log(
+      "[ChatScreen] All messages count:",
+      combined.length,
+      "pending:",
+      storePending.length
+    );
+    return combined;
+  }, [queryMessages, storePending]);
 
   // Realtime subscription
   useMessageRealtime(conversationId || "");
@@ -50,34 +94,20 @@ export function ChatScreen() {
   // Typing indicator
   const { startTyping, stopTyping } = useConversationPresence(conversationId || "");
 
-  // Mark as read
-  const { mutate: markAsRead } = useMarkAsRead();
-
   // Ekran açıldığında
   useEffect(() => {
-    if (conversationId) {
-      useConversationStore.getState().setActiveConversation(conversationId);
-      useConversationStore.getState().resetUnread(conversationId);
-    }
+    if (!conversationId) return;
+
+    useConversationStore.getState().setActiveConversation(conversationId);
+    useConversationStore.getState().resetUnread(conversationId);
 
     return () => {
       useConversationStore.getState().setActiveConversation(null);
     };
   }, [conversationId]);
 
-  // Son mesajı okundu olarak işaretle
-  useEffect(() => {
-    if (messages.length > 0 && conversationId) {
-      const lastMessage = messages[0];
-      if ("id" in lastMessage) {
-        markAsRead({ conversationId, messageId: lastMessage.id });
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, conversationId]);
-
-  // Daha fazla yükle
-  const handleLoadMore = useCallback(() => {
+  // Eski mesajları yükle (liste başına ulaşınca)
+  const handleLoadOlder = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
@@ -85,9 +115,10 @@ export function ChatScreen() {
 
   // Render message
   const renderItem = useCallback(
-    ({ item }: { item: Message }) => (
-      <MessageBubble message={item} conversationId={conversationId || ""} />
-    ),
+    ({ item, index }: { item: Message; index: number }) => {
+      console.log("[ChatScreen] Rendering item:", index, item.content?.substring(0, 15));
+      return <MessageBubble message={item} conversationId={conversationId || ""} />;
+    },
     [conversationId]
   );
 
@@ -123,15 +154,18 @@ export function ChatScreen() {
 
         <View style={styles.messagesContainer}>
           <FlashList
-            data={messages as Message[]}
+            data={allMessages as Message[]}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             estimatedItemSize={80}
             inverted
             contentContainerStyle={styles.listContent}
-            onEndReached={handleLoadMore}
+            // Eski mesajları yükle (inverted'da onEndReached = yukarı scroll)
+            onEndReached={handleLoadOlder}
             onEndReachedThreshold={0.3}
+            // Header (inverted'da en altta görünür): typing indicator
             ListHeaderComponent={<TypingIndicator conversationId={conversationId || ""} />}
+            // Footer (inverted'da en üstte görünür): eski mesaj yükleniyor
             ListFooterComponent={isFetchingNextPage ? <ChatSkeleton count={3} /> : null}
           />
         </View>

@@ -51,16 +51,13 @@ export function ChatListScreen({ showArchived = false }: ChatListScreenProps) {
     isRefetching
   } = useConversations(showArchived);
 
-  // Aktif sohbeti set et
-  const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
-
   // Sohbete tıklama
   const handleConversationPress = useCallback(
     (conversation: ConversationListItem) => {
-      setActiveConversation(conversation.id);
+      useConversationStore.getState().setActiveConversation(conversation.id);
       router.push(`/messages/${conversation.id}`);
     },
-    [router, setActiveConversation]
+    [router]
   );
 
   // Daha fazla yükle

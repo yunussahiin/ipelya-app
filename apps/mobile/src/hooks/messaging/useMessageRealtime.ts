@@ -9,9 +9,11 @@
  */
 
 import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { useMessageStore, useConversationStore } from "@/store/messaging";
 import { useAuth } from "@/hooks/useAuth";
+import { messageKeys } from "./useMessages";
 import type { Message } from "@ipelya/types";
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
@@ -32,13 +34,8 @@ type MessagePayload = RealtimePostgresChangesPayload<{
  */
 export function useMessageRealtime(conversationId: string) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
-
-  const addMessage = useMessageStore((s) => s.addMessage);
-  const updateMessage = useMessageStore((s) => s.updateMessage);
-  const removeMessage = useMessageStore((s) => s.removeMessage);
-  const incrementUnread = useConversationStore((s) => s.incrementUnread);
-  const updateConversation = useConversationStore((s) => s.updateConversation);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -55,22 +52,57 @@ export function useMessageRealtime(conversationId: string) {
         table: "messages",
         filter: `conversation_id=eq.${conversationId}`,
       },
-      (payload: MessagePayload) => {
+      async (payload: MessagePayload) => {
+        console.log("[Realtime] New message received:", payload.new);
         const newMessage = payload.new as Message;
+        const msgStore = useMessageStore.getState();
+        const convStore = useConversationStore.getState();
 
         // Kendi mesajımız değilse ekle (kendi mesajımız optimistic update ile ekleniyor)
         if (newMessage.sender_id !== user.id) {
-          addMessage(conversationId, newMessage);
-          incrementUnread(conversationId);
+          // Sender profile bilgisini çek
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, display_name, avatar_url, username")
+            .eq("user_id", newMessage.sender_id)
+            .eq("type", "real")
+            .single();
+
+          const messageWithProfile = {
+            ...newMessage,
+            sender_profile: profile || null,
+          };
+
+          console.log("[Realtime] Adding message to React Query cache:", messageWithProfile.id);
+          
+          // React Query cache'ine ekle
+          queryClient.setQueryData(
+            messageKeys.list(conversationId),
+            (oldData: any) => {
+              if (!oldData?.pages?.[0]) return oldData;
+              return {
+                ...oldData,
+                pages: [
+                  {
+                    ...oldData.pages[0],
+                    data: [messageWithProfile, ...oldData.pages[0].data],
+                  },
+                  ...oldData.pages.slice(1),
+                ],
+              };
+            }
+          );
+          
+          convStore.incrementUnread(conversationId);
         }
 
         // Conversation'ın last_message bilgisini güncelle
-        updateConversation(conversationId, {
+        convStore.updateConversation(conversationId, {
           last_message_at: newMessage.created_at,
           last_message_preview: {
             content: newMessage.content,
             content_type: newMessage.content_type,
-            sender_name: null, // Profile bilgisi ayrıca fetch edilebilir
+            sender_name: null,
             is_mine: newMessage.sender_id === user.id,
           },
         });
@@ -88,12 +120,13 @@ export function useMessageRealtime(conversationId: string) {
       },
       (payload: MessagePayload) => {
         const updatedMessage = payload.new as Message;
+        const msgStore = useMessageStore.getState();
 
         // Silindi mi kontrol et
         if (updatedMessage.is_deleted) {
-          removeMessage(conversationId, updatedMessage.id);
+          msgStore.removeMessage(conversationId, updatedMessage.id);
         } else {
-          updateMessage(conversationId, updatedMessage.id, updatedMessage);
+          msgStore.updateMessage(conversationId, updatedMessage.id, updatedMessage);
         }
       }
     );
@@ -110,7 +143,7 @@ export function useMessageRealtime(conversationId: string) {
       (payload: MessagePayload) => {
         const deletedMessage = payload.old as { id: string };
         if (deletedMessage?.id) {
-          removeMessage(conversationId, deletedMessage.id);
+          useMessageStore.getState().removeMessage(conversationId, deletedMessage.id);
         }
       }
     );
@@ -145,19 +178,10 @@ export function useGlobalMessageRealtime() {
   const { user } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const incrementUnread = useConversationStore((s) => s.incrementUnread);
-  const updateConversation = useConversationStore((s) => s.updateConversation);
-  const activeConversationId = useConversationStore(
-    (s) => s.activeConversationId
-  );
-
   useEffect(() => {
     if (!user) return;
 
-    // Kullanıcının katıldığı tüm sohbetlerdeki mesajları dinle
-    // Bu, conversation_participants tablosu üzerinden yapılmalı
-    // Şimdilik basit bir yaklaşım kullanıyoruz
-
+    console.log("[Realtime] Global messages subscribing...");
     const channel = supabase.channel("messages:global");
 
     channel.on(
@@ -168,13 +192,17 @@ export function useGlobalMessageRealtime() {
         table: "messages",
       },
       async (payload: MessagePayload) => {
+        console.log("[Realtime] Global - New message:", payload.new);
         const newMessage = payload.new as Message;
+        const convStore = useConversationStore.getState();
+        const activeConversationId = convStore.activeConversationId;
 
         // Kendi mesajımız değilse ve aktif sohbette değilse
         if (
           newMessage.sender_id !== user.id &&
           newMessage.conversation_id !== activeConversationId
         ) {
+          console.log("[Realtime] Global - Checking participant...");
           // Kullanıcının bu sohbette olup olmadığını kontrol et
           const { data: participant } = await supabase
             .from("conversation_participants")
@@ -185,8 +213,9 @@ export function useGlobalMessageRealtime() {
             .single();
 
           if (participant) {
-            incrementUnread(newMessage.conversation_id);
-            updateConversation(newMessage.conversation_id, {
+            console.log("[Realtime] Global - Incrementing unread for:", newMessage.conversation_id);
+            convStore.incrementUnread(newMessage.conversation_id);
+            convStore.updateConversation(newMessage.conversation_id, {
               last_message_at: newMessage.created_at,
             });
           }
@@ -194,13 +223,16 @@ export function useGlobalMessageRealtime() {
       }
     );
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+      console.log("[Realtime] Global messages status:", status);
+    });
     channelRef.current = channel;
 
     return () => {
+      console.log("[Realtime] Global messages unsubscribing...");
       channel.unsubscribe();
     };
-  }, [user?.id, activeConversationId]);
+  }, [user?.id]);
 
   return channelRef.current;
 }
@@ -211,7 +243,6 @@ export function useGlobalMessageRealtime() {
 export function useReactionRealtime(conversationId: string) {
   const { user } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const updateMessage = useMessageStore((s) => s.updateMessage);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -243,8 +274,7 @@ export function useReactionRealtime(conversationId: string) {
           .single();
 
         if (message) {
-          // Mesajın reactions'ını güncelle
-          // Bu kısım daha detaylı implement edilebilir
+          // Mesajın reactions'ını güncelle - TODO: implement
         }
       }
     );
@@ -257,9 +287,8 @@ export function useReactionRealtime(conversationId: string) {
         schema: "public",
         table: "message_reactions",
       },
-      (payload: MessagePayload) => {
-        // Reaction silindi
-        // Mesajın reactions'ını güncelle
+      () => {
+        // Reaction silindi - TODO: implement
       }
     );
 

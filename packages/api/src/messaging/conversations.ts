@@ -122,6 +122,10 @@ export async function getConversations(params?: {
 export async function getConversation(
   conversationId: string
 ): Promise<Conversation | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const { data, error } = await supabase
     .from("conversations")
     .select(
@@ -142,6 +146,23 @@ export async function getConversation(
     .single();
 
   if (error) throw error;
+  if (!data) return null;
+
+  // Direct sohbetlerde karşı tarafın bilgisini ekle
+  if (data.type === "direct" && data.conversation_participants && user) {
+    const otherParticipant = data.conversation_participants.find(
+      (p: any) => p.user_id !== user.id
+    );
+    if (otherParticipant?.profile) {
+      (data as any).other_participant = {
+        user_id: otherParticipant.user_id,
+        display_name: otherParticipant.profile.display_name,
+        avatar_url: otherParticipant.profile.avatar_url,
+        username: otherParticipant.profile.username,
+      };
+    }
+  }
+
   return data;
 }
 

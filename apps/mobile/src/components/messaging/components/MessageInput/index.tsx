@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { View, TextInput, StyleSheet, Pressable, Keyboard } from "react-native";
+import { View, Text, TextInput, StyleSheet, Pressable, Keyboard } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useSendMessage } from "@/hooks/messaging";
@@ -71,16 +71,31 @@ export function MessageInput({
 
   // Mesaj gönder
   const handleSend = useCallback(() => {
-    if (!text.trim() || isPending) return;
+    console.log("[MessageInput] handleSend called, text:", text.trim(), "isPending:", isPending);
+    if (!text.trim() || isPending) {
+      console.log("[MessageInput] Skipping send - empty text or pending");
+      return;
+    }
 
+    console.log("[MessageInput] Sending message to:", conversationId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    sendMessage({
-      conversation_id: conversationId,
-      content: text.trim(),
-      content_type: "text",
-      reply_to_id: replyTo?.id
-    });
+    sendMessage(
+      {
+        conversation_id: conversationId,
+        content: text.trim(),
+        content_type: "text",
+        reply_to_id: replyTo?.id
+      },
+      {
+        onSuccess: (data) => {
+          console.log("[MessageInput] Message sent successfully:", data?.id);
+        },
+        onError: (error) => {
+          console.error("[MessageInput] Message send error:", error);
+        }
+      }
+    );
 
     setText("");
     onTypingStop?.();
@@ -131,19 +146,15 @@ export function MessageInput({
       )}
 
       <View style={styles.inputRow}>
-        {/* Left actions */}
-        {!hasText && (
-          <View style={styles.leftActions}>
-            <Pressable style={styles.actionButton} onPress={handleCameraPress}>
-              <Ionicons name="camera" size={24} color={colors.accent} />
-            </Pressable>
-            <Pressable style={styles.actionButton} onPress={handleMediaPress}>
-              <Ionicons name="image" size={24} color={colors.accent} />
-            </Pressable>
-          </View>
-        )}
+        {/* Plus button (media/attachment) */}
+        <Pressable
+          style={[styles.plusButton, { backgroundColor: colors.surface }]}
+          onPress={handleMediaPress}
+        >
+          <Ionicons name="add" size={24} color={colors.textSecondary} />
+        </Pressable>
 
-        {/* Input */}
+        {/* Input container */}
         <View style={[styles.inputContainer, { backgroundColor: colors.surface }]}>
           <TextInput
             ref={inputRef}
@@ -157,25 +168,35 @@ export function MessageInput({
             onFocus={() => setIsExpanded(true)}
             onBlur={() => setIsExpanded(false)}
           />
-
-          {/* Emoji button */}
-          <Pressable style={styles.emojiButton}>
-            <Ionicons name="happy-outline" size={24} color={colors.textMuted} />
-          </Pressable>
         </View>
 
-        {/* Send button */}
-        <Pressable
-          style={[styles.sendButton, { backgroundColor: hasText ? colors.accent : colors.surface }]}
-          onPress={hasText ? handleSend : undefined}
-          disabled={!hasText || isPending}
-        >
-          <Ionicons
-            name={hasText ? "send" : "mic"}
-            size={20}
-            color={hasText ? "#fff" : colors.textMuted}
-          />
-        </Pressable>
+        {/* Right actions */}
+        <View style={styles.rightActions}>
+          {/* Sticker/Emoji button */}
+          <Pressable style={styles.actionButton}>
+            <Ionicons name="happy-outline" size={24} color={colors.textSecondary} />
+          </Pressable>
+
+          {/* Send or Camera/Mic */}
+          {hasText ? (
+            <Pressable
+              style={[styles.sendButton, { backgroundColor: colors.accent }]}
+              onPress={handleSend}
+              disabled={isPending}
+            >
+              <Ionicons name="send" size={18} color="#fff" />
+            </Pressable>
+          ) : (
+            <>
+              <Pressable style={styles.actionButton} onPress={handleCameraPress}>
+                <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
+              </Pressable>
+              <Pressable style={styles.actionButton}>
+                <Ionicons name="mic-outline" size={24} color={colors.textSecondary} />
+              </Pressable>
+            </>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -187,9 +208,9 @@ export function MessageInput({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderTopWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 0.5,
     borderTopColor: "rgba(255,255,255,0.1)"
   },
   replyPreview: {
@@ -232,47 +253,50 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: "row",
-    alignItems: "flex-end"
+    alignItems: "center"
   },
-  leftActions: {
-    flexDirection: "row",
-    marginRight: 4
+  plusButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8
   },
   actionButton: {
-    padding: 8
+    padding: 6
   },
   inputContainer: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: 24,
-    paddingHorizontal: 12,
+    alignItems: "center",
+    borderRadius: 20,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    minHeight: 44,
-    maxHeight: 120
+    minHeight: 40,
+    maxHeight: 100
   },
   input: {
     flex: 1,
     fontSize: 16,
-    maxHeight: 100,
+    lineHeight: 20,
+    maxHeight: 80,
     paddingTop: 0,
     paddingBottom: 0
   },
-  emojiButton: {
-    padding: 4,
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "center",
     marginLeft: 4
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8
+    marginLeft: 4
   }
 });
-
-// Missing Text import
-import { Text } from "react-native";
 
 export default MessageInput;

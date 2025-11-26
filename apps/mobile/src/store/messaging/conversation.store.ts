@@ -210,9 +210,10 @@ export const useConversationStore = create<ConversationState>()(
  * Aktif sohbeti döndürür
  */
 export const useActiveConversation = () => {
-  const conversations = useConversationStore((state) => state.conversations);
-  const activeId = useConversationStore((state) => state.activeConversationId);
-  return conversations.find((c) => c.id === activeId) || null;
+  return useConversationStore((state) => {
+    const activeId = state.activeConversationId;
+    return state.conversations.find((c) => c.id === activeId) || null;
+  });
 };
 
 /**
