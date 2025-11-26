@@ -1,93 +1,89 @@
 /**
  * Creator Subscribers Screen
- * Abone listesi ekranı
+ * Abone listesi ekranı - Dashboard'dan erişilen iç sayfa
  */
 
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/theme/ThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState, useMemo } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { SubscribersList } from "@/components/creator";
 import { useCreatorTiers } from "@/hooks/useCreatorTiers";
 
 export default function SubscribersScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+
   const { tiers } = useCreatorTiers();
   const [selectedTierId, setSelectedTierId] = useState<string | undefined>();
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(creator)/dashboard");
+    }
+  };
+
   const totalSubscribers = tiers.reduce((sum, t) => sum + (t.subscriberCount || 0), 0);
+  const monthlyRevenue = tiers.reduce(
+    (sum, t) => sum + (t.subscriberCount || 0) * (t.coinPriceMonthly || 0),
+    0
+  );
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["bottom"]}
-    >
-      {/* Header Stats */}
-      <View
-        style={[
-          styles.statsHeader,
-          { backgroundColor: colors.surface, borderBottomColor: colors.border }
-        ]}
-      >
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={handleBack}>
+          <ArrowLeft size={24} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Abonelerim</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* Stats */}
+      <View style={styles.statsHeader}>
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>{totalSubscribers}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Toplam Abone</Text>
+          <Text style={styles.statValue}>{totalSubscribers}</Text>
+          <Text style={styles.statLabel}>Toplam Abone</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.success }]}>
-            {tiers.reduce(
-              (sum, t) => sum + (t.subscriberCount || 0) * (t.coinPriceMonthly || 0),
-              0
-            )}
-          </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-            Aylık Gelir (Coin)
-          </Text>
+          <Text style={[styles.statValue, { color: colors.success }]}>{monthlyRevenue}</Text>
+          <Text style={styles.statLabel}>Aylık Gelir (Coin)</Text>
         </View>
       </View>
 
       {/* Tier Filter */}
-      <View style={styles.filterSection}>
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            {
-              backgroundColor: !selectedTierId ? colors.accent : colors.surface,
-              borderColor: colors.border
-            }
-          ]}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterSection}
+      >
+        <Pressable
+          style={[styles.filterChip, !selectedTierId && styles.filterChipActive]}
           onPress={() => setSelectedTierId(undefined)}
         >
-          <Text
-            style={[styles.filterText, { color: !selectedTierId ? "#fff" : colors.textPrimary }]}
-          >
-            Tümü
-          </Text>
-        </TouchableOpacity>
+          <Text style={[styles.filterText, !selectedTierId && styles.filterTextActive]}>Tümü</Text>
+        </Pressable>
         {tiers.map((tier) => (
-          <TouchableOpacity
+          <Pressable
             key={tier.id}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: selectedTierId === tier.id ? colors.accent : colors.surface,
-                borderColor: colors.border
-              }
-            ]}
+            style={[styles.filterChip, selectedTierId === tier.id && styles.filterChipActive]}
             onPress={() => setSelectedTierId(tier.id)}
           >
             <Text
-              style={[
-                styles.filterText,
-                { color: selectedTierId === tier.id ? "#fff" : colors.textPrimary }
-              ]}
+              style={[styles.filterText, selectedTierId === tier.id && styles.filterTextActive]}
             >
               {tier.name}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Subscribers List */}
       <SubscribersList tierId={selectedTierId} />
@@ -95,41 +91,76 @@ export default function SubscribersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1
-  },
-  statsHeader: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center"
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "700"
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 4
-  },
-  filterSection: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    padding: 12,
-    gap: 8
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: "500"
-  }
-});
+const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    headerTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: colors.textPrimary
+    },
+    statsHeader: {
+      flexDirection: "row",
+      padding: 16,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border
+    },
+    statItem: {
+      flex: 1,
+      alignItems: "center"
+    },
+    statValue: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: colors.textPrimary
+    },
+    statLabel: {
+      fontSize: 12,
+      marginTop: 4,
+      color: colors.textSecondary
+    },
+    filterSection: {
+      flexDirection: "row",
+      padding: 12,
+      gap: 8
+    },
+    filterChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface
+    },
+    filterChipActive: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent
+    },
+    filterText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: colors.textPrimary
+    },
+    filterTextActive: {
+      color: "#FFFFFF"
+    }
+  });

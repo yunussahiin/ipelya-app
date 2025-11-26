@@ -25,7 +25,7 @@
     },
     "preview": {
       "extends": "production",
-      "distribution": "internal",
+      "distribution": "store",
       "channel": "preview",
       "android": {
         "buildType": "apk"
@@ -63,6 +63,10 @@
     }
   },
   "submit": {
+    "preview": {
+      "ios": {},
+      "android": {}
+    },
     "production": {
       "ios": {},
       "android": {}

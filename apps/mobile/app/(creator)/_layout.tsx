@@ -1,13 +1,20 @@
+/**
+ * Creator Layout
+ * Tabs + inner pages
+ */
+
 import { Tabs } from "expo-router";
 import { Platform, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
-import { Compass, LayoutDashboard, DollarSign, Calendar, Upload } from "lucide-react-native";
+import { Compass, LayoutDashboard, Calendar, Upload, Radio } from "lucide-react-native";
 
 export default function CreatorLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  console.log("🎬 CreatorLayout rendered - Tabs initialized");
 
   return (
     <Tabs
@@ -57,10 +64,10 @@ export default function CreatorLayout() {
         }}
       />
       <Tabs.Screen
-        name="revenue"
+        name="upload"
         options={{
-          title: "Gelir",
-          tabBarIcon: ({ color, size }) => <DollarSign size={size} color={color} />
+          title: "Yükle",
+          tabBarIcon: ({ color, size }) => <Upload size={size} color={color} />
         }}
       />
       <Tabs.Screen
@@ -71,10 +78,31 @@ export default function CreatorLayout() {
         }}
       />
       <Tabs.Screen
-        name="upload"
+        name="revenue"
         options={{
-          title: "Yükle",
-          tabBarIcon: ({ color, size }) => <Upload size={size} color={color} />
+          title: "Canlı",
+          tabBarIcon: ({ color, size }) => <Radio size={size} color={color} />
+        }}
+      />
+      <Tabs.Screen
+        name="tiers"
+        options={{
+          href: null,
+          headerShown: false
+        }}
+      />
+      <Tabs.Screen
+        name="subscribers"
+        options={{
+          href: null,
+          headerShown: false
+        }}
+      />
+      <Tabs.Screen
+        name="earnings"
+        options={{
+          href: null,
+          headerShown: false
         }}
       />
     </Tabs>

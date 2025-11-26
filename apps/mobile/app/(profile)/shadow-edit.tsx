@@ -14,26 +14,16 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  Image
+  Alert
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ArrowLeft,
-  ChevronRight,
-  Check,
-  Camera,
-  Sparkles,
-  User,
-  Ghost,
-  ImageIcon
-} from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Check, Sparkles, User, Ghost } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
+import { CoverUploader } from "@/components/profile/CoverUploader";
 import { supabase } from "@/lib/supabaseClient";
 
 interface EditFormData {
@@ -214,20 +204,13 @@ export default function ShadowEditScreen() {
         >
           {/* Cover & Avatar Section */}
           <Animated.View entering={FadeInDown.delay(100)} style={styles.mediaSection}>
-            {/* Cover Image */}
-            <Pressable style={styles.coverContainer}>
-              {coverUrl ? (
-                <Image source={{ uri: coverUrl }} style={styles.coverImage} />
-              ) : (
-                <LinearGradient colors={["#6366F1", "#8B5CF6"]} style={styles.coverPlaceholder}>
-                  <ImageIcon size={32} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.coverPlaceholderText}>Kapak Fotoğrafı Ekle</Text>
-                </LinearGradient>
-              )}
-              <View style={styles.coverEditBadge}>
-                <Camera size={16} color={colors.background} />
-              </View>
-            </Pressable>
+            {/* Cover Image Uploader */}
+            <CoverUploader
+              currentCoverUrl={coverUrl}
+              profileType="shadow"
+              onUploadSuccess={(url) => setCoverUrl(url || null)}
+              onUploadError={(error) => console.error("Cover upload error:", error)}
+            />
 
             {/* Avatar */}
             <View style={styles.avatarContainer}>
@@ -412,38 +395,8 @@ const createStyles = (colors: ThemeColors, insets: { top: number; bottom: number
     },
     // Media Section
     mediaSection: {
-      marginBottom: 24
-    },
-    coverContainer: {
-      height: 140,
-      backgroundColor: colors.surface,
-      position: "relative"
-    },
-    coverImage: {
-      width: "100%",
-      height: "100%"
-    },
-    coverPlaceholder: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8
-    },
-    coverPlaceholderText: {
-      fontSize: 14,
-      color: "rgba(255,255,255,0.8)",
-      fontWeight: "500"
-    },
-    coverEditBadge: {
-      position: "absolute",
-      right: 16,
-      bottom: 16,
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.accent,
-      alignItems: "center",
-      justifyContent: "center"
+      marginBottom: 24,
+      alignItems: "center"
     },
     avatarContainer: {
       alignItems: "center",

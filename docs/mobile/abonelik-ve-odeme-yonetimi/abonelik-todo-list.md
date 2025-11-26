@@ -17,6 +17,23 @@ Bu doküman abonelik ve ödeme sisteminin implementasyon adımlarını takip etm
 
 ---
 
+
+Edge Functions için (Supabase Dashboard'da ayarlanır)
+
+# Supabase (zaten var)
+EXPO_PUBLIC_SUPABASE_URL=xxx
+EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
+
+# Apple App Store Connect (webhook için)
+APPLE_SHARED_SECRET=xxx
+APPLE_ISSUER_ID=xxx
+APPLE_KEY_ID=xxx
+APPLE_PRIVATE_KEY=xxx
+
+# Google Play (webhook için)
+GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
+
+
 ## Faz 1: Veritabanı Şeması
 
 ### 1.1 Temel Tablolar (Coin Sistemi)

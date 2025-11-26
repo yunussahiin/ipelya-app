@@ -1,238 +1,270 @@
 /**
  * Creator Earnings Screen
- * Gelir raporu ekranı
+ * Gelir raporu ekranı - Dashboard'dan erişilen iç sayfa
  */
 
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/theme/ThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
-import { EarningsCard, EarningsGrid } from "@/components/creator";
-import { useCreatorEarnings } from "@/hooks/useCreatorEarnings";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Info } from "lucide-react-native";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
+import { useCreatorEarnings, type EarningsPeriod } from "@/hooks/useCreatorEarnings";
 
-type Period = "week" | "month" | "year" | "all";
+const PERIODS: { key: EarningsPeriod; label: string }[] = [
+  { key: "7d", label: "Hafta" },
+  { key: "30d", label: "Ay" },
+  { key: "90d", label: "3 Ay" },
+  { key: "all", label: "Tümü" }
+];
 
 export default function EarningsScreen() {
   const { colors } = useTheme();
-  const { earnings, isLoading, refresh } = useCreatorEarnings();
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const periods: { key: Period; label: string }[] = [
-    { key: "week", label: "Hafta" },
-    { key: "month", label: "Ay" },
-    { key: "year", label: "Yıl" },
-    { key: "all", label: "Tümü" }
-  ];
+  const { data: earningsData, isLoading, period, changePeriod } = useCreatorEarnings();
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(creator)/dashboard");
+    }
+  };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["bottom"]}
-    >
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={handleBack}>
+          <ArrowLeft size={24} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Gelir Raporu</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Total Balance */}
-        <View style={[styles.balanceCard, { backgroundColor: colors.accent }]}>
+        <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Toplam Kazanç</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.coinIcon}>🪙</Text>
             <Text style={styles.balanceValue}>
-              {isLoading ? "..." : earnings?.totalEarnings.toLocaleString() || "0"}
+              {isLoading ? "..." : (earningsData?.earnings?.total || 0).toLocaleString()}
             </Text>
           </View>
           <Text style={styles.balanceSubtext}>
-            ≈ ₺{isLoading ? "..." : ((earnings?.totalEarnings || 0) * 0.5).toLocaleString()}
+            ≈ ₺{((earningsData?.earnings?.total || 0) * 0.5).toLocaleString()}
           </Text>
         </View>
 
         {/* Period Selector */}
         <View style={styles.periodSelector}>
-          {periods.map((period) => (
-            <TouchableOpacity
-              key={period.key}
-              style={[
-                styles.periodButton,
-                {
-                  backgroundColor: selectedPeriod === period.key ? colors.accent : colors.surface,
-                  borderColor: colors.border
-                }
-              ]}
-              onPress={() => setSelectedPeriod(period.key)}
+          {PERIODS.map((p) => (
+            <Pressable
+              key={p.key}
+              style={[styles.periodButton, period === p.key && styles.periodButtonActive]}
+              onPress={() => changePeriod(p.key)}
             >
-              <Text
-                style={[
-                  styles.periodText,
-                  { color: selectedPeriod === period.key ? "#fff" : colors.textPrimary }
-                ]}
-              >
-                {period.label}
+              <Text style={[styles.periodText, period === p.key && styles.periodTextActive]}>
+                {p.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
-        </View>
-
-        {/* Earnings Grid */}
-        <View style={styles.gridSection}>
-          <EarningsGrid
-            subscriptionEarnings={earnings?.subscriptionEarnings || 0}
-            giftEarnings={earnings?.giftEarnings || 0}
-            subscriberCount={earnings?.subscriberCount || 0}
-            isLoading={isLoading}
-          />
         </View>
 
         {/* Breakdown */}
         <View style={styles.breakdownSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Gelir Dağılımı</Text>
+          <Text style={styles.sectionTitle}>Gelir Dağılımı</Text>
 
-          <View style={[styles.breakdownCard, { backgroundColor: colors.surface }]}>
+          <View style={styles.breakdownCard}>
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownLeft}>
                 <View style={[styles.breakdownDot, { backgroundColor: colors.accent }]} />
-                <Text style={[styles.breakdownLabel, { color: colors.textPrimary }]}>
-                  Abonelikler
-                </Text>
+                <Text style={styles.breakdownLabel}>Abonelikler</Text>
               </View>
-              <Text style={[styles.breakdownValue, { color: colors.textPrimary }]}>
-                🪙 {earnings?.subscriptionEarnings.toLocaleString() || "0"}
+              <Text style={styles.breakdownValue}>
+                🪙 {(earningsData?.earnings?.subscriptions || 0).toLocaleString()}
               </Text>
             </View>
 
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownLeft}>
                 <View style={[styles.breakdownDot, { backgroundColor: "#FFD700" }]} />
-                <Text style={[styles.breakdownLabel, { color: colors.textPrimary }]}>
-                  Hediyeler
-                </Text>
+                <Text style={styles.breakdownLabel}>Hediyeler</Text>
               </View>
-              <Text style={[styles.breakdownValue, { color: colors.textPrimary }]}>
-                🪙 {earnings?.giftEarnings.toLocaleString() || "0"}
+              <Text style={styles.breakdownValue}>
+                🪙 {(earningsData?.earnings?.gifts || 0).toLocaleString()}
               </Text>
             </View>
           </View>
         </View>
 
         {/* Payout Info */}
-        <View style={[styles.payoutInfo, { backgroundColor: colors.surface }]}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
+        <View style={styles.payoutInfo}>
+          <Info size={20} color={colors.textMuted} />
           <View style={styles.payoutTextContainer}>
-            <Text style={[styles.payoutTitle, { color: colors.textPrimary }]}>Ödeme Bilgisi</Text>
-            <Text style={[styles.payoutText, { color: colors.textSecondary }]}>
+            <Text style={styles.payoutTitle}>Ödeme Bilgisi</Text>
+            <Text style={styles.payoutText}>
               Kazançlarınız her ayın 1'inde banka hesabınıza aktarılır. Minimum ödeme tutarı 500
               coin'dir.
             </Text>
           </View>
         </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1
-  },
-  balanceCard: {
-    margin: 16,
-    padding: 24,
-    borderRadius: 20,
-    alignItems: "center"
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
-    marginBottom: 8
-  },
-  balanceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  coinIcon: {
-    fontSize: 32
-  },
-  balanceValue: {
-    fontSize: 40,
-    fontWeight: "700",
-    color: "#fff"
-  },
-  balanceSubtext: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 8
-  },
-  periodSelector: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 8
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    borderWidth: 1
-  },
-  periodText: {
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  gridSection: {
-    padding: 16
-  },
-  breakdownSection: {
-    padding: 16
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12
-  },
-  breakdownCard: {
-    padding: 16,
-    borderRadius: 12,
-    gap: 16
-  },
-  breakdownRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  breakdownLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
-  breakdownDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6
-  },
-  breakdownLabel: {
-    fontSize: 15
-  },
-  breakdownValue: {
-    fontSize: 15,
-    fontWeight: "600"
-  },
-  payoutInfo: {
-    flexDirection: "row",
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-    alignItems: "flex-start"
-  },
-  payoutTextContainer: {
-    flex: 1
-  },
-  payoutTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 4
-  },
-  payoutText: {
-    fontSize: 13,
-    lineHeight: 18
-  }
-});
+const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    headerTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: colors.textPrimary
+    },
+    scrollContent: {
+      paddingBottom: insets.bottom
+    },
+    balanceCard: {
+      margin: 20,
+      padding: 24,
+      borderRadius: 20,
+      alignItems: "center",
+      backgroundColor: colors.accent
+    },
+    balanceLabel: {
+      fontSize: 14,
+      color: "rgba(255,255,255,0.8)",
+      marginBottom: 8
+    },
+    balanceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8
+    },
+    coinIcon: {
+      fontSize: 32
+    },
+    balanceValue: {
+      fontSize: 40,
+      fontWeight: "700",
+      color: "#fff"
+    },
+    balanceSubtext: {
+      fontSize: 14,
+      color: "rgba(255,255,255,0.7)",
+      marginTop: 8
+    },
+    periodSelector: {
+      flexDirection: "row",
+      paddingHorizontal: 20,
+      gap: 8
+    },
+    periodButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface
+    },
+    periodButtonActive: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent
+    },
+    periodText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textPrimary
+    },
+    periodTextActive: {
+      color: "#FFFFFF"
+    },
+    breakdownSection: {
+      padding: 20
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      marginBottom: 12,
+      color: colors.textPrimary
+    },
+    breakdownCard: {
+      padding: 16,
+      borderRadius: 12,
+      gap: 16,
+      backgroundColor: colors.surface
+    },
+    breakdownRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center"
+    },
+    breakdownLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10
+    },
+    breakdownDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6
+    },
+    breakdownLabel: {
+      fontSize: 15,
+      color: colors.textPrimary
+    },
+    breakdownValue: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.textPrimary
+    },
+    payoutInfo: {
+      flexDirection: "row",
+      marginHorizontal: 20,
+      padding: 16,
+      borderRadius: 12,
+      gap: 12,
+      alignItems: "flex-start",
+      backgroundColor: colors.surface
+    },
+    payoutTextContainer: {
+      flex: 1
+    },
+    payoutTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 4,
+      color: colors.textPrimary
+    },
+    payoutText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.textSecondary
+    }
+  });

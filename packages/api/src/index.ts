@@ -13,3 +13,6 @@ export * from "./dmca";
 
 // Home Feed API
 export * from "./home-feed";
+
+// Messaging API
+export * from "./messaging";

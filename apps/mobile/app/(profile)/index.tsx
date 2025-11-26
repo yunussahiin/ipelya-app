@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View, RefreshControl, Text, Pressable } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { Ban } from "lucide-react-native";
+import { Ban, Radio } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { supabase } from "@/lib/supabaseClient";
 import { useFollowersRealtime } from "@/hooks/useFollowersRealtime";
@@ -43,6 +43,7 @@ export default function OwnProfileScreen() {
   const [exclusivePosts, setExclusivePosts] = useState<PostItem[]>([]);
   const [reels, setReels] = useState<PostItem[]>([]);
   const [highlights] = useState<Highlight[]>([]);
+  const [broadcastChannelId, setBroadcastChannelId] = useState<string | null>(null);
 
   const { stats: followersStats } = useFollowersRealtime(currentUserId);
 
@@ -97,6 +98,15 @@ export default function OwnProfileScreen() {
         .single();
 
       setHasShadowProfile(!!shadowData);
+
+      // Check broadcast channel
+      const { data: channelData } = await supabase
+        .from("broadcast_channels")
+        .select("id")
+        .eq("creator_id", user.id)
+        .single();
+
+      setBroadcastChannelId(channelData?.id || null);
 
       // Load posts
       await loadPosts(user.id);
@@ -200,6 +210,17 @@ export default function OwnProfileScreen() {
     console.log("Open highlight:", highlight.id);
   };
 
+  // Yayın kanalı işlemleri
+  const handleBroadcastChannelPress = () => {
+    if (broadcastChannelId) {
+      // Mevcut kanala git
+      router.push(`/(broadcast)/${broadcastChannelId}`);
+    } else {
+      // Yeni kanal oluştur
+      router.push("/(broadcast)/create");
+    }
+  };
+
   // Loading state
   if (isLoading || !profile) {
     return <ProfileSkeleton showTopBar={true} />;
@@ -252,12 +273,27 @@ export default function OwnProfileScreen() {
           onHighlightPress={handleHighlightPress}
         />
 
+        {/* Yayın Kanalı */}
+        <Pressable style={styles.broadcastButton} onPress={handleBroadcastChannelPress}>
+          <Radio size={20} color={colors.accent} />
+          <View style={styles.broadcastTextContainer}>
+            <Text style={styles.broadcastButtonText}>
+              {broadcastChannelId ? "Yayın Kanalım" : "Yayın Kanalı Oluştur"}
+            </Text>
+            <Text style={styles.broadcastButtonSubtext}>
+              {broadcastChannelId
+                ? "Takipçilerinle içerik paylaş"
+                : "Abonelerinle özel içerik paylaşın"}
+            </Text>
+          </View>
+        </Pressable>
+
         {/* Blocked Users Link */}
         <Pressable
           style={styles.blockedUsersButton}
           onPress={() => router.push("/(profile)/blocked-users")}
         >
-          <Ban size={20} color={colors.accent} />
+          <Ban size={20} color={colors.textMuted} />
           <Text style={styles.blockedUsersText}>Engellenen Kullanıcılar</Text>
         </Pressable>
 
@@ -284,6 +320,31 @@ const createStyles = (colors: ThemeColors) =>
     scrollView: {
       flex: 1
     },
+    broadcastButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      padding: 16,
+      marginHorizontal: 16,
+      marginTop: 12,
+      borderRadius: 12,
+      backgroundColor: colors.accentSoft,
+      borderWidth: 1,
+      borderColor: colors.accent
+    },
+    broadcastTextContainer: {
+      flex: 1
+    },
+    broadcastButtonText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.textPrimary
+    },
+    broadcastButtonSubtext: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2
+    },
     blockedUsersButton: {
       flexDirection: "row",
       alignItems: "center",
@@ -299,6 +360,6 @@ const createStyles = (colors: ThemeColors) =>
     blockedUsersText: {
       fontSize: 14,
       fontWeight: "600",
-      color: colors.textPrimary
+      color: colors.textMuted
     }
   });

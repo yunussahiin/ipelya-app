@@ -20,6 +20,14 @@ export function FeedHeader() {
   const { colors } = useTheme();
   const router = useRouter();
 
+  const handleCreatorPress = () => {
+    console.log("🎬 Creator button pressed");
+    console.log("📍 Navigating to: /(creator)");
+    console.log("🔗 Router state:", { route: "/(creator)" });
+    router.push("/(creator)");
+    console.log("✅ Navigation triggered");
+  };
+
   return (
     <View
       style={[
@@ -41,13 +49,13 @@ export function FeedHeader() {
           </View>
         </Pressable>
 
-        {/* Messages */}
-        <Pressable style={styles.iconButton} onPress={() => router.push("/(chat)")}>
+        {/* Messages - Birleşik mesaj listesi (DM + Broadcast) */}
+        <Pressable style={styles.iconButton} onPress={() => router.push("/(messages)")}>
           <MessageCircle size={24} color={colors.textPrimary} />
         </Pressable>
 
         {/* Creator Discovery */}
-        <Pressable style={styles.iconButton} onPress={() => router.push("/(creator)")}>
+        <Pressable style={styles.iconButton} onPress={handleCreatorPress}>
           <Sparkles size={24} color={colors.accent} />
         </Pressable>
       </View>
@@ -75,6 +83,9 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     position: "relative"
+  },
+  iconButtonDisabled: {
+    opacity: 0.5
   },
   badge: {
     position: "absolute",

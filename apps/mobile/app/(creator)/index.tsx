@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
 import Animated from "react-native-reanimated";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import {
@@ -19,12 +21,21 @@ const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 export default function CreatorDiscoveryScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   const [isLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CreatorCategory>("all");
+
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(feed)");
+    }
+  }, [router]);
 
   // Mock data - gerçek implementasyonda hook'tan gelecek
   const trendingCreators = MOCK_CREATORS.slice(0, 5);
@@ -73,9 +84,14 @@ export default function CreatorDiscoveryScreen() {
         }
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Keşfet</Text>
-          <Text style={styles.subtitle}>En popüler içerik üreticilerini keşfet</Text>
+        <View style={styles.headerContainer}>
+          <Pressable style={styles.backButton} onPress={handleBack}>
+            <ArrowLeft size={24} color={colors.textPrimary} />
+          </Pressable>
+          <View style={styles.header}>
+            <Text style={styles.title}>Keşfet</Text>
+            <Text style={styles.subtitle}>En popüler içerik üreticilerini keşfet</Text>
+          </View>
         </View>
 
         {/* Hero Slider */}
@@ -128,9 +144,22 @@ const createStyles = (colors: ThemeColors, insets: { top: number; bottom: number
     scrollContent: {
       paddingTop: insets.top + 16
     },
-    header: {
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "flex-start",
       paddingHorizontal: 16,
-      marginBottom: 20
+      marginBottom: 20,
+      gap: 12
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: -8
+    },
+    header: {
+      flex: 1
     },
     title: {
       fontSize: 32,
