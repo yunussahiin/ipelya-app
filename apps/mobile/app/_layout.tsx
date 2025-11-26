@@ -6,6 +6,7 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import * as Linking from "expo-linking";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
@@ -99,9 +100,11 @@ export default function Layout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <SafeAreaProvider>
-            <BottomSheetModalProvider>
-              <AppStack />
-            </BottomSheetModalProvider>
+            <ActionSheetProvider>
+              <BottomSheetModalProvider>
+                <AppStack />
+              </BottomSheetModalProvider>
+            </ActionSheetProvider>
           </SafeAreaProvider>
         </ThemeProvider>
       </QueryClientProvider>

@@ -8,7 +8,15 @@
  */
 
 import { useCallback, useState } from "react";
-import { StyleSheet, Platform, KeyboardAvoidingView, View } from "react-native";
+import {
+  StyleSheet,
+  Platform,
+  KeyboardAvoidingView,
+  View,
+  Text,
+  TouchableOpacity
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import {
@@ -33,7 +41,7 @@ dayjs.locale("tr");
 
 import { useTheme } from "@/theme/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { useConversationPresence } from "@/hooks/messaging";
+import { useConversationPresence, useTypingIndicator } from "@/hooks/messaging";
 import { ChatHeader } from "./components/ChatHeader";
 import { ChatLoading } from "./components/ChatLoading";
 import { ChatBubble } from "./components/ChatBubble";
@@ -58,10 +66,11 @@ export function GiftedChatScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const insets = useSafeAreaInsets();
 
-  // Typing state
-  const [isTyping, setIsTyping] = useState(false);
+  // Typing indicator - karşı tarafın yazıp yazmadığı
+  const typingUserIds = useTypingIndicator(conversationId || "");
+  const isOtherTyping = typingUserIds.length > 0;
 
-  // Typing indicator
+  // Typing broadcast - kendi yazdığımızı bildirmek için
   const { startTyping, stopTyping } = useConversationPresence(conversationId || "");
 
   // Messages hook
@@ -89,8 +98,52 @@ export function GiftedChatScreen() {
     [handleSend, stopTyping]
   );
 
-  // Input text changed
-  const onInputTextChanged = useCallback(
+  // Reply state
+  const [replyToMessage, setReplyToMessage] = useState<IMessage | null>(null);
+
+  // Message actions handlers
+  const handleReply = useCallback((message: IMessage) => {
+    console.log("[Reply] Setting reply to:", message._id, message.text?.substring(0, 30));
+    setReplyToMessage(message);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // TODO: Focus input and show reply preview
+  }, []);
+
+  const handleEdit = useCallback((message: IMessage) => {
+    // TODO: Implement edit
+    console.log("Edit message:", message._id);
+  }, []);
+
+  const handleDelete = useCallback((message: IMessage) => {
+    // TODO: Implement delete via edge function
+    console.log("Delete message:", message._id);
+  }, []);
+
+  // =============================================
+  // RENDER FUNCTIONS (memoized)
+  // =============================================
+
+  const renderBubble = useCallback(
+    (props: BubbleProps<IMessage>) => (
+      <ChatBubble
+        props={props}
+        colors={colors}
+        currentUserId={user?.id}
+        onReply={handleReply}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+    ),
+    [colors, user?.id, handleReply, handleEdit, handleDelete]
+  );
+
+  const renderInputToolbar = useCallback(
+    (props: InputToolbarProps<IMessage>) => <ChatInputToolbar props={props} colors={colors} />,
+    [colors]
+  );
+
+  // Typing handler for composer
+  const handleTyping = useCallback(
     (text: string) => {
       if (text.length > 0) {
         startTyping();
@@ -101,25 +154,11 @@ export function GiftedChatScreen() {
     [startTyping, stopTyping]
   );
 
-  // =============================================
-  // RENDER FUNCTIONS (memoized)
-  // =============================================
-
-  const renderBubble = useCallback(
-    (props: BubbleProps<IMessage>) => (
-      <ChatBubble props={props} colors={colors} currentUserId={user?.id} />
-    ),
-    [colors, user?.id]
-  );
-
-  const renderInputToolbar = useCallback(
-    (props: InputToolbarProps<IMessage>) => <ChatInputToolbar props={props} colors={colors} />,
-    [colors]
-  );
-
   const renderComposer = useCallback(
-    (props: ComposerProps) => <ChatComposer props={props} colors={colors} />,
-    [colors]
+    (props: ComposerProps) => (
+      <ChatComposer props={props} colors={colors} onTextChanged={handleTyping} />
+    ),
+    [colors, handleTyping]
   );
 
   const renderSend = useCallback(
@@ -164,6 +203,77 @@ export function GiftedChatScreen() {
     [colors]
   );
 
+  // Reply preview (input toolbar üstünde)
+  const renderAccessory = useCallback(() => {
+    if (!replyToMessage) return null;
+
+    return (
+      <View
+        style={{
+          backgroundColor: colors.surface,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          borderLeftWidth: 3,
+          borderLeftColor: colors.accent,
+          marginHorizontal: 8,
+          marginTop: 8,
+          borderRadius: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "600", marginBottom: 2 }}>
+            Yanıtlanıyor
+          </Text>
+          <Text style={{ color: colors.textMuted, fontSize: 13 }} numberOfLines={1}>
+            {replyToMessage.text}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => {
+            setReplyToMessage(null);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          style={{ padding: 4 }}
+        >
+          <Ionicons name="close" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+    );
+  }, [replyToMessage, colors]);
+
+  // Custom footer for typing indicator (theme uyumlu)
+  const renderFooter = useCallback(() => {
+    if (!isOtherTyping) return null;
+
+    return (
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          flexDirection: "row",
+          alignItems: "center"
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 16,
+            flexDirection: "row",
+            alignItems: "center"
+          }}
+        >
+          <Text style={{ color: colors.textMuted, fontSize: 13, marginRight: 4 }}>Yazıyor</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>...</Text>
+        </View>
+      </View>
+    );
+  }, [isOtherTyping, colors]);
+
   // Loading state
   if (isLoading) {
     return <ChatLoading conversationId={conversationId || ""} colors={colors} />;
@@ -206,9 +316,6 @@ export function GiftedChatScreen() {
             automaticallyAdjustContentInsets: false,
             contentInsetAdjustmentBehavior: "never"
           }}
-          // Typing
-          isTyping={isTyping}
-          onInputTextChanged={onInputTextChanged}
           // Customization
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
@@ -218,13 +325,16 @@ export function GiftedChatScreen() {
           renderDay={renderDay}
           renderTime={renderTime}
           renderSystemMessage={renderSystemMessage}
+          renderFooter={renderFooter}
+          renderAccessory={renderAccessory}
           renderAvatar={null}
           // Styling
           timeFormat="HH:mm"
           dateFormat="D MMMM"
           // Behavior
-          alwaysShowSend
+          isSendButtonAlwaysVisible
           scrollToBottom
+          isScrollToBottomEnabled
           scrollToBottomComponent={renderScrollToBottom}
           // Input toolbar height
           minInputToolbarHeight={56}
@@ -235,19 +345,9 @@ export function GiftedChatScreen() {
           // Locale - Türkçe
           locale="tr"
           placeholder="Mesaj yaz..."
-          // Text input
+          // Text input style (typing artık ChatComposer'da handle ediliyor)
           textInputProps={{
-            style: {
-              color: colors.textPrimary,
-              backgroundColor: colors.surface,
-              borderRadius: 20,
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              marginRight: 8,
-              fontSize: 16
-            },
-            placeholderTextColor: colors.textMuted,
-            placeholder: "Mesaj yaz..."
+            placeholderTextColor: colors.textMuted
           }}
           // Load earlier
           loadEarlier={hasNextPage}
@@ -271,11 +371,6 @@ export function GiftedChatScreen() {
                 }
               ]);
             }
-          }}
-          // Long press for message actions
-          onLongPress={(context, message) => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            // TODO: Show message actions (copy, reply, delete)
           }}
           // Parse patterns - URL, telefon, email tanıma
           parsePatterns={(linkStyle) => [

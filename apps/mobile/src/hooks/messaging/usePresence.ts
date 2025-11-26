@@ -127,22 +127,33 @@ export function useConversationPresence(conversationId: string) {
 
     // Typing event dinle
     channel.on("broadcast", { event: "typing" }, (payload) => {
+      console.log("[Presence] Typing event received:", payload);
+      
       const { user_id, is_typing } = payload.payload as {
         user_id: string;
         is_typing: boolean;
       };
 
-      if (user_id === user.id) return; // Kendi typing event'imizi ignore et
+      console.log("[Presence] user_id:", user_id, "is_typing:", is_typing, "my_id:", user.id);
+
+      if (user_id === user.id) {
+        console.log("[Presence] Ignoring own typing event");
+        return; // Kendi typing event'imizi ignore et
+      }
 
       const store = usePresenceStore.getState();
       if (is_typing) {
+        console.log("[Presence] Setting typing for:", user_id);
         store.setTyping(conversationId, user_id);
       } else {
+        console.log("[Presence] Clearing typing for:", user_id);
         store.clearTyping(conversationId, user_id);
       }
     });
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+      console.log("[Presence] Channel subscription status:", status, "for:", conversationId);
+    });
     channelRef.current = channel;
 
     // Cleanup
@@ -160,12 +171,17 @@ export function useConversationPresence(conversationId: string) {
    * Debounced - 3 saniye sonra otomatik stop
    */
   const startTyping = useCallback(() => {
-    if (!channelRef.current || !user) return;
+    if (!channelRef.current || !user) {
+      console.log("[Presence] Cannot start typing - no channel or user");
+      return;
+    }
 
     // Önceki timeout'u temizle
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
+
+    console.log("[Presence] Sending typing start event for:", user.id);
 
     // Typing event gönder
     channelRef.current.send({

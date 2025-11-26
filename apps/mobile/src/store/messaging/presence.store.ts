@@ -82,17 +82,19 @@ export const usePresenceStore = create<PresenceState>()((set, get) => ({
    * Kullanıcıyı typing olarak işaretler
    */
   setTyping: (conversationId, userId) => {
+    console.log("[PresenceStore] setTyping called:", conversationId, userId);
     set((state) => {
       const existing = state.typingUsers[conversationId] || [];
       if (existing.includes(userId)) {
+        console.log("[PresenceStore] User already typing, skipping");
         return state;
       }
-      return {
-        typingUsers: {
-          ...state.typingUsers,
-          [conversationId]: [...existing, userId],
-        },
+      const newTypingUsers = {
+        ...state.typingUsers,
+        [conversationId]: [...existing, userId],
       };
+      console.log("[PresenceStore] New typingUsers:", newTypingUsers);
+      return { typingUsers: newTypingUsers };
     });
   },
 
@@ -100,6 +102,7 @@ export const usePresenceStore = create<PresenceState>()((set, get) => ({
    * Kullanıcının typing durumunu temizler
    */
   clearTyping: (conversationId, userId) => {
+    console.log("[PresenceStore] clearTyping called:", conversationId, userId);
     set((state) => {
       const existing = state.typingUsers[conversationId] || [];
       return {

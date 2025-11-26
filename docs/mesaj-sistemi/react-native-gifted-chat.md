@@ -8,6 +8,26 @@
 
 ## Neden Gifted Chat?
 
+---
+
+## Özellik Durumu
+
+| Özellik                | Durum      | Açıklama                                 |
+| ---------------------- | ---------- | ---------------------------------------- |
+| ✅ System Messages      | Tamamlandı | `renderSystemMessage` eklendi            |
+| ✅ Typing Indicator     | Tamamlandı | `useTypingIndicator` hook'u kullanılıyor |
+| ✅ Türkçe Tarih         | Tamamlandı | "Bugün", "Dün", "25 Kasım" formatı       |
+| ✅ Safe Area            | Tamamlandı | KeyboardAvoidingView ile                 |
+| ✅ Skeleton Loading     | Tamamlandı | Animasyonlu skeleton bubble'lar          |
+| ⚠️ Read Receipts        | Kısmi      | UI var, edge function güncellenmeli      |
+| 🔧 Reply to Message     | Yapılacak  | Swipe + reply preview                    |
+| 🔧 Long Press Actions   | Yapılacak  | Copy, reply, delete menüsü               |
+| 🔧 Image/Video Messages | Yapılacak  | Media picker + render                    |
+| 🔧 Audio Messages       | Yapılacak  | Recording + playback                     |
+| 🔧 Message Reactions    | Yapılacak  | Emoji picker                             |
+
+---
+
 ### FlashList Sorunları
 - Mesajlar tek tek yükleniyor (kötü UX)
 - `inverted` prop ile scroll sorunları

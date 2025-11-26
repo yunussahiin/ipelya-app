@@ -57,27 +57,37 @@ export const ChatInputToolbar = memo(ChatInputToolbarComponent);
 interface ChatComposerProps {
   props: ComposerProps;
   colors: ThemeColors;
+  onTextChanged?: (text: string) => void;
 }
 
-function ChatComposerComponent({ props, colors }: ChatComposerProps) {
+function ChatComposerComponent({ props, colors, onTextChanged }: ChatComposerProps) {
   return (
     <Composer
       {...props}
-      textInputStyle={{
-        backgroundColor: colors.surface,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingTop: 10,
-        paddingBottom: 10,
-        marginLeft: 0,
-        marginRight: 8,
-        color: colors.textPrimary,
-        fontSize: 16,
-        lineHeight: 20
+      textInputProps={{
+        ...props.textInputProps,
+        placeholder: "Mesaj yaz...",
+        placeholderTextColor: colors.textMuted,
+        onChangeText: (text: string) => {
+          console.log("[Composer] onChangeText:", text.length, "chars");
+          // Gifted Chat'in kendi handler'ını çağır
+          props.textInputProps?.onChangeText?.(text);
+          // Bizim typing handler'ımızı çağır
+          onTextChanged?.(text);
+        },
+        style: {
+          backgroundColor: colors.surface,
+          borderRadius: 20,
+          paddingHorizontal: 16,
+          paddingTop: 10,
+          paddingBottom: 10,
+          marginLeft: 0,
+          marginRight: 8,
+          color: colors.textPrimary,
+          fontSize: 16,
+          lineHeight: 20
+        }
       }}
-      placeholderTextColor={colors.textMuted}
-      placeholder="Mesaj yaz..."
-      multiline
     />
   );
 }
@@ -94,19 +104,28 @@ interface ChatSendButtonProps {
 }
 
 function ChatSendButtonComponent({ props, colors }: ChatSendButtonProps) {
+  // Text var mı kontrol et
+  const hasText = !!props.text?.trim().length;
+
   return (
-    <Send
-      {...props}
-      containerStyle={{
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: 4
-      }}
-    >
-      <View style={[styles.sendButton, { backgroundColor: colors.accent }]}>
-        <Ionicons name="send" size={18} color="#fff" />
-      </View>
-    </Send>
+    <View style={styles.sendButtonWrapper}>
+      <Send
+        {...props}
+        containerStyle={{
+          justifyContent: "center",
+          alignItems: "center"
+        }}
+        sendButtonProps={{
+          disabled: !hasText
+        }}
+      >
+        <View
+          style={[styles.sendButton, { backgroundColor: hasText ? colors.accent : colors.surface }]}
+        >
+          <Ionicons name="send" size={18} color={hasText ? "#fff" : colors.textMuted} />
+        </View>
+      </Send>
+    </View>
   );
 }
 
@@ -194,6 +213,11 @@ export const ChatScrollToBottom = memo(ChatScrollToBottomComponent);
 // =============================================
 
 const styles = StyleSheet.create({
+  sendButtonWrapper: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 4
+  },
   sendButton: {
     width: 40,
     height: 40,
