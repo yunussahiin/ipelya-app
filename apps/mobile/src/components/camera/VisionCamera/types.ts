@@ -116,6 +116,16 @@ export interface VisionCameraProps {
   maxVideoDuration?: number;
   /** Ek stil */
   style?: object;
+
+  // =============================================
+  // FACE EFFECTS PROPS
+  // =============================================
+  /** Yüz efektleri aktif mi (varsayılan: false) */
+  enableFaceEffects?: boolean;
+  /** Yüz efektleri seçici gösterilsin mi (varsayılan: true) */
+  showFaceEffectSelector?: boolean;
+  /** Yüz algılama performans modu */
+  faceDetectionPerformance?: "fast" | "accurate";
 }
 
 /**

@@ -6,10 +6,9 @@
  */
 
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, Pressable, Text, Alert } from "react-native";
+import { View, StyleSheet, Pressable, Text } from "react-native";
 import { X, Type, Sparkles, Layout, ChevronDown } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { useTheme } from "@/theme/ThemeProvider";
 import { VisionCamera, CapturedMedia } from "@/components/camera";
 import type { CreatedContent } from "./index";
 
@@ -21,15 +20,12 @@ interface StoryCreatorProps {
 type StoryMode = "normal" | "create" | "boomerang" | "layout";
 
 export function StoryCreator({ onComplete, onClose }: StoryCreatorProps) {
-  const { colors } = useTheme();
   const [storyMode, setStoryMode] = useState<StoryMode>("normal");
-  const [capturedMedia, setCapturedMedia] = useState<CapturedMedia | null>(null);
 
   // Handle media capture from camera
   const handleCapture = useCallback(
     (media: CapturedMedia) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCapturedMedia(media);
 
       // Auto-complete for now (later: add editing screen)
       onComplete({
@@ -57,15 +53,14 @@ export function StoryCreator({ onComplete, onClose }: StoryCreatorProps) {
 
   return (
     <View style={styles.container}>
-      {/* Camera View */}
+      {/* Camera View - Face Effects default aktif */}
       <VisionCamera
         mode="photo"
-        initialPosition="back"
         enableAudio={true}
         showControls={true}
         onCapture={handleCapture}
         onClose={onClose}
-        maxVideoDuration={15} // Hikaye için 15 saniye
+        maxVideoDuration={15}
       />
 
       {/* Story Mode Options - Right Side */}

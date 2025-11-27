@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="80" viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Aviator Sunglasses -->
+  <!-- Left Lens -->
+  <ellipse cx="55" cy="40" rx="40" ry="30" fill="#1a1a1a" fill-opacity="0.7"/>
+  <ellipse cx="55" cy="40" rx="40" ry="30" stroke="#333333" stroke-width="2"/>
+  
+  <!-- Right Lens -->
+  <ellipse cx="145" cy="40" rx="40" ry="30" fill="#1a1a1a" fill-opacity="0.7"/>
+  <ellipse cx="145" cy="40" rx="40" ry="30" stroke="#333333" stroke-width="2"/>
+  
+  <!-- Bridge -->
+  <path d="M95 40 Q100 35 105 40" stroke="#333333" stroke-width="3" fill="none"/>
+  
+  <!-- Left Temple -->
+  <line x1="15" y1="25" x2="0" y2="20" stroke="#333333" stroke-width="2"/>
+  
+  <!-- Right Temple -->
+  <line x1="185" y1="25" x2="200" y2="20" stroke="#333333" stroke-width="2"/>
+  
+  <!-- Lens Reflection -->
+  <ellipse cx="45" cy="32" rx="15" ry="8" fill="white" fill-opacity="0.15"/>
+  <ellipse cx="135" cy="32" rx="15" ry="8" fill="white" fill-opacity="0.15"/>
+</svg>

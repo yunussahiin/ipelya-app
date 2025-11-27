@@ -1,419 +1,335 @@
-# İpelya Home Feed - Web Ops Documentation
+# İpelya Home Feed - Web Ops Yönetim Paneli
 
 ## 📚 Genel Bakış
 
-Bu klasör, İpelya Home Feed sisteminin **Web Ops (Next.js) tarafında** kullanılacak yönetim paneli dökümanlarını içerir. Ops paneli, feed içeriklerini moderasyon, kullanıcı yönetimi, analytics ve sistem ayarlarını yönetmek için kullanılır.
+Bu döküman, **Home Feed sisteminin Web Ops panelinden yönetimi** için gerekli tüm bilgileri içerir. Ops paneli üzerinden feed algoritması, içerik moderasyonu, analytics ve sistem ayarları yönetilir.
+
+> **Not:** Bu döküman Home Feed sistemine özeldir. Genel ops panel dökümanları için `/docs/ops/` klasörüne bakın.
 
 ---
 
-## 🎯 Web Ops Özellikleri
+## 🎯 Home Feed Ops Özellikleri
 
-### 1. Content Moderation (İçerik Moderasyonu)
-- **Feed içeriklerini görüntüleme** - Posts, mini posts, voice moments, polls
-- **Moderasyon queue** - AI flagged content review
-- **User reports** - Spam/abuse raporlarını inceleme
-- **Bulk actions** - Toplu hide/delete/approve
-- **User ban/shadowban** - Kullanıcı yasaklama işlemleri
+### 1. Feed Algorithm Yönetimi
+- **Scoring weights** - Base, vibe, intent, social graph ağırlıkları
+- **Vibe parameters** - Mood uyumluluk matrisi ayarları
+- **Intent parameters** - Intent-content type eşleştirme
+- **Diversity settings** - İçerik türü dağılımı
+- **A/B testing** - Algoritma deneyleri
 
-### 2. Analytics Dashboard (Analitik Paneli)
-- **Feed metrics** - Engagement, dwell time, session length
-- **Content performance** - Trending posts, viral content
-- **User behavior** - Activity patterns, content preferences
-- **Algorithm metrics** - Vibe Match success, Intent Match conversion
-- **Real-time stats** - Active users, live feed activity
+### 2. Content Moderation
+- **Moderation queue** - AI tarafından işaretlenen içerikler
+- **Manual review** - Manuel inceleme gerektiren içerikler
+- **Bulk actions** - Toplu onaylama/reddetme/gizleme
+- **AI scores** - Toxicity, NSFW, spam skorları
+- **User reports** - Kullanıcı şikayetleri
 
-### 3. Algorithm Management (Algoritma Yönetimi)
-- **Scoring weights** - Base, vibe, intent, social graph weights
-- **Vibe parameters** - Mood compatibility matrix
-- **Intent parameters** - Intent-content type matrix
-- **Diversity settings** - Content type distribution
-- **A/B testing** - Experiment management
+### 3. Feed Analytics
+- **Engagement metrics** - Like, comment, share oranları
+- **Algorithm performance** - Vibe/Intent match başarı oranları
+- **Content distribution** - İçerik türü dağılımı
+- **User behavior** - Dwell time, scroll depth
+- **Daily snapshots** - Günlük performans raporları
 
-### 4. Notification Management (Bildirim Yönetimi)
+### 4. Notification Management ✅ (Mevcut Sistem)
 - **Bulk notifications** - Toplu bildirim gönderme
 - **Scheduled notifications** - Zamanlanmış bildirimler
 - **Templates** - Bildirim şablonları
-- **Campaigns** - Kampanya yönetimi
+- **History** - Bildirim geçmişi
 - **Analytics** - Delivery, open, click rates
+- **Cleanup** - Eski bildirimleri temizleme
 
-### 5. User Management (Kullanıcı Yönetimi)
+### 5. User Management ✅ (Mevcut Sistem)
 - **User profiles** - Profil görüntüleme ve düzenleme
-- **Shadow monitoring** - Shadow profile tracking
-- **Session tracking** - Active sessions, device info
-- **Lock/unlock** - Kullanıcı kilitleme işlemleri
-- **Rate limiting** - Rate limit configuration
+- **Creators** - Creator kullanıcıları yönetimi
+- **Banned users** - Yasaklı kullanıcılar
+- **User detail modal** - Detaylı kullanıcı bilgisi
+
+### 6. Shadow Profile Monitoring ✅ (Mevcut Sistem)
+- **Shadow users** - Shadow profil kullanıcıları
+- **Sessions** - Aktif oturumlar
+- **Audit logs** - İşlem logları
+- **Anomalies** - Anormal davranış tespiti
+- **Rate limits** - Rate limit konfigürasyonu
+- **Config** - Shadow sistem ayarları
 
 ---
 
 ## 📖 Döküman İndeksi
 
-### 1. [01-WEB-OPS-ARCHITECTURE.md](./01-WEB-OPS-ARCHITECTURE.md)
-**Web Ops sistem mimarisi**
-- Next.js app structure
-- API routes
-- Component hierarchy
-- State management
-- Authentication & authorization
-
-### 2. [02-WEB-OPS-PAGES.md](./02-WEB-OPS-PAGES.md)
-**Ops panel sayfaları ve UI**
-- Dashboard (overview)
-- Content Moderation
-- Analytics
-- Algorithm Settings
-- Notifications
-- Users
-- Settings
-
-### 3. [03-WEB-OPS-COMPONENTS.md](./03-WEB-OPS-COMPONENTS.md)
-**Reusable components**
-- Layout components
-- Data tables
-- Charts & graphs
-- Modals & dialogs
-- Forms & inputs
-
-### 4. [04-WEB-OPS-API-ROUTES.md](./04-WEB-OPS-API-ROUTES.md)
-**Next.js API routes**
-- Content endpoints
-- Analytics endpoints
-- Algorithm endpoints
-- Notification endpoints
-- User endpoints
-
-### 5. [05-WEB-OPS-DATABASE.md](./05-WEB-OPS-DATABASE.md)
-**Ops-specific database tables**
-- notification_campaigns
-- notification_templates
-- notification_logs
-- algorithm_configs
-- moderation_queue
-- audit_logs
-
-### 6. [06-WEB-OPS-EDGE-FUNCTIONS.md](./06-WEB-OPS-EDGE-FUNCTIONS.md)
-**Supabase Edge Functions**
-- bulk-notification
-- scheduled-notification
-- cleanup-notifications
-- moderate-content-batch
-- generate-analytics
-
-### 7. [07-WEB-OPS-INTEGRATION.md](./07-WEB-OPS-INTEGRATION.md)
-**Mevcut sistemlerle entegrasyon**
-- Notification system integration
-- Shadow profile integration
-- Session tracking integration
-- Analytics integration
+| Döküman                                                    | Açıklama                         |
+| ---------------------------------------------------------- | -------------------------------- |
+| [WEB-OPS-TODO.md](./WEB-OPS-TODO.md)                       | **Todo List** - Tüm yapılacaklar |
+| [01-WEB-OPS-ARCHITECTURE.md](./01-WEB-OPS-ARCHITECTURE.md) | Sistem mimarisi                  |
+| [05-WEB-OPS-DATABASE.md](./05-WEB-OPS-DATABASE.md)         | Database tabloları               |
 
 ---
 
-## 🏗️ Klasör Yapısı
+## 🗄️ Database Tabloları (Home Feed Ops)
 
-```
-apps/web/
-├── app/
-│   ├── (auth)/
-│   │   └── login/
-│   ├── (ops)/
-│   │   ├── layout.tsx                    # Ops layout
-│   │   ├── page.tsx                      # Dashboard
-│   │   ├── content/
-│   │   │   ├── page.tsx                  # Content moderation
-│   │   │   ├── posts/
-│   │   │   ├── mini-posts/
-│   │   │   ├── voice-moments/
-│   │   │   └── polls/
-│   │   ├── analytics/
-│   │   │   ├── page.tsx                  # Analytics dashboard
-│   │   │   ├── feed/
-│   │   │   ├── users/
-│   │   │   └── content/
-│   │   ├── algorithm/
-│   │   │   ├── page.tsx                  # Algorithm settings
-│   │   │   ├── weights/
-│   │   │   ├── vibe/
-│   │   │   └── intent/
-│   │   ├── notifications/
-│   │   │   ├── page.tsx                  # Notification management
-│   │   │   ├── send/
-│   │   │   ├── scheduled/
-│   │   │   ├── templates/
-│   │   │   └── campaigns/
-│   │   ├── users/
-│   │   │   ├── page.tsx                  # User management
-│   │   │   ├── [userId]/
-│   │   │   └── sessions/
-│   │   └── settings/
-│   │       └── page.tsx                  # System settings
-│   └── api/
-│       └── ops/
-│           ├── content/
-│           ├── analytics/
-│           ├── algorithm/
-│           ├── notifications/
-│           └── users/
-├── components/
-│   └── ops/
-│       ├── layout/
-│       ├── content/
-│       ├── analytics/
-│       ├── algorithm/
-│       ├── notifications/
-│       └── users/
-└── lib/
-    └── ops/
-        ├── api.ts
-        ├── types.ts
-        └── utils.ts
-```
+### Mevcut Tablolar
+
+| Tablo                    | Amaç                                                       | Durum |
+| ------------------------ | ---------------------------------------------------------- | ----- |
+| `algorithm_configs`      | Algoritma parametreleri (weights, vibe, intent, diversity) | ✅ Var |
+| `moderation_queue`       | İçerik moderasyon kuyruğu                                  | ✅ Var |
+| `feed_analytics`         | Günlük feed performans metrikleri                          | ✅ Var |
+| `notification_campaigns` | Toplu bildirim kampanyaları                                | ✅ Var |
+| `notification_templates` | Bildirim şablonları                                        | ✅ Var |
+| `notification_logs`      | Bildirim delivery logları                                  | ✅ Var |
 
 ---
 
-## 🎨 Design System (Web Ops)
+## ⚙️ Edge Functions (Home Feed)
 
-### Renk Paleti
+### Feed İşlemleri
+| Function                  | Amaç                            |
+| ------------------------- | ------------------------------- |
+| `get-feed`                | Ana feed endpoint (algorithmic) |
+| `calculate-feed-scores`   | Feed skorlama hesaplaması       |
+| `analyze-content-quality` | İçerik kalite analizi           |
 
-**Light Mode:**
+### Content İşlemleri
+| Function              | Amaç                |
+| --------------------- | ------------------- |
+| `create-post`         | Post oluşturma      |
+| `create-mini-post`    | Mini post oluşturma |
+| `create-poll`         | Anket oluşturma     |
+| `create-voice-moment` | Ses paylaşımı       |
+| `moderate-content`    | AI moderasyon       |
+
+### Interaction İşlemleri
+| Function                    | Amaç          |
+| --------------------------- | ------------- |
+| `like-post`                 | Post beğenme  |
+| `comment-post`              | Yorum yapma   |
+| `like-comment`              | Yorum beğenme |
+| `share-post`                | Paylaşma      |
+| `vote-poll` / `unvote-poll` | Anket oylama  |
+
+### User İşlemleri
+| Function            | Amaç                      |
+| ------------------- | ------------------------- |
+| `update-vibe`       | Kullanıcı mood güncelleme |
+| `update-intent`     | Dating intent güncelleme  |
+| `get-suggestions`   | Profil önerileri          |
+| `send-crystal-gift` | Dijital hediye gönderme   |
+
+---
+
+## 🎛️ Algoritma Yönetimi
+
+### Scoring Weights (algorithm_configs)
+
 ```typescript
-const opsColors = {
-  // Primary (Ops specific)
-  primary: '#3B82F6',        // Blue
-  primaryLight: '#93C5FD',   // Light blue
-  primaryDark: '#1E40AF',    // Dark blue
-  
-  // Status
-  success: '#10B981',        // Green
-  warning: '#F59E0B',        // Orange
-  error: '#EF4444',          // Red
-  info: '#3B82F6',           // Blue
-  
-  // Neutral
-  background: '#FFFFFF',
-  surface: '#F9FAFB',
-  border: '#E5E7EB',
-  
-  // Text
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-};
+// config_type: 'weights'
+interface ScoringWeights {
+  base: number;      // 0.30 - Temel ilgi skoru
+  vibe: number;      // 0.25 - Mood uyumu
+  intent: number;    // 0.25 - Intent eşleşmesi
+  social: number;    // 0.20 - Sosyal graf
+}
 ```
 
-**Dark Mode:**
+### Vibe Matrix (algorithm_configs)
+
 ```typescript
-const opsDarkColors = {
-  // Primary
-  primary: '#3B82F6',
-  primaryLight: '#60A5FA',
-  primaryDark: '#1E40AF',
-  
-  // Status
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
-  
-  // Neutral
-  background: '#111827',
-  surface: '#1F2937',
-  border: '#374151',
-  
-  // Text
-  textPrimary: '#F9FAFB',
-  textSecondary: '#D1D5DB',
-  textTertiary: '#9CA3AF',
-};
+// config_type: 'vibe'
+interface VibeMatrix {
+  energetic: { energetic: 1.0, social: 0.8, creative: 0.7, ... };
+  chill: { chill: 1.0, creative: 0.8, ... };
+  social: { social: 1.0, energetic: 0.8, ... };
+  creative: { creative: 1.0, chill: 0.8, ... };
+  adventurous: { adventurous: 1.0, energetic: 0.9, ... };
+}
 ```
 
----
+### Intent Matrix (algorithm_configs)
 
-## 🔐 Authentication & Authorization
-
-### Admin Roles
 ```typescript
-type AdminRole = 'super_admin' | 'admin' | 'moderator' | 'analyst';
-
-const permissions = {
-  super_admin: ['*'], // All permissions
-  admin: [
-    'content:read',
-    'content:moderate',
-    'users:read',
-    'users:manage',
-    'analytics:read',
-    'algorithm:read',
-    'algorithm:update',
-    'notifications:send',
-  ],
-  moderator: [
-    'content:read',
-    'content:moderate',
-    'users:read',
-  ],
-  analyst: [
-    'content:read',
-    'users:read',
-    'analytics:read',
-  ],
-};
+// config_type: 'intent'
+interface IntentMatrix {
+  meet_new: { post: 0.8, mini_post: 0.7, poll: 0.9, ... };
+  activity_partner: { post: 0.9, voice_moment: 0.8, ... };
+  flirt: { post: 0.9, mini_post: 0.8, ... };
+  serious_relationship: { post: 0.95, ... };
+}
 ```
 
-### RLS Policies
-```sql
--- Admin profiles can only be accessed by admins
-CREATE POLICY "Admins can view admin profiles"
-ON admin_profiles FOR SELECT
-USING (
-  auth.uid() IN (
-    SELECT id FROM admin_profiles WHERE is_active = true
-  )
-);
+### Diversity Settings (algorithm_configs)
 
--- Content moderation access
-CREATE POLICY "Moderators can view all content"
-ON posts FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM admin_profiles
-    WHERE id = auth.uid()
-    AND is_active = true
-  )
-);
-```
-
----
-
-## 📊 Component Standards
-
-### Türkçe Comment Zorunluluğu
-
-**✅ DOĞRU:**
 ```typescript
-/**
- * PostModerationCard Component
- * 
- * Amaç: Feed'deki post'ları moderasyon için görüntüler
- * 
- * Özellikler:
- * - Post preview (görsel, caption, user info)
- * - Moderasyon butonları (approve, reject, hide)
- * - AI moderation score gösterimi
- * - User report sayısı
- * 
- * Props:
- * - post: Post objesi (id, user, content, stats)
- * - onApprove: Approve callback
- * - onReject: Reject callback
- * - onHide: Hide callback
- * 
- * Kullanım:
- * <PostModerationCard
- *   post={post}
- *   onApprove={handleApprove}
- *   onReject={handleReject}
- * />
- */
-export const PostModerationCard = ({ post, onApprove, onReject, onHide }: Props) => {
-  // Post approval işlemi
-  // AI moderation score'u kontrol et, eğer > 0.8 ise otomatik approve
-  const handleApprove = async () => {
-    // ...
-  };
-  
-  return (
-    <Card>
-      {/* Post preview */}
-      <PostPreview post={post} />
-      
-      {/* Moderation actions */}
-      <div className="flex gap-2">
-        <Button onClick={handleApprove}>Onayla</Button>
-        <Button onClick={handleReject} variant="destructive">Reddet</Button>
-      </div>
-    </Card>
-  );
-};
+// config_type: 'diversity'
+interface DiversitySettings {
+  post: 10;           // Her 20 içerikte max 10 post
+  mini_post: 4;       // Her 20 içerikte max 4 mini post
+  voice_moment: 3;    // Her 20 içerikte max 3 voice moment
+  poll: 3;            // Her 20 içerikte max 3 anket
+}
 ```
 
-**❌ YANLIŞ:**
+---
+
+## �️ Content Moderation
+
+### Moderation Queue Yapısı
+
 ```typescript
-// No comments
-export const PostModerationCard = ({ post, onApprove }: Props) => {
-  const handleApprove = async () => {
-    // ...
-  };
+interface ModerationQueueItem {
+  id: string;
+  content_type: 'post' | 'mini_post' | 'voice_moment' | 'poll' | 'comment';
+  content_id: string;
+  user_id: string;
   
-  return <Card>...</Card>;
-};
+  // Öncelik ve sebep
+  priority: number;  // 0-10, yüksek = acil
+  reason: 'ai_flagged' | 'user_reported' | 'manual_review';
+  
+  // AI Skorları
+  toxicity_score: number;   // 0-1
+  nsfw_score: number;       // 0-1
+  spam_score: number;       // 0-1
+  
+  // Raporlar
+  report_count: number;
+  report_reasons: string[];
+  
+  // Durum
+  status: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'escalated';
+  reviewed_by?: string;
+  reviewed_at?: string;
+  resolution?: string;
+  notes?: string;
+}
+```
+
+### Moderasyon Akışı
+
+```
+1. İçerik Oluşturulur
+   ↓
+2. AI Moderasyon (moderate-content)
+   - toxicity_score > 0.7 → moderation_queue'ya ekle
+   - nsfw_score > 0.8 → moderation_queue'ya ekle
+   - spam_score > 0.6 → moderation_queue'ya ekle
+   ↓
+3. Ops Panel'de İnceleme
+   - Approve → is_hidden = false
+   - Reject → is_hidden = true, moderation_status = 'rejected'
+   - Escalate → priority artır, üst yöneticiye bildir
+   ↓
+4. Audit Log Kaydı
 ```
 
 ---
 
-## 🚀 Hızlı Başlangıç
+## 📊 Feed Analytics
 
-### 1. Environment Variables
-```bash
-# .env.local
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-OPENAI_API_KEY=your-openai-key
-```
+### Daily Snapshot (feed_analytics)
 
-### 2. Install Dependencies
-```bash
-cd apps/web
-pnpm install
-```
-
-### 3. Run Development Server
-```bash
-pnpm dev
-```
-
-### 4. Access Ops Panel
-```
-http://localhost:3000/ops
+```typescript
+interface FeedAnalytics {
+  date: string;
+  
+  // Engagement
+  total_views: number;
+  total_likes: number;
+  total_comments: number;
+  total_shares: number;
+  engagement_rate: number;  // (likes + comments + shares) / views
+  
+  // User Behavior
+  avg_dwell_time: number;      // saniye
+  avg_session_length: number;  // saniye
+  
+  // Content Distribution
+  posts_count: number;
+  mini_posts_count: number;
+  voice_moments_count: number;
+  polls_count: number;
+  
+  // Algorithm Performance
+  vibe_match_success_rate: number;   // 0-1
+  intent_match_success_rate: number; // 0-1
+}
 ```
 
 ---
 
-## 📝 Development Guidelines
+## 🏗️ Ops Panel Sayfa Yapısı
 
-### 1. Component Structure
-- Her component kendi klasöründe
-- index.tsx + types.ts + styles (if needed)
-- Türkçe comment zorunlu
-- Props interface tanımla
+### Mevcut Sayfalar ✅
 
-### 2. API Routes
-- `/app/api/ops/` altında organize et
-- Error handling ekle
-- Rate limiting uygula
-- Admin auth check yap
+```
+/ops/(private)/
+├── page.tsx                    # Dashboard
+├── content/
+│   └── page.tsx               # İçerik moderasyonu (temel)
+├── notifications/              # ✅ Bildirim yönetimi
+│   ├── page.tsx               # Overview
+│   ├── send/                  # Bildirim gönderme
+│   ├── templates/             # Şablonlar
+│   ├── history/               # Geçmiş
+│   ├── analytics/             # Analytics
+│   └── cleanup/               # Temizlik
+├── users/                      # ✅ Kullanıcı yönetimi
+│   ├── page.tsx               # Kullanıcı listesi
+│   ├── creators/              # Creator'lar
+│   └── banned/                # Yasaklı kullanıcılar
+├── shadow/                     # ✅ Shadow profil yönetimi
+│   ├── page.tsx               # Overview
+│   ├── users/                 # Shadow kullanıcılar
+│   ├── sessions/              # Aktif oturumlar
+│   ├── audit-logs/            # İşlem logları
+│   ├── anomalies/             # Anomali tespiti
+│   ├── rate-limits/           # Rate limit config
+│   ├── config/                # Sistem config
+│   └── analytics/             # Shadow analytics
+├── economy/                    # ✅ Ekonomi yönetimi
+├── security/                   # Güvenlik
+├── settings/                   # Ayarlar
+└── account/                    # Hesap
+```
 
-### 3. Database Operations
-- Supabase client kullan
-- RLS policies'e uy
-- Transaction kullan (gerekirse)
-- Error handling ekle
+### Yapılacak Sayfalar (Home Feed Ops) 🆕
 
-### 4. Edge Functions
-- Supabase MCP server kullan
-- Deno runtime
-- Type-safe
-- Error handling
+```
+/ops/(private)/
+├── feed/                      # 🆕 Feed yönetimi
+│   ├── page.tsx              # Feed overview
+│   ├── algorithm/            # Algoritma ayarları
+│   │   ├── page.tsx          # Algorithm overview
+│   │   ├── weights/          # Scoring weights
+│   │   ├── vibe/             # Vibe matrix
+│   │   ├── intent/           # Intent matrix
+│   │   └── diversity/        # Diversity settings
+│   ├── moderation/           # Content moderation (Home Feed)
+│   │   ├── page.tsx          # Moderation overview
+│   │   ├── queue/            # Moderation queue
+│   │   └── reports/          # User reports
+│   ├── analytics/            # Feed analytics
+│   │   ├── page.tsx          # Analytics overview
+│   │   ├── engagement/       # Engagement metrics
+│   │   ├── content/          # Content distribution
+│   │   └── algorithm/        # Algorithm performance
+│   ├── experiments/          # A/B Testing
+│   │   ├── page.tsx          # Experiments list
+│   │   └── [id]/             # Experiment detail
+│   └── live/                 # Real-time stats
+│       └── page.tsx          # Live dashboard
+```
 
 ---
 
-## 🔗 Bağlantılar
+## 🔗 İlgili Dökümanlar
 
-- [Main Feed Docs](../)
-- [Notification System Docs](../../bildirim-sistemi/)
-- [Shadow Profile Docs](../../shadow-profile/)
-- [Next.js Docs](https://nextjs.org/docs)
-- [Supabase Docs](https://supabase.com/docs)
+- [Home Feed System Architecture](../01-SYSTEM-ARCHITECTURE.md)
+- [Database Schema](../02-DATABASE-SCHEMA.md)
+- [Algorithm & Scoring](../05-ALGORITHM-SCORING.md)
+- [Security & Moderation](../06-SECURITY-MODERATION.md)
+- [Feed System Todo List](../feed-system-todo-list.md)
 
 ---
 
-**© 2025 İpelya - Web Ops Documentation**
+**Son Güncelleme:** 2025-11-27
+**Durum:** Döküman güncellendi ✅

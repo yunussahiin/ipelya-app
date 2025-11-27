@@ -8,28 +8,30 @@ import data from "../data.json";
 
 export default async function Page() {
   const supabase = await createServerSupabaseClient();
+
+  // getUser() kullan - getSession() güvenli değil
   const {
-    data: { session }
-  } = await supabase.auth.getSession();
+    data: { user }
+  } = await supabase.auth.getUser();
 
   // Kullanıcı profil bilgilerini çek (role-based)
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
-    .eq("user_id", session?.user.id)
+    .eq("user_id", user?.id)
     .single();
 
   // Admin metadata'sını çek (opsiyonel)
   const { data: adminMeta } = await supabase
     .from("admin_profiles")
     .select("*")
-    .eq("id", session?.user.id)
+    .eq("id", user?.id)
     .single();
 
   return (
     <>
       {/* Kullanıcı Bilgileri Kartı */}
-      <AdminProfileCard session={session} profile={profile} adminMeta={adminMeta} />
+      <AdminProfileCard user={user} profile={profile} adminMeta={adminMeta} />
 
       <SectionCards />
       <div>

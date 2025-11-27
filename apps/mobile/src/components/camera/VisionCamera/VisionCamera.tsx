@@ -22,7 +22,7 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { View, StyleSheet, StatusBar, Alert } from "react-native";
+import { View, StyleSheet, StatusBar, Alert, useWindowDimensions, Text } from "react-native";
 import {
   Camera,
   useCameraDevice,
@@ -67,7 +67,11 @@ import {
 } from "./components";
 
 // Hooks
-import { useCameraSettings } from "./hooks";
+import { useCameraSettings, useFaceCamera } from "./hooks";
+
+// Face Effects
+import { FaceEffectOverlay } from "./components/face-effects/FaceEffectOverlay";
+import { EffectCarousel } from "./components/face-effects/EffectCarousel";
 
 // Animated Camera component
 const ReanimatedCamera = Animated.createAnimatedComponent(Camera);
@@ -78,16 +82,21 @@ const LOG_PREFIX = "[VisionCamera]";
 
 export function VisionCamera({
   mode = "photo",
-  initialPosition = "back",
+  initialPosition = "front", // Selfie için default front
   enableAudio = true,
   showControls = true,
   onCapture,
   onClose,
   onError,
   maxVideoDuration = 60,
-  style
+  style,
+  // Face Effects Props - Default aktif
+  enableFaceEffects = true,
+  showFaceEffectSelector = true,
+  faceDetectionPerformance = "fast"
 }: VisionCameraProps) {
   const { colors } = useTheme();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const cameraRef = useRef<Camera>(null);
 
   // Component mount log
@@ -137,6 +146,36 @@ export function VisionCamera({
   const [showSettings, setShowSettings] = useState(false);
   const [cameraSettings, setCameraSettings] = useState<CameraSettings>(DEFAULT_CAMERA_SETTINGS);
   const [previewMedia, setPreviewMedia] = useState<CapturedMedia | null>(null);
+
+  // =============================================
+  // FACE EFFECTS
+  // =============================================
+  const {
+    faces,
+    frameProcessor,
+    activeEffects,
+    selectedEffectId,
+    carouselEffects,
+    selectEffect,
+    faceDetectionError,
+    frameSize
+  } = useFaceCamera({
+    enabled: enableFaceEffects,
+    performanceMode: faceDetectionPerformance,
+    maxFaces: 1
+  });
+
+  // Face effects debug log
+  useEffect(() => {
+    console.log(`${LOG_PREFIX} Face Effects State:`, {
+      enableFaceEffects,
+      facesCount: faces.length,
+      activeEffectsCount: activeEffects.length,
+      selectedEffectId,
+      carouselEffectsCount: carouselEffects.length,
+      activeEffects: activeEffects.map((e) => e.id)
+    });
+  }, [enableFaceEffects, faces.length, activeEffects, selectedEffectId, carouselEffects.length]);
 
   // =============================================
   // SYNC PERSISTED SETTINGS ON LOAD
@@ -770,6 +809,7 @@ export function VisionCamera({
           lowLightBoost={device?.supportsLowLightBoost ?? false}
           photoQualityBalance="quality"
           outputOrientation="device"
+          frameProcessor={enableFaceEffects ? frameProcessor : undefined}
           onInitialized={() => {
             console.log(`${LOG_PREFIX} Camera initialized`);
           }}
@@ -810,25 +850,29 @@ export function VisionCamera({
             />
           )}
 
-          {/* Alt Kontroller */}
-          <BottomControls
-            currentMode={currentMode}
-            onModeChange={handleModeChange}
-            isRecording={isRecording}
-            isCapturing={isCapturing}
-            onCapture={handleCapture}
-            onFlipCamera={toggleCameraPosition}
-            accentColor={colors.accent}
-          />
+          {/* Alt Kontroller - Face effects kapalıyken göster */}
+          {!enableFaceEffects && (
+            <BottomControls
+              currentMode={currentMode}
+              onModeChange={handleModeChange}
+              isRecording={isRecording}
+              isCapturing={isCapturing}
+              onCapture={handleCapture}
+              onFlipCamera={toggleCameraPosition}
+              accentColor={colors.accent}
+            />
+          )}
 
-          {/* Zoom Göstergesi */}
-          <ZoomIndicator
-            zoom={currentZoom}
-            onZoomChange={handleZoomChange}
-            minZoom={device.minZoom}
-            maxZoom={device.maxZoom}
-            neutralZoom={device.neutralZoom}
-          />
+          {/* Zoom Göstergesi - Face effects kapalıyken göster */}
+          {!enableFaceEffects && (
+            <ZoomIndicator
+              zoom={currentZoom}
+              onZoomChange={handleZoomChange}
+              minZoom={device.minZoom}
+              maxZoom={device.maxZoom}
+              neutralZoom={device.neutralZoom}
+            />
+          )}
 
           {/* Focus Göstergesi */}
           {focusPoint && <FocusIndicator point={focusPoint} />}
@@ -836,6 +880,59 @@ export function VisionCamera({
           {/* Exposure Göstergesi */}
           <ExposureIndicator value={exposureDisplay} />
         </>
+      )}
+
+      {/* Face Effects Overlay */}
+      {enableFaceEffects && faces.length > 0 && (
+        <FaceEffectOverlay
+          faces={faces}
+          effects={activeEffects}
+          width={screenWidth}
+          height={screenHeight}
+          cameraPosition={cameraPosition === "external" ? "back" : cameraPosition}
+          frameSize={frameSize}
+        />
+      )}
+
+      {/* Debug Overlay - Development Only */}
+      {enableFaceEffects && __DEV__ && (
+        <View style={styles.debugOverlay}>
+          <View
+            style={[
+              styles.debugBadge,
+              { backgroundColor: faces.length > 0 ? "#4CAF50" : "#FF5722" }
+            ]}
+          >
+            <Text style={styles.debugText}>
+              {faces.length > 0 ? `👤 ${faces.length} yüz` : "⚠️ Yüz yok"}
+            </Text>
+          </View>
+          {activeEffects.length > 0 && (
+            <View style={[styles.debugBadge, { backgroundColor: colors.accent }]}>
+              <Text style={styles.debugText}>✨ {activeEffects.map((e) => e.name).join(", ")}</Text>
+            </View>
+          )}
+          {faceDetectionError && (
+            <View style={[styles.debugBadge, { backgroundColor: "#F44336" }]}>
+              <Text style={styles.debugText}>❌ {faceDetectionError}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Face Effect Carousel (Instagram tarzı) */}
+      {enableFaceEffects && showFaceEffectSelector && !isRecording && (
+        <EffectCarousel
+          effects={carouselEffects}
+          selectedEffectId={selectedEffectId}
+          onSelectEffect={selectEffect}
+          onCapture={handleCapture}
+          isRecording={isRecording}
+          isCapturing={isCapturing}
+          currentMode={currentMode}
+          onModeChange={handleModeChange}
+          onFlipCamera={toggleCameraPosition}
+        />
       )}
 
       {/* Settings Sheet */}
@@ -853,6 +950,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000"
+  },
+  debugOverlay: {
+    position: "absolute",
+    top: 120,
+    left: 16,
+    gap: 8,
+    zIndex: 200
+  },
+  debugBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    maxWidth: 250
+  },
+  debugText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600"
   }
 });
 

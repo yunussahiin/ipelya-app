@@ -1,0 +1,34 @@
+<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="frameBlack" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#444"/>
+      <stop offset="40%" stop-color="#111"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="lensDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#332244" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="reflection" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#fff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sol cam (merkez x=50) -->
+  <ellipse cx="50" cy="40" rx="38" ry="28" fill="url(#lensDark)" stroke="url(#frameBlack)" stroke-width="4"/>
+  <ellipse cx="40" cy="32" rx="14" ry="8" fill="url(#reflection)"/>
+  
+  <!-- Sağ cam (merkez x=150) -->
+  <ellipse cx="150" cy="40" rx="38" ry="28" fill="url(#lensDark)" stroke="url(#frameBlack)" stroke-width="4"/>
+  <ellipse cx="140" cy="32" rx="14" ry="8" fill="url(#reflection)"/>
+  
+  <!-- Köprü (merkez x=100) -->
+  <path d="M88 40 Q100 30 112 40" stroke="url(#frameBlack)" stroke-width="5" fill="none"/>
+  
+  <!-- Kulak kolları -->
+  <line x1="12" y1="22" x2="2" y2="18" stroke="url(#frameBlack)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="188" y1="22" x2="198" y2="18" stroke="url(#frameBlack)" stroke-width="4" stroke-linecap="round"/>
+</svg>
+

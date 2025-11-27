@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Session } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
 
 interface Profile {
   id?: string;
@@ -9,7 +9,7 @@ interface Profile {
   role?: string;
   created_at?: string;
   updated_at?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AdminMeta {
@@ -20,16 +20,16 @@ interface AdminMeta {
   role?: string;
   permissions?: string[];
   last_activity?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-interface AdminProfileCardProps {
-  session: Session | null;
+export interface AdminProfileCardProps {
+  user: User | null;
   profile: Profile | null;
   adminMeta: AdminMeta | null;
 }
 
-export function AdminProfileCard({ session, profile, adminMeta }: AdminProfileCardProps) {
+export function AdminProfileCard({ user, profile, adminMeta }: AdminProfileCardProps) {
   const isActive = profile?.role === "admin" && adminMeta?.is_active !== false;
 
   return (
@@ -37,7 +37,7 @@ export function AdminProfileCard({ session, profile, adminMeta }: AdminProfileCa
       <Card className="border-violet-500/20 bg-gradient-to-br from-slate-900 to-slate-800">
         <CardHeader>
           <CardTitle className="text-2xl text-white">
-            Hoş Geldin, {profile?.display_name || adminMeta?.full_name || session?.user.email}! 👋
+            Hoş Geldin, {profile?.display_name || adminMeta?.full_name || user?.email}! 👋
           </CardTitle>
           <CardDescription className="text-slate-400">
             İpelya Ops yönetici paneline giriş yaptın
@@ -48,11 +48,11 @@ export function AdminProfileCard({ session, profile, adminMeta }: AdminProfileCa
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-400">User ID</p>
-              <p className="font-mono text-sm text-white">{session?.user.id}</p>
+              <p className="font-mono text-sm text-white">{user?.id}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-400">E-posta</p>
-              <p className="text-sm text-white">{session?.user.email}</p>
+              <p className="text-sm text-white">{user?.email}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-400">Ad Soyad</p>
@@ -159,21 +159,19 @@ export function AdminProfileCard({ session, profile, adminMeta }: AdminProfileCa
             <div className="space-y-2 text-xs text-slate-400">
               <div className="flex justify-between">
                 <span>Provider:</span>
-                <span className="font-mono text-slate-300">
-                  {session?.user.app_metadata.provider}
-                </span>
+                <span className="font-mono text-slate-300">{user?.app_metadata?.provider}</span>
               </div>
               <div className="flex justify-between">
                 <span>Email Verified:</span>
                 <span className="font-mono text-slate-300">
-                  {session?.user.email_confirmed_at ? "✓ Evet" : "✗ Hayır"}
+                  {user?.email_confirmed_at ? "✓ Evet" : "✗ Hayır"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Son Giriş:</span>
                 <span className="font-mono text-slate-300">
-                  {session?.user.last_sign_in_at
-                    ? new Date(session.user.last_sign_in_at).toLocaleString("tr-TR")
+                  {user?.last_sign_in_at
+                    ? new Date(user.last_sign_in_at).toLocaleString("tr-TR")
                     : "-"}
                 </span>
               </div>

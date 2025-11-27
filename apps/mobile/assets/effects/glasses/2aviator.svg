@@ -1,0 +1,26 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lens" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a1a" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#333" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Sol cam -->
+  <ellipse cx="50" cy="40" rx="40" ry="28" fill="url(#lens)" stroke="#222" stroke-width="3"/>
+  <ellipse cx="42" cy="32" rx="12" ry="6" fill="white" fill-opacity="0.2"/>
+  
+  <!-- Sağ cam -->
+  <ellipse cx="150" cy="40" rx="40" ry="28" fill="url(#lens)" stroke="#222" stroke-width="3"/>
+  <ellipse cx="142" cy="32" rx="12" ry="6" fill="white" fill-opacity="0.2"/>
+  
+  <!-- Köprü -->
+  <path d="M90 40 Q100 32 110 40" stroke="#222" stroke-width="4" fill="none"/>
+  
+  <!-- Sol kulak kolu -->
+  <line x1="10" y1="20" x2="0" y2="15" stroke="#222" stroke-width="3"/>
+  
+  <!-- Sağ kulak kolu -->
+  <line x1="190" y1="20" x2="200" y2="15" stroke="#222" stroke-width="3"/>
+</svg>
+

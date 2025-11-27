@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="100" viewBox="0 0 200 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dog Ears (Floppy) -->
+  <!-- Left Ear -->
+  <ellipse cx="35" cy="50" rx="25" ry="40" fill="#8B4513" transform="rotate(-20 35 50)"/>
+  <ellipse cx="35" cy="50" rx="25" ry="40" stroke="#654321" stroke-width="2" transform="rotate(-20 35 50)"/>
+  <!-- Inner Left Ear -->
+  <ellipse cx="38" cy="55" rx="12" ry="25" fill="#D2691E" transform="rotate(-20 38 55)"/>
+  
+  <!-- Right Ear -->
+  <ellipse cx="165" cy="50" rx="25" ry="40" fill="#8B4513" transform="rotate(20 165 50)"/>
+  <ellipse cx="165" cy="50" rx="25" ry="40" stroke="#654321" stroke-width="2" transform="rotate(20 165 50)"/>
+  <!-- Inner Right Ear -->
+  <ellipse cx="162" cy="55" rx="12" ry="25" fill="#D2691E" transform="rotate(20 162 55)"/>
+  
+  <!-- Nose -->
+  <ellipse cx="100" cy="85" rx="12" ry="8" fill="#1a1a1a"/>
+  <ellipse cx="97" cy="82" rx="3" ry="2" fill="white" fill-opacity="0.3"/>
+  
+  <!-- Tongue -->
+  <ellipse cx="100" cy="95" rx="8" ry="5" fill="#FF69B4"/>
+</svg>

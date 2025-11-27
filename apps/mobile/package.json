@@ -33,6 +33,7 @@
     "expo-battery": "~10.0.7",
     "expo-blur": "~15.0.7",
     "expo-brightness": "~14.0.7",
+    "expo-build-properties": "~1.0.9",
     "expo-camera": "~17.0.9",
     "expo-clipboard": "~8.0.7",
     "expo-constants": "~18.0.10",
@@ -85,6 +86,7 @@
     "react-native-vision-camera-face-detector": "^1.9.1",
     "react-native-web": "~0.21.2",
     "react-native-worklets": "0.5.1",
+    "react-native-worklets-core": "^1.6.2",
     "reanimated-color-picker": "^4.1.1",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"

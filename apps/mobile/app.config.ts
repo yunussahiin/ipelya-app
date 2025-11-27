@@ -63,7 +63,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-local-authentication",
       {
-        faceIDPermission: "Shadow profiline erişim için Face ID gereklidir"
+        faceIDPermission: "Shadow profiline erişim için Face ID gereklidir."
       }
     ],
     [
@@ -80,7 +80,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         cameraPermissionText: "İçerik oluşturmak için kamera erişimi gereklidir.",
         enableMicrophonePermission: true,
-        microphonePermissionText: "Video kaydetmek için mikrofon erişimi gereklidir."
+        microphonePermissionText: "Video kaydetmek için mikrofon erişimi gereklidir.",
+        enableFrameProcessors: true
       }
     ],
     [
@@ -88,6 +89,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission: "Fotoğraf ve video seçmek için galeri erişimi gereklidir.",
         savePhotosPermission: "Çekilen fotoğrafları kaydetmek için izin gereklidir."
+      }
+    ],
+    [
+      "expo-build-properties",
+      {
+        ios: {
+          deploymentTarget: "15.5"
+        }
       }
     ]
   ],

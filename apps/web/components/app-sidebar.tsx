@@ -14,7 +14,8 @@ import {
   IconShield,
   IconUsers,
   IconBell,
-  IconMask
+  IconMask,
+  IconNews
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -54,6 +55,37 @@ const data = {
         {
           title: "Yasaklılar",
           url: "/ops/users/banned"
+        }
+      ]
+    },
+    {
+      title: "Feed",
+      url: "/ops/feed",
+      icon: IconNews,
+      items: [
+        {
+          title: "Genel Bakış",
+          url: "/ops/feed"
+        },
+        {
+          title: "Feed Viewer",
+          url: "/ops/feed/viewer"
+        },
+        {
+          title: "Algoritma",
+          url: "/ops/feed/algorithm"
+        },
+        {
+          title: "Moderasyon",
+          url: "/ops/feed/moderation"
+        },
+        {
+          title: "Moderasyon Logları",
+          url: "/ops/feed/moderation/logs"
+        },
+        {
+          title: "Analytics",
+          url: "/ops/feed/analytics"
         }
       ]
     },

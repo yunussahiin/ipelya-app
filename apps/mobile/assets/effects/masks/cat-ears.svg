@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="100" viewBox="0 0 200 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cat Ears -->
+  <!-- Left Ear -->
+  <path d="M30 80 L15 20 L60 50 Z" fill="#FFA07A"/>
+  <path d="M30 80 L15 20 L60 50 Z" stroke="#FF8C69" stroke-width="2"/>
+  <!-- Inner Left Ear -->
+  <path d="M32 70 L22 30 L52 50 Z" fill="#FFB6C1"/>
+  
+  <!-- Right Ear -->
+  <path d="M170 80 L185 20 L140 50 Z" fill="#FFA07A"/>
+  <path d="M170 80 L185 20 L140 50 Z" stroke="#FF8C69" stroke-width="2"/>
+  <!-- Inner Right Ear -->
+  <path d="M168 70 L178 30 L148 50 Z" fill="#FFB6C1"/>
+  
+  <!-- Whiskers Left -->
+  <line x1="60" y1="75" x2="20" y2="70" stroke="#333" stroke-width="1.5"/>
+  <line x1="60" y1="80" x2="20" y2="80" stroke="#333" stroke-width="1.5"/>
+  <line x1="60" y1="85" x2="20" y2="90" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Whiskers Right -->
+  <line x1="140" y1="75" x2="180" y2="70" stroke="#333" stroke-width="1.5"/>
+  <line x1="140" y1="80" x2="180" y2="80" stroke="#333" stroke-width="1.5"/>
+  <line x1="140" y1="85" x2="180" y2="90" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Nose -->
+  <ellipse cx="100" cy="78" rx="8" ry="5" fill="#FF69B4"/>
+</svg>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sparkle Effect Frame -->
+  <!-- Top Left Sparkles -->
+  <polygon points="20,20 22,25 27,25 23,28 25,33 20,30 15,33 17,28 13,25 18,25" fill="#FFD700"/>
+  <polygon points="40,10 41,13 44,13 42,15 43,18 40,16 37,18 38,15 36,13 39,13" fill="#FFD700" fill-opacity="0.8"/>
+  <polygon points="15,45 16,47 18,47 17,48 17,50 15,49 13,50 13,48 12,47 14,47" fill="#FFD700" fill-opacity="0.6"/>
+  
+  <!-- Top Right Sparkles -->
+  <polygon points="180,20 182,25 187,25 183,28 185,33 180,30 175,33 177,28 173,25 178,25" fill="#FFD700"/>
+  <polygon points="160,10 161,13 164,13 162,15 163,18 160,16 157,18 158,15 156,13 159,13" fill="#FFD700" fill-opacity="0.8"/>
+  <polygon points="185,45 186,47 188,47 187,48 187,50 185,49 183,50 183,48 182,47 184,47" fill="#FFD700" fill-opacity="0.6"/>
+  
+  <!-- Bottom Left Sparkles -->
+  <polygon points="20,180 22,185 27,185 23,188 25,193 20,190 15,193 17,188 13,185 18,185" fill="#FFD700"/>
+  <polygon points="40,190 41,193 44,193 42,195 43,198 40,196 37,198 38,195 36,193 39,193" fill="#FFD700" fill-opacity="0.8"/>
+  
+  <!-- Bottom Right Sparkles -->
+  <polygon points="180,180 182,185 187,185 183,188 185,193 180,190 175,193 177,188 173,185 178,185" fill="#FFD700"/>
+  <polygon points="160,190 161,193 164,193 162,195 163,198 160,196 157,198 158,195 156,193 159,193" fill="#FFD700" fill-opacity="0.8"/>
+  
+  <!-- Center Sparkles -->
+  <circle cx="100" cy="30" r="3" fill="#FFD700" fill-opacity="0.5"/>
+  <circle cx="100" cy="170" r="3" fill="#FFD700" fill-opacity="0.5"/>
+  <circle cx="30" cy="100" r="3" fill="#FFD700" fill-opacity="0.5"/>
+  <circle cx="170" cy="100" r="3" fill="#FFD700" fill-opacity="0.5"/>
+</svg>

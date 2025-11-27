@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="80" viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Heart Sunglasses -->
+  <!-- Left Heart Lens -->
+  <path d="M55 55 C35 35 35 20 55 25 C75 20 75 35 55 55" fill="#FF1493" fill-opacity="0.5"/>
+  <path d="M55 55 C35 35 35 20 55 25 C75 20 75 35 55 55" stroke="#FF1493" stroke-width="2"/>
+  
+  <!-- Right Heart Lens -->
+  <path d="M145 55 C125 35 125 20 145 25 C165 20 165 35 145 55" fill="#FF1493" fill-opacity="0.5"/>
+  <path d="M145 55 C125 35 125 20 145 25 C165 20 165 35 145 55" stroke="#FF1493" stroke-width="2"/>
+  
+  <!-- Bridge -->
+  <path d="M75 30 Q100 25 125 30" stroke="#FF1493" stroke-width="2" fill="none"/>
+  
+  <!-- Left Temple -->
+  <line x1="35" y1="25" x2="10" y2="20" stroke="#FF1493" stroke-width="2"/>
+  
+  <!-- Right Temple -->
+  <line x1="165" y1="25" x2="190" y2="20" stroke="#FF1493" stroke-width="2"/>
+  
+  <!-- Sparkles -->
+  <circle cx="40" cy="22" r="2" fill="white" fill-opacity="0.8"/>
+  <circle cx="130" cy="22" r="2" fill="white" fill-opacity="0.8"/>
+</svg>
