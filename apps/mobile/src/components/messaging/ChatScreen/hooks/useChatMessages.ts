@@ -75,7 +75,9 @@ export function useChatMessages({
     }
     
     const uniqueMessages = Array.from(messageMap.values());
-    return toGiftedMessages(uniqueMessages);
+    const giftedMessages = toGiftedMessages(uniqueMessages);
+    
+    return giftedMessages;
   }, [data?.pages]);
 
   // Set active conversation on mount
@@ -279,6 +281,112 @@ export function useChatMessages({
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Add pending media message (shows immediately, doesn't send to API)
+  const addPendingMedia = useCallback(
+    (tempId: string, localUri: string, mediaType: "image" | "video") => {
+      queryClient.setQueryData(messageKeys.list(conversationId), (oldData: any) => {
+        if (!oldData?.pages?.[0]) return oldData;
+
+        const pendingMessage = {
+          id: tempId,
+          conversation_id: conversationId,
+          sender_id: userId || "",
+          sender_profile_id: null,
+          content: "",
+          content_type: mediaType,
+          media_url: localUri,
+          media_thumbnail_url: null,
+          media_metadata: null,
+          reply_to_id: null,
+          reply_to: null,
+          forwarded_from_id: null,
+          status: "uploading", // Special status for pending media
+          is_edited: false,
+          edited_at: null,
+          is_deleted: false,
+          deleted_at: null,
+          deleted_for: [],
+          is_flagged: false,
+          moderation_status: "approved",
+          is_shadow: false,
+          shadow_retention_days: 7,
+          is_deleted_for_user: false,
+          user_deleted_at: null,
+          admin_notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sender_profile: {
+            id: "",
+            display_name: userDisplayName || "Ben",
+            avatar_url: userAvatarUrl || null,
+            username: userUsername || "",
+          },
+        };
+
+        return {
+          ...oldData,
+          pages: [
+            {
+              ...oldData.pages[0],
+              data: [pendingMessage, ...oldData.pages[0].data],
+            },
+            ...oldData.pages.slice(1),
+          ],
+        };
+      });
+    },
+    [conversationId, userId, userDisplayName, userAvatarUrl, userUsername, queryClient]
+  );
+
+  // Update pending media message with real URL (smooth transition)
+  const updatePendingMedia = useCallback(
+    (tempId: string, realUrl: string) => {
+      queryClient.setQueryData(messageKeys.list(conversationId), (oldData: any) => {
+        if (!oldData?.pages?.[0]) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any, index: number) => {
+            if (index === 0) {
+              return {
+                ...page,
+                data: page.data.map((m: any) => {
+                  if (m.id === tempId) {
+                    return { ...m, media_url: realUrl, status: "uploaded" };
+                  }
+                  return m;
+                }),
+              };
+            }
+            return page;
+          }),
+        };
+      });
+    },
+    [conversationId, queryClient]
+  );
+
+  // Remove pending media message (on error only)
+  const removePendingMedia = useCallback(
+    (tempId: string) => {
+      queryClient.setQueryData(messageKeys.list(conversationId), (oldData: any) => {
+        if (!oldData?.pages?.[0]) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any, index: number) => {
+            if (index === 0) {
+              return {
+                ...page,
+                data: page.data.filter((m: any) => m.id !== tempId),
+              };
+            }
+            return page;
+          }),
+        };
+      });
+    },
+    [conversationId, queryClient]
+  );
+
   return {
     messages,
     isLoading,
@@ -287,5 +395,8 @@ export function useChatMessages({
     hasNextPage,
     onSend,
     onLoadEarlier,
+    addPendingMedia,
+    updatePendingMedia,
+    removePendingMedia,
   };
 }

@@ -47,9 +47,10 @@ export function useMessages(conversationId: string) {
       if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
 
       // Edge function ile mesajları getir
+      // İlk yüklemede 20 mesaj, sonraki sayfalarda da 20 mesaj
       const params = new URLSearchParams({
         conversation_id: conversationId,
-        limit: "50",
+        limit: "20",
       });
       if (pageParam) params.set("cursor", pageParam);
 

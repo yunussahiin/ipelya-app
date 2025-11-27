@@ -4,15 +4,25 @@
  * Video kayıt göstergesi
  * - Kırmızı nokta (pulse animasyonu)
  * - Süre göstergesi (00:00 formatı)
- * - Duraklatma durumu
+ * - Duraklatma/Devam/İptal butonları
  */
 
 import { memo, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, Animated } from "react-native";
-import { Pause } from "lucide-react-native";
+import { View, Text, StyleSheet, Animated, Pressable } from "react-native";
+import { Pause, Play, X, Camera } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 import type { RecordingIndicatorProps } from "../types";
 
-function RecordingIndicatorComponent({ duration, isPaused = false }: RecordingIndicatorProps) {
+const LOG_PREFIX = "[RecordingIndicator]";
+
+function RecordingIndicatorComponent({
+  duration,
+  isPaused = false,
+  onPause,
+  onResume,
+  onCancel,
+  onSnapshot
+}: RecordingIndicatorProps) {
   // Pulse animasyonu
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -52,8 +62,46 @@ function RecordingIndicatorComponent({ duration, isPaused = false }: RecordingIn
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  /**
+   * Pause/Resume handler
+   */
+  const handlePauseResume = () => {
+    console.log(`${LOG_PREFIX} Pause/Resume pressed, isPaused:`, isPaused);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isPaused) {
+      onResume?.();
+    } else {
+      onPause?.();
+    }
+  };
+
+  /**
+   * Cancel handler
+   */
+  const handleCancel = () => {
+    console.log(`${LOG_PREFIX} Cancel pressed`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onCancel?.();
+  };
+
+  /**
+   * Snapshot handler
+   */
+  const handleSnapshot = () => {
+    console.log(`${LOG_PREFIX} Snapshot pressed`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSnapshot?.();
+  };
+
   return (
     <View style={styles.container}>
+      {/* İptal butonu */}
+      {onCancel && (
+        <Pressable style={styles.actionButton} onPress={handleCancel}>
+          <X size={16} color="#FF3B30" />
+        </Pressable>
+      )}
+
       {/* Kırmızı nokta veya pause ikonu */}
       {isPaused ? (
         <Pause size={14} color="#FF3B30" fill="#FF3B30" />
@@ -66,6 +114,24 @@ function RecordingIndicatorComponent({ duration, isPaused = false }: RecordingIn
 
       {/* Duraklatma etiketi */}
       {isPaused && <Text style={styles.pausedText}>Duraklatıldı</Text>}
+
+      {/* Pause/Resume butonu */}
+      {(onPause || onResume) && (
+        <Pressable style={styles.actionButton} onPress={handlePauseResume}>
+          {isPaused ? (
+            <Play size={16} color="#FFF" fill="#FFF" />
+          ) : (
+            <Pause size={16} color="#FFF" fill="#FFF" />
+          )}
+        </Pressable>
+      )}
+
+      {/* Snapshot butonu */}
+      {onSnapshot && (
+        <Pressable style={styles.snapshotButton} onPress={handleSnapshot}>
+          <Camera size={18} color="#FFF" />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -78,7 +144,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 8
@@ -99,6 +165,24 @@ const styles = StyleSheet.create({
     color: "#FF3B30",
     fontSize: 12,
     fontWeight: "500"
+  },
+  actionButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  snapshotButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF"
   }
 });
 

@@ -3,15 +3,18 @@
  *
  * Amaç: Medya seçici (image, video, camera, file)
  * Tarih: 2025-11-26
+ *
+ * Kamera: VisionCamera component kullanır
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 // expo-document-picker requires development build, disabled for Expo Go
 // import * as DocumentPicker from "expo-document-picker";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { VisionCamera, type CapturedMedia } from "@/components/camera";
 
 // =============================================
 // TYPES
@@ -43,6 +46,7 @@ interface PickerOption {
 
 export function MediaPicker({ visible, onClose, onSelect }: MediaPickerProps) {
   const { colors } = useTheme();
+  const [showCamera, setShowCamera] = useState(false);
 
   // Fotoğraf seç
   const handlePickImage = useCallback(async () => {
@@ -83,27 +87,43 @@ export function MediaPicker({ visible, onClose, onSelect }: MediaPickerProps) {
     }
   }, [onSelect, onClose]);
 
-  // Kamera
-  const handleCamera = useCallback(async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) return;
+  // Kamera - VisionCamera aç
+  const handleCamera = useCallback(() => {
+    setShowCamera(true);
+  }, []);
 
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: true
-    });
+  // VisionCamera'dan medya yakalandığında
+  const handleCameraCapture = useCallback(
+    (media: CapturedMedia) => {
+      console.log("[MediaPicker] Camera capture received:", media);
 
-    if (!result.canceled && result.assets[0]) {
-      onSelect({
-        type: "image",
-        uri: result.assets[0].uri,
-        fileName: "camera.jpg",
-        mimeType: result.assets[0].mimeType,
-        fileSize: result.assets[0].fileSize
-      });
+      try {
+        // Normalize path - media.path zaten file:// ile başlıyorsa tekrar ekleme
+        const normalizedUri = media.path.startsWith("file://")
+          ? media.path
+          : `file://${media.path}`;
+
+        onSelect({
+          type: media.type === "photo" ? "image" : "video",
+          uri: normalizedUri,
+          fileName: media.type === "photo" ? "camera.jpg" : "camera.mp4",
+          mimeType: media.type === "photo" ? "image/jpeg" : "video/mp4"
+        });
+        console.log("[MediaPicker] onSelect called successfully, uri:", normalizedUri);
+      } catch (error) {
+        console.error("[MediaPicker] onSelect error:", error);
+      }
+
+      setShowCamera(false);
       onClose();
-    }
-  }, [onSelect, onClose]);
+    },
+    [onSelect, onClose]
+  );
+
+  // VisionCamera kapatıldığında
+  const handleCameraClose = useCallback(() => {
+    setShowCamera(false);
+  }, []);
 
   // Dosya seç (requires development build)
   const handlePickFile = useCallback(async () => {
@@ -137,6 +157,22 @@ export function MediaPicker({ visible, onClose, onSelect }: MediaPickerProps) {
     { icon: "videocam", label: "Video", onPress: handlePickVideo },
     { icon: "document", label: "Dosya", onPress: handlePickFile }
   ];
+
+  // VisionCamera açıksa, sadece kamerayı göster
+  if (showCamera) {
+    return (
+      <Modal visible={visible} animationType="slide" onRequestClose={handleCameraClose}>
+        <VisionCamera
+          mode="photo"
+          initialPosition="back"
+          enableAudio={true}
+          showControls={true}
+          onCapture={handleCameraCapture}
+          onClose={handleCameraClose}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

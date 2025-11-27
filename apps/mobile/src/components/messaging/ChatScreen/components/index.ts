@@ -6,3 +6,5 @@
 export { ChatHeader } from "./ChatHeader";
 export { TypingIndicator } from "./TypingIndicator";
 export { ChatSkeleton } from "./ChatSkeleton";
+export { ImageViewer } from "./ImageViewer";
+export { VideoThumbnail } from "./VideoThumbnail";

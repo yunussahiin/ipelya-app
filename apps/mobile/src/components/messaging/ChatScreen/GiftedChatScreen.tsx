@@ -61,12 +61,12 @@ import {
   ChatScrollToBottom
 } from "./components/ChatInputToolbar";
 import { ChatDay, ChatTime } from "./components/ChatDateTime";
-import { ImageViewer } from "./components/ImageViewer";
+import { ImageViewer, VideoThumbnail } from "./components";
 import { AudioRecorder } from "./components/AudioRecorder";
 import { AudioPlayer } from "./components/AudioPlayer";
 import { useChatMessages } from "./hooks/useChatMessages";
 import { MediaPicker, type SelectedMedia } from "@/components/messaging/components/MediaPicker";
-import { uploadMedia } from "@/services/media-upload.service";
+import { uploadMedia, queueMediaProcessing } from "@/services/media-upload.service";
 
 // =============================================
 // COMPONENT
@@ -106,7 +106,7 @@ export function GiftedChatScreen() {
 
   // Media picker state
   const [showMediaPicker, setShowMediaPicker] = useState(false);
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false); // Audio upload için
 
   // Reaction hooks
   const { mutate: addReaction } = useAddReaction();
@@ -226,14 +226,18 @@ export function GiftedChatScreen() {
     [conversationId, removeReaction]
   );
 
-  // Media seçildiğinde upload ve gönder
+  // Media seçildiğinde - upload et ve gönder
   const handleMediaSelect = useCallback(
     async (media: SelectedMedia) => {
       if (!user?.id || !conversationId) return;
 
-      setIsUploadingMedia(true);
+      const mediaType = media.type === "image" ? "image" : "video";
+
+      // Haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      console.log("[Media] Starting upload:", mediaType);
+
       try {
-        // Get access token
         const {
           data: { session }
         } = await supabase.auth.getSession();
@@ -241,14 +245,17 @@ export function GiftedChatScreen() {
           throw new Error("No access token");
         }
 
-        // Upload media
-        console.log("[Media] Uploading:", media.type, media.uri);
+        // Upload (artık hızlı - ~2 saniye)
+        const uploadStart = Date.now();
         const result = await uploadMedia(media.uri, user.id, "message-media", session.access_token);
-        console.log("[Media] Upload success:", result.url);
+        console.log("[Media] Upload complete:", {
+          size: `${(result.size / 1024).toFixed(1)}KB`,
+          duration: `${Date.now() - uploadStart}ms`
+        });
 
-        // Create message with media
+        // Mesajı gönder
         const mediaMessage: IMessage = {
-          _id: `temp_media_${Date.now()}`,
+          _id: `media_${Date.now()}`,
           text: "",
           createdAt: new Date(),
           user: {
@@ -256,18 +263,19 @@ export function GiftedChatScreen() {
             name: user.user_metadata?.display_name || "Ben",
             avatar: user.user_metadata?.avatar_url
           },
-          image: media.type === "image" ? result.url : undefined,
-          video: media.type === "video" ? result.url : undefined
+          image: mediaType === "image" ? result.url : undefined,
+          video: mediaType === "video" ? result.url : undefined
         };
 
-        // Send message
         handleSend([mediaMessage]);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Queue for background optimization (non-blocking)
+        queueMediaProcessing(user.id, result.path, session.access_token, undefined, {
+          preset: "chat"
+        }).catch((err) => console.warn("[Media] Queue failed:", err));
       } catch (error) {
         console.error("[Media] Upload error:", error);
         Alert.alert("Hata", "Medya yüklenirken bir hata oluştu");
-      } finally {
-        setIsUploadingMedia(false);
       }
     },
     [user?.id, conversationId, handleSend]
@@ -287,6 +295,7 @@ export function GiftedChatScreen() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onImagePress={setViewerMessage}
+        onVideoPress={setViewerMessage}
         onReact={handleReact}
         onRemoveReaction={handleRemoveReaction}
       />
@@ -371,6 +380,40 @@ export function GiftedChatScreen() {
     },
     [colors, user?.id]
   );
+
+  // Video message renderer - VideoThumbnail ile gerçek thumbnail
+  const renderMessageVideo = useCallback((props: { currentMessage?: IMessage }) => {
+    const { currentMessage } = props;
+
+    console.log("[GiftedChat] renderMessageVideo called:", {
+      messageId: currentMessage?._id,
+      hasVideo: !!currentMessage?.video,
+      video: currentMessage?.video
+    });
+
+    if (!currentMessage?.video) return null;
+
+    const handleVideoPress = () => {
+      console.log("[GiftedChat] Video pressed:", {
+        messageId: currentMessage._id,
+        video: currentMessage.video,
+        hasImage: !!currentMessage.image
+      });
+      setViewerMessage(currentMessage);
+    };
+
+    const duration = (currentMessage as IMessage & { videoDuration?: number }).videoDuration;
+
+    return (
+      <VideoThumbnail
+        uri={currentMessage.video}
+        width={200}
+        height={150}
+        duration={duration}
+        onPress={handleVideoPress}
+      />
+    );
+  }, []);
 
   // System message (örn: "Sohbet başladı", "X sohbete katıldı")
   const renderSystemMessage = useCallback(
@@ -513,6 +556,7 @@ export function GiftedChatScreen() {
           renderTime={renderTime}
           renderSystemMessage={renderSystemMessage}
           renderMessageAudio={renderMessageAudio}
+          renderMessageVideo={renderMessageVideo}
           renderFooter={renderFooter}
           renderAccessory={renderAccessory}
           renderAvatar={null}

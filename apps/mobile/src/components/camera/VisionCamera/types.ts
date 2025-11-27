@@ -7,6 +7,61 @@
 
 import type { CameraPosition } from "react-native-vision-camera";
 
+// =============================================
+// CAMERA SETTINGS
+// =============================================
+
+/**
+ * Fotoğraf kalitesi ayarı
+ * - low: Düşük kalite, küçük dosya (~500KB)
+ * - medium: Orta kalite, dengeli (~1MB)
+ * - high: Yüksek kalite, büyük dosya (~2MB)
+ */
+export type PhotoQuality = "low" | "medium" | "high";
+
+/**
+ * Video kalitesi ayarı
+ * - 720p: HD (1280x720) - Hızlı yükleme
+ * - 1080p: Full HD (1920x1080) - Dengeli
+ */
+export type VideoQuality = "720p" | "1080p";
+
+/**
+ * Kamera ayarları
+ */
+export interface CameraSettings {
+  /** Fotoğraf kalitesi */
+  photoQuality: PhotoQuality;
+  /** Video kalitesi */
+  videoQuality: VideoQuality;
+  /** Fotoğraf sıkıştırma (0-100) */
+  photoCompression: number;
+  /** Video FPS */
+  videoFps: 30 | 60;
+  /** HDR varsayılan olarak açık mı */
+  hdrEnabled: boolean;
+  /** Video stabilizasyon */
+  videoStabilization: boolean;
+  /** Konum bilgisi ekle */
+  enableLocation: boolean;
+  /** Shutter sesi */
+  shutterSound: boolean;
+}
+
+/**
+ * Varsayılan kamera ayarları
+ */
+export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
+  photoQuality: "medium",
+  videoQuality: "1080p",
+  photoCompression: 80, // %80 kalite - iyi denge
+  videoFps: 30,
+  hdrEnabled: false,
+  videoStabilization: true,
+  enableLocation: false,
+  shutterSound: true
+};
+
 /**
  * Kamera modu
  * - photo: Fotoğraf çekimi
@@ -75,6 +130,14 @@ export interface TopControlsProps {
   onClose?: () => void;
   /** Cihazda flash var mı */
   hasFlash?: boolean;
+  /** HDR aktif mi */
+  hdrEnabled?: boolean;
+  /** HDR toggle fonksiyonu */
+  onHdrToggle?: () => void;
+  /** HDR destekleniyor mu */
+  supportsHdr?: boolean;
+  /** Ayarlar butonuna basıldığında */
+  onSettings?: () => void;
 }
 
 /**
@@ -105,6 +168,14 @@ export interface RecordingIndicatorProps {
   duration: number;
   /** Kayıt duraklatıldı mı */
   isPaused?: boolean;
+  /** Duraklatma fonksiyonu */
+  onPause?: () => void;
+  /** Devam ettirme fonksiyonu */
+  onResume?: () => void;
+  /** İptal fonksiyonu */
+  onCancel?: () => void;
+  /** Snapshot fonksiyonu */
+  onSnapshot?: () => void;
 }
 
 /**
@@ -113,6 +184,14 @@ export interface RecordingIndicatorProps {
 export interface ZoomIndicatorProps {
   /** Zoom değeri (1.0x, 2.0x, vb.) */
   zoom: number;
+  /** Zoom değiştirme fonksiyonu */
+  onZoomChange?: (zoom: number) => void;
+  /** Min zoom (0.5x için) */
+  minZoom?: number;
+  /** Max zoom */
+  maxZoom?: number;
+  /** Neutral zoom (1x için) */
+  neutralZoom?: number;
 }
 
 /**
@@ -173,4 +252,11 @@ export const UI_TEXTS = {
   errorInsufficientStorage: "Yetersiz depolama alanı",
   errorRecordingInProgress: "Kayıt zaten devam ediyor",
   errorUnknown: "Bilinmeyen hata oluştu",
+
+  // HDR
+  hdrOn: "HDR Açık",
+  hdrOff: "HDR Kapalı",
+
+  // Exposure
+  exposure: "Pozlama",
 } as const;

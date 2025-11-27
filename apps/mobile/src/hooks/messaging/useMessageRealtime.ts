@@ -53,7 +53,6 @@ export function useMessageRealtime(conversationId: string) {
         filter: `conversation_id=eq.${conversationId}`,
       },
       async (payload: MessagePayload) => {
-        console.log("[Realtime] New message received:", payload.new);
         const newMessage = payload.new as Message;
         const msgStore = useMessageStore.getState();
         const convStore = useConversationStore.getState();
@@ -214,33 +213,30 @@ export function useGlobalMessageRealtime() {
         table: "messages",
       },
       async (payload: MessagePayload) => {
-        console.log("[Realtime] Global - New message:", payload.new);
         const newMessage = payload.new as Message;
         const convStore = useConversationStore.getState();
         const activeConversationId = convStore.activeConversationId;
 
-        // Kendi mesajımız değilse ve aktif sohbette değilse
-        if (
-          newMessage.sender_id !== user.id &&
-          newMessage.conversation_id !== activeConversationId
-        ) {
-          console.log("[Realtime] Global - Checking participant...");
-          // Kullanıcının bu sohbette olup olmadığını kontrol et
-          const { data: participant } = await supabase
-            .from("conversation_participants")
-            .select("id")
-            .eq("conversation_id", newMessage.conversation_id)
-            .eq("user_id", user.id)
-            .is("left_at", null)
-            .single();
+        // Aktif sohbetteki mesajları skip et (useMessageRealtime hallediyor)
+        if (newMessage.conversation_id === activeConversationId) return;
 
-          if (participant) {
-            console.log("[Realtime] Global - Incrementing unread for:", newMessage.conversation_id);
-            convStore.incrementUnread(newMessage.conversation_id);
-            convStore.updateConversation(newMessage.conversation_id, {
-              last_message_at: newMessage.created_at,
-            });
-          }
+        // Kendi mesajımızı skip et
+        if (newMessage.sender_id === user.id) return;
+
+        // Kullanıcının bu sohbette olup olmadığını kontrol et
+        const { data: participant } = await supabase
+          .from("conversation_participants")
+          .select("id")
+          .eq("conversation_id", newMessage.conversation_id)
+          .eq("user_id", user.id)
+          .is("left_at", null)
+          .single();
+
+        if (participant) {
+          convStore.incrementUnread(newMessage.conversation_id);
+          convStore.updateConversation(newMessage.conversation_id, {
+            last_message_at: newMessage.created_at,
+          });
         }
       }
     );

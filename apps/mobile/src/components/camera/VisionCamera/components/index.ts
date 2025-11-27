@@ -13,3 +13,7 @@ export { CaptureButton } from "./CaptureButton";
 export { FlipCameraButton } from "./FlipCameraButton";
 export { PermissionView } from "./PermissionView";
 export { LoadingView } from "./LoadingView";
+export { FocusIndicator } from "./FocusIndicator";
+export { ExposureIndicator } from "./ExposureIndicator";
+export { CameraSettingsSheet } from "./CameraSettingsSheet";
+export { MediaPreview } from "./MediaPreview";

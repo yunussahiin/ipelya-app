@@ -16,6 +16,7 @@ import * as Clipboard from "expo-clipboard";
 import type { ThemeColors } from "@/theme/ThemeProvider";
 import type { IMessageWithReply } from "@/utils/giftedChatHelpers";
 import { ReactionBar } from "./ReactionBar";
+import { VideoThumbnail } from "./VideoThumbnail";
 
 interface ChatBubbleProps {
   props: BubbleProps<IMessage>;
@@ -25,6 +26,7 @@ interface ChatBubbleProps {
   onEdit?: (message: IMessage) => void;
   onDelete?: (message: IMessage) => void;
   onImagePress?: (message: IMessage) => void;
+  onVideoPress?: (message: IMessage) => void;
   onReact?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
 }
@@ -37,6 +39,7 @@ function ChatBubbleComponent({
   onEdit,
   onDelete,
   onImagePress,
+  onVideoPress,
   onReact,
   onRemoveReaction
 }: ChatBubbleProps) {
@@ -181,14 +184,35 @@ function ChatBubbleComponent({
     );
   };
 
+  // Custom video renderer - VideoThumbnail ile gerçek thumbnail
+  const renderMessageVideo = () => {
+    if (!message?.video) return null;
+
+    const handleVideoPress = () => {
+      console.log("[ChatBubble] Video pressed:", message.video);
+      if (onVideoPress && message) {
+        onVideoPress(message);
+      }
+    };
+
+    return (
+      <View style={{ margin: 4 }}>
+        <VideoThumbnail uri={message.video} width={200} height={150} onPress={handleVideoPress} />
+      </View>
+    );
+  };
+
   const hasImage = !!message?.image;
+  const hasVideo = !!message?.video;
   const hasAudio = !!message?.audio;
+  const hasMedia = hasImage || hasVideo;
 
   const bubbleContent = (
     <Bubble
       {...props}
       renderCustomView={renderCustomView}
       renderMessageImage={renderMessageImage}
+      renderMessageVideo={renderMessageVideo}
       wrapperStyle={{
         left: {
           backgroundColor: colors.surface,
@@ -274,8 +298,8 @@ function ChatBubbleComponent({
     </View>
   );
 
-  // Image/Audio mesajları için MenuView kullanma - touch event'leri engelliyor
-  if (hasImage || hasAudio) {
+  // Image/Video/Audio mesajları için MenuView kullanma - touch event'leri engelliyor
+  if (hasImage || hasVideo || hasAudio) {
     return bubbleWithReactions;
   }
 

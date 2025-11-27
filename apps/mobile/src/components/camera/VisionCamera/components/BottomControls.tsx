@@ -7,12 +7,14 @@
  * - Kamera çevirme butonu
  */
 
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { ModeSelector } from "./ModeSelector";
 import { CaptureButton } from "./CaptureButton";
 import { FlipCameraButton } from "./FlipCameraButton";
 import type { BottomControlsProps } from "../types";
+
+const LOG_PREFIX = "[BottomControls]";
 
 function BottomControlsComponent({
   currentMode,
@@ -23,6 +25,18 @@ function BottomControlsComponent({
   onFlipCamera,
   accentColor
 }: BottomControlsProps) {
+  useEffect(() => {
+    console.log(`${LOG_PREFIX} Mounted`, { currentMode, isRecording, isCapturing });
+  }, []);
+
+  useEffect(() => {
+    console.log(`${LOG_PREFIX} Mode changed:`, currentMode);
+  }, [currentMode]);
+
+  useEffect(() => {
+    console.log(`${LOG_PREFIX} Recording state:`, isRecording);
+  }, [isRecording]);
+
   return (
     <View style={styles.container}>
       {/* Mod Seçici */}

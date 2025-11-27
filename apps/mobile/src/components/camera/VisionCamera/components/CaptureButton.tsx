@@ -14,7 +14,13 @@ import { Circle, Square } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import type { CaptureButtonProps } from "../types";
 
+const LOG_PREFIX = "[CaptureButton]";
+
 function CaptureButtonComponent({ mode, isRecording, isCapturing, onPress }: CaptureButtonProps) {
+  useEffect(() => {
+    console.log(`${LOG_PREFIX} Mounted`, { mode, isRecording, isCapturing });
+  }, []);
+
   // Kayıt animasyonu - pulse effect
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -44,18 +50,26 @@ function CaptureButtonComponent({ mode, isRecording, isCapturing, onPress }: Cap
    * Basma handler
    */
   const handlePress = () => {
-    if (isCapturing) return;
+    try {
+      console.log(`${LOG_PREFIX} Pressed`, { mode, isRecording, isCapturing });
+      if (isCapturing) {
+        console.log(`${LOG_PREFIX} Already capturing, ignoring`);
+        return;
+      }
 
-    // Farklı modlar için farklı haptic
-    if (mode === "photo") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } else if (isRecording) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      // Farklı modlar için farklı haptic
+      if (mode === "photo") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else if (isRecording) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+
+      onPress();
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Press error:`, error);
     }
-
-    onPress();
   };
 
   /**

@@ -1,13 +1,14 @@
 /**
- * ImageViewer
+ * ImageViewer (MediaViewer)
  *
- * WhatsApp tarzı full-screen image viewer
+ * WhatsApp tarzı full-screen image/video viewer
  * - Swipe ile medya değiştirme
  * - Thumbnail gallery
  * - Gönderen bilgisi + tarih
+ * - Video playback desteği (expo-video)
  */
 
-import { memo, useMemo, useRef } from "react";
+import { memo, useMemo, useRef, useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -19,12 +20,189 @@ import {
   FlatList
 } from "react-native";
 import { Image } from "expo-image";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent } from "expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { IMessage } from "react-native-gifted-chat";
 import dayjs from "dayjs";
+import { VideoThumbnail } from "./VideoThumbnail";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// Playback rate options
+const PLAYBACK_RATES = [0.5, 1, 1.5, 2];
+
+/**
+ * Video Player Component - expo-video ile
+ * Features: PiP, Native Controls, Playback Rate
+ */
+function VideoPlayer({ uri, isActive }: { uri: string; isActive: boolean }) {
+  const videoViewRef = useRef<any>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [playbackRate, setPlaybackRate] = useState(1);
+
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = true;
+    player.playbackRate = 1;
+    if (isActive) {
+      player.play();
+    }
+  });
+
+  const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
+
+  // isActive değiştiğinde play/pause
+  useEffect(() => {
+    if (isActive) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isActive, player]);
+
+  // Auto-hide controls after 3 seconds
+  useEffect(() => {
+    if (showControls && isPlaying) {
+      const timer = setTimeout(() => setShowControls(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showControls, isPlaying]);
+
+  const togglePlayPause = useCallback(() => {
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+    setShowControls(true);
+  }, [isPlaying, player]);
+
+  const cyclePlaybackRate = useCallback(() => {
+    const currentIndex = PLAYBACK_RATES.indexOf(playbackRate);
+    const nextIndex = (currentIndex + 1) % PLAYBACK_RATES.length;
+    const newRate = PLAYBACK_RATES[nextIndex];
+    player.playbackRate = newRate;
+    setPlaybackRate(newRate);
+    console.log("[VideoPlayer] Playback rate changed:", newRate);
+  }, [playbackRate, player]);
+
+  const togglePiP = useCallback(async () => {
+    try {
+      await videoViewRef.current?.startPictureInPicture();
+      console.log("[VideoPlayer] PiP started");
+    } catch (err) {
+      console.log("[VideoPlayer] PiP not supported or failed:", err);
+    }
+  }, []);
+
+  return (
+    <View style={videoStyles.container}>
+      <VideoView
+        ref={videoViewRef}
+        player={player}
+        style={videoStyles.video}
+        contentFit="contain"
+        nativeControls={false}
+        allowsFullscreen
+        allowsPictureInPicture
+      />
+
+      {/* Tap to show/hide controls */}
+      <Pressable style={videoStyles.overlay} onPress={() => setShowControls(!showControls)}>
+        {/* Play/Pause button - always visible when paused or controls shown */}
+        {(!isPlaying || showControls) && (
+          <TouchableOpacity style={videoStyles.playButton} onPress={togglePlayPause}>
+            <Ionicons name={isPlaying ? "pause" : "play"} size={48} color="#FFF" />
+          </TouchableOpacity>
+        )}
+
+        {/* Top controls - Playback rate & PiP */}
+        {showControls && (
+          <View style={videoStyles.topControls}>
+            {/* Playback Rate */}
+            <TouchableOpacity style={videoStyles.controlButton} onPress={cyclePlaybackRate}>
+              <Text style={videoStyles.rateText}>{playbackRate}x</Text>
+            </TouchableOpacity>
+
+            {/* PiP Button */}
+            <TouchableOpacity style={videoStyles.controlButton} onPress={togglePiP}>
+              <Ionicons name="browsers-outline" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Bottom controls - Progress indicator */}
+        {showControls && (
+          <View style={videoStyles.bottomControls}>
+            <Text style={videoStyles.controlText}>
+              {isPlaying ? "Oynatılıyor" : "Duraklatıldı"}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+const videoStyles = StyleSheet.create({
+  container: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.6,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000"
+  },
+  video: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.6
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  topControls: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    flexDirection: "row",
+    gap: 12
+  },
+  bottomControls: {
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    justifyContent: "center"
+  },
+  controlButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  rateText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600"
+  },
+  controlText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12
+  }
+});
 
 interface ImageViewerProps {
   visible: boolean;
@@ -86,6 +264,19 @@ function ImageViewerComponent({
     flatListRef.current?.scrollToIndex({ index, animated: true });
   };
 
+  // Log when viewer opens
+  useEffect(() => {
+    if (visible && currentMessage) {
+      console.log("[ImageViewer] Opened with:", {
+        messageId: currentMessage._id,
+        hasImage: !!currentMessage.image,
+        hasVideo: !!currentMessage.video,
+        video: currentMessage.video,
+        image: currentMessage.image
+      });
+    }
+  }, [visible, currentMessage]);
+
   if (!visible || !currentMessage) return null;
 
   return (
@@ -128,7 +319,11 @@ function ImageViewerComponent({
           keyExtractor={(item) => String(item._id)}
           renderItem={({ item }) => (
             <Pressable style={styles.imageContainer} onPress={onClose}>
-              <Image source={{ uri: item.image }} style={styles.mainImage} contentFit="contain" />
+              {item.video ? (
+                <VideoPlayer uri={item.video} isActive={item._id === currentMessage?._id} />
+              ) : (
+                <Image source={{ uri: item.image }} style={styles.mainImage} contentFit="contain" />
+              )}
             </Pressable>
           )}
         />
@@ -150,11 +345,15 @@ function ImageViewerComponent({
                   ]}
                   onPress={() => handleThumbnailPress(item, index)}
                 >
-                  <Image
-                    source={{ uri: item.image }}
-                    style={styles.thumbnailImage}
-                    contentFit="cover"
-                  />
+                  {item.video ? (
+                    <VideoThumbnail uri={item.video} width={56} height={56} compact />
+                  ) : (
+                    <Image
+                      source={{ uri: item.image }}
+                      style={styles.thumbnailImage}
+                      contentFit="cover"
+                    />
+                  )}
                 </TouchableOpacity>
               )}
             />

@@ -22,7 +22,7 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { View, StyleSheet, StatusBar } from "react-native";
+import { View, StyleSheet, StatusBar, Alert } from "react-native";
 import {
   Camera,
   useCameraDevice,
@@ -35,16 +35,22 @@ import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
   useAnimatedProps,
-  withSpring,
+  runOnJS,
   interpolate,
-  Extrapolation,
-  runOnJS
+  Extrapolation
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/theme/ThemeProvider";
 
 // Types
-import type { VisionCameraProps, CameraMode, FlashMode } from "./types";
+import type {
+  VisionCameraProps,
+  CameraMode,
+  FlashMode,
+  CameraSettings,
+  CapturedMedia
+} from "./types";
+import { DEFAULT_CAMERA_SETTINGS } from "./types";
 
 // Components
 import {
@@ -53,12 +59,22 @@ import {
   RecordingIndicator,
   ZoomIndicator,
   PermissionView,
-  LoadingView
+  LoadingView,
+  FocusIndicator,
+  ExposureIndicator,
+  CameraSettingsSheet,
+  MediaPreview
 } from "./components";
+
+// Hooks
+import { useCameraSettings } from "./hooks";
 
 // Animated Camera component
 const ReanimatedCamera = Animated.createAnimatedComponent(Camera);
-Animated.addWhitelistedNativeProps({ zoom: true });
+Animated.addWhitelistedNativeProps({ zoom: true, exposure: true });
+
+// Debug logging
+const LOG_PREFIX = "[VisionCamera]";
 
 export function VisionCamera({
   mode = "photo",
@@ -74,6 +90,20 @@ export function VisionCamera({
   const { colors } = useTheme();
   const cameraRef = useRef<Camera>(null);
 
+  // Component mount log
+  useEffect(() => {
+    console.log(`${LOG_PREFIX} Component mounted`, {
+      mode,
+      initialPosition,
+      enableAudio,
+      showControls,
+      maxVideoDuration
+    });
+    return () => {
+      console.log(`${LOG_PREFIX} Component unmounted`);
+    };
+  }, []);
+
   // =============================================
   // PERMISSIONS
   // =============================================
@@ -83,15 +113,43 @@ export function VisionCamera({
     useMicrophonePermission();
 
   // =============================================
+  // PERSISTENT SETTINGS (AsyncStorage)
+  // =============================================
+  const {
+    settings: persistedSettings,
+    isLoading: isLoadingSettings,
+    updateSetting: updatePersistedSetting
+  } = useCameraSettings();
+
+  // =============================================
   // STATE
   // =============================================
   const [cameraPosition, setCameraPosition] = useState<CameraPosition>(initialPosition);
   const [flash, setFlash] = useState<FlashMode>("off");
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
   const [currentMode, setCurrentMode] = useState<CameraMode>(mode);
-  const [zoomDisplay, setZoomDisplay] = useState(1);
+  const [hdrEnabled, setHdrEnabled] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(2); // neutral zoom default
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [cameraSettings, setCameraSettings] = useState<CameraSettings>(DEFAULT_CAMERA_SETTINGS);
+  const [previewMedia, setPreviewMedia] = useState<CapturedMedia | null>(null);
+
+  // =============================================
+  // SYNC PERSISTED SETTINGS ON LOAD
+  // =============================================
+  useEffect(() => {
+    if (!isLoadingSettings) {
+      // Apply persisted settings
+      setFlash(persistedSettings.flashMode);
+      setHdrEnabled(persistedSettings.hdrEnabled);
+      setCameraPosition(persistedSettings.cameraPosition);
+      console.log(`${LOG_PREFIX} Applied persisted settings:`, persistedSettings);
+    }
+  }, [isLoadingSettings, persistedSettings]);
 
   // =============================================
   // CAMERA DEVICE & FORMAT
@@ -100,24 +158,113 @@ export function VisionCamera({
     physicalDevices: ["ultra-wide-angle-camera", "wide-angle-camera", "telephoto-camera"]
   });
 
+  // Optimize edilmiş format: 1080p video, 2K foto (sosyal medya için ideal)
+  // 4K çok büyük dosya boyutu üretir ve yükleme sorunlarına neden olur
   const format = useCameraFormat(device, [
-    { videoResolution: { width: 1920, height: 1080 } },
-    { photoResolution: "max" },
-    { fps: 60 }
+    { videoResolution: { width: 1920, height: 1080 } }, // Full HD video
+    { photoResolution: { width: 1920, height: 1080 } }, // Full HD foto (max ~2MP)
+    { fps: 30 } // 30 FPS yeterli, 60 FPS gereksiz dosya boyutu
   ]);
 
+  // Device ve format log
+  useEffect(() => {
+    if (device) {
+      console.log(`${LOG_PREFIX} Device info:`, {
+        id: device.id,
+        name: device.name,
+        position: device.position,
+        hasFlash: device.hasFlash,
+        hasTorch: device.hasTorch,
+        supportsFocus: device.supportsFocus,
+        supportsLowLightBoost: device.supportsLowLightBoost,
+        minZoom: device.minZoom,
+        maxZoom: device.maxZoom,
+        neutralZoom: device.neutralZoom
+      });
+    } else {
+      console.log(`${LOG_PREFIX} No device available for position:`, cameraPosition);
+    }
+  }, [device, cameraPosition]);
+
+  useEffect(() => {
+    if (format) {
+      console.log(`${LOG_PREFIX} Format info:`, {
+        photoWidth: format.photoWidth,
+        photoHeight: format.photoHeight,
+        videoWidth: format.videoWidth,
+        videoHeight: format.videoHeight,
+        supportsPhotoHdr: format.supportsPhotoHdr,
+        supportsVideoHdr: format.supportsVideoHdr,
+        minFps: format.minFps,
+        maxFps: format.maxFps
+      });
+    }
+  }, [format]);
+
   // =============================================
-  // ZOOM ANIMATION
+  // ZOOM & EXPOSURE ANIMATION
   // =============================================
-  const zoom = useSharedValue(device?.neutralZoom ?? 1);
+  // neutralZoom = cihazın 1x lens'i. Back Triple Camera'da bu 2 (wide-angle)
+  // minZoom = ultra-wide (0.5x), maxZoom = telephoto
+  const neutralZoom = device?.neutralZoom ?? 1;
+  const zoom = useSharedValue(neutralZoom);
   const zoomOffset = useSharedValue(0);
 
-  const animatedProps = useAnimatedProps(() => ({
-    zoom: zoom.value
-  }));
+  // Exposure: -1 to 1 arası slider değeri, device.minExposure/maxExposure'a map edilir
+  const exposureSlider = useSharedValue(0);
+  const [exposureDisplay, setExposureDisplay] = useState(0);
 
-  const updateZoomDisplay = useCallback((value: number) => {
-    setZoomDisplay(value);
+  // Device değiştiğinde zoom'u sıfırla
+  useEffect(() => {
+    if (device) {
+      console.log(`${LOG_PREFIX} Setting zoom to neutralZoom:`, device.neutralZoom);
+      zoom.value = device.neutralZoom;
+      setCurrentZoom(device.neutralZoom);
+      // Exposure'ı da sıfırla
+      exposureSlider.value = 0;
+      setExposureDisplay(0);
+    }
+  }, [device]);
+
+  const animatedProps = useAnimatedProps(() => {
+    // Exposure'ı device aralığına map et
+    const minExp = device?.minExposure ?? -8;
+    const maxExp = device?.maxExposure ?? 8;
+    const exposureValue = interpolate(
+      exposureSlider.value,
+      [-1, 0, 1],
+      [minExp, 0, maxExp],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      zoom: zoom.value,
+      exposure: exposureValue
+    };
+  });
+
+  // =============================================
+  // FOCUS FUNCTION (gesture'dan önce tanımlanmalı)
+  // =============================================
+  const focus = useCallback((point: { x: number; y: number }) => {
+    const c = cameraRef.current;
+    if (c == null) return;
+
+    console.log(`${LOG_PREFIX} Focus at:`, point.x, point.y);
+
+    // Focus indicator'ı göster
+    setFocusPoint(point);
+
+    // Focus çağrısı
+    c.focus(point);
+
+    // Haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // 1.5 saniye sonra focus indicator'ı gizle
+    setTimeout(() => {
+      setFocusPoint(null);
+    }, 1500);
   }, []);
 
   // =============================================
@@ -127,28 +274,34 @@ export function VisionCamera({
   // Pinch-to-zoom gesture
   const pinchGesture = Gesture.Pinch()
     .onBegin(() => {
+      "worklet";
       zoomOffset.value = zoom.value;
     })
     .onUpdate((event) => {
-      const z = zoomOffset.value * event.scale;
-      const newZoom = interpolate(
-        z,
-        [1, 10],
-        [device?.minZoom ?? 1, Math.min(device?.maxZoom ?? 10, 10)],
-        Extrapolation.CLAMP
-      );
-      zoom.value = newZoom;
-      runOnJS(updateZoomDisplay)(newZoom);
+      "worklet";
+      const minZ = device?.minZoom ?? 1;
+      const maxZ = Math.min(device?.maxZoom ?? 10, 16);
+
+      // Scale'i zoom'a çevir
+      const newZoom = zoomOffset.value * event.scale;
+      const clampedZoom = Math.max(minZ, Math.min(maxZ, newZoom));
+
+      zoom.value = clampedZoom;
+      runOnJS(setCurrentZoom)(clampedZoom);
+    })
+    .onEnd(() => {
+      "worklet";
+      // Zoom değişikliğini logla
+      runOnJS(console.log)("[VisionCamera] Pinch zoom ended:", zoom.value);
     });
 
   // Tap-to-focus gesture
-  const tapGesture = Gesture.Tap().onEnd((event) => {
-    if (cameraRef.current && device?.supportsFocus) {
-      cameraRef.current.focus({ x: event.x, y: event.y });
-      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-    }
+  const tapGesture = Gesture.Tap().onEnd(({ x, y }) => {
+    "worklet";
+    runOnJS(focus)({ x, y });
   });
 
+  // Composed gesture: pinch + tap
   const composedGesture = Gesture.Simultaneous(pinchGesture, tapGesture);
 
   // =============================================
@@ -200,32 +353,87 @@ export function VisionCamera({
    * Fotoğraf çek
    */
   const takePhoto = useCallback(async () => {
-    if (!cameraRef.current || isCapturing) return;
+    if (!cameraRef.current || isCapturing) {
+      console.log(`${LOG_PREFIX} takePhoto skipped - camera not ready or already capturing`);
+      return;
+    }
 
     try {
+      console.log(`${LOG_PREFIX} Taking photo...`);
       setIsCapturing(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      // Haptics'i try-catch içine al
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch (e) {
+        console.log(`${LOG_PREFIX} Haptics error (ignored):`, e);
+      }
+
+      console.log(`${LOG_PREFIX} Calling takePhoto on camera ref...`);
+
+      // Fotoğraf çek - optimize edilmiş ayarlarla
       const photo = await cameraRef.current.takePhoto({
-        flash: flash,
-        enableAutoRedEyeReduction: true,
-        enableAutoDistortionCorrection: true,
+        flash: flash === "auto" ? "auto" : flash === "on" ? "on" : "off",
         enableShutterSound: true
       });
 
-      onCapture?.({
+      // Dosya boyutunu tahmin et (yaklaşık)
+      const estimatedSizeKB = Math.round((photo.width * photo.height * 0.5) / 1024);
+      console.log(`${LOG_PREFIX} Photo taken successfully:`, {
+        path: photo.path,
+        width: photo.width,
+        height: photo.height,
+        estimatedSizeKB
+      });
+
+      // Preview ekranına yönlendir
+      const capturedMedia: CapturedMedia = {
         type: "photo",
         path: photo.path,
         width: photo.width,
         height: photo.height
-      });
-    } catch (error) {
-      console.error("[VisionCamera] Photo capture error:", error);
-      onError?.(error as Error);
+      };
+      setPreviewMedia(capturedMedia);
+      console.log(`${LOG_PREFIX} Preview media set`);
+    } catch (error: unknown) {
+      console.error(`${LOG_PREFIX} Photo capture error:`, error);
+      console.error(`${LOG_PREFIX} Error details:`, JSON.stringify(error, null, 2));
+      if (onError && error instanceof Error) {
+        onError(error);
+      }
     } finally {
+      console.log(`${LOG_PREFIX} Setting isCapturing to false`);
       setIsCapturing(false);
     }
   }, [flash, onCapture, onError, isCapturing]);
+
+  /**
+   * Snapshot çek (video kaydı sırasında hızlı fotoğraf)
+   */
+  const takeSnapshot = useCallback(async () => {
+    if (!cameraRef.current) return;
+
+    try {
+      console.log(`${LOG_PREFIX} Taking snapshot`);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      const snapshot = await cameraRef.current.takeSnapshot({
+        quality: 85
+      });
+
+      console.log(`${LOG_PREFIX} Snapshot taken:`, snapshot.path);
+
+      // Snapshot'ı da capture olarak bildir (opsiyonel)
+      onCapture?.({
+        type: "photo",
+        path: snapshot.path,
+        width: snapshot.width,
+        height: snapshot.height
+      });
+    } catch (error) {
+      console.error("[VisionCamera] Snapshot error:", error);
+    }
+  }, [onCapture]);
 
   /**
    * Video kaydı başlat
@@ -248,13 +456,16 @@ export function VisionCamera({
         },
         onRecordingFinished: (video) => {
           setIsRecording(false);
-          onCapture?.({
+          // Preview ekranına yönlendir
+          const capturedMedia: CapturedMedia = {
             type: "video",
             path: video.path,
             width: video.width,
             height: video.height,
             duration: video.duration
-          });
+          };
+          setPreviewMedia(capturedMedia);
+          console.log(`${LOG_PREFIX} Video preview media set`);
         }
       });
     } catch (error) {
@@ -273,8 +484,62 @@ export function VisionCamera({
     try {
       await cameraRef.current.stopRecording();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setIsPaused(false);
     } catch (error) {
       console.error("[VisionCamera] Stop recording error:", error);
+      onError?.(error as Error);
+    }
+  }, [isRecording, onError]);
+
+  /**
+   * Video kaydı duraklat
+   */
+  const pauseRecording = useCallback(async () => {
+    if (!cameraRef.current || !isRecording || isPaused) return;
+
+    try {
+      console.log(`${LOG_PREFIX} Pausing recording`);
+      await cameraRef.current.pauseRecording();
+      setIsPaused(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error("[VisionCamera] Pause recording error:", error);
+      onError?.(error as Error);
+    }
+  }, [isRecording, isPaused, onError]);
+
+  /**
+   * Video kaydı devam ettir
+   */
+  const resumeRecording = useCallback(async () => {
+    if (!cameraRef.current || !isRecording || !isPaused) return;
+
+    try {
+      console.log(`${LOG_PREFIX} Resuming recording`);
+      await cameraRef.current.resumeRecording();
+      setIsPaused(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error("[VisionCamera] Resume recording error:", error);
+      onError?.(error as Error);
+    }
+  }, [isRecording, isPaused, onError]);
+
+  /**
+   * Video kaydı iptal et
+   */
+  const cancelRecording = useCallback(async () => {
+    if (!cameraRef.current || !isRecording) return;
+
+    try {
+      console.log(`${LOG_PREFIX} Cancelling recording`);
+      await cameraRef.current.cancelRecording();
+      setIsRecording(false);
+      setIsPaused(false);
+      setRecordingDuration(0);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.error("[VisionCamera] Cancel recording error:", error);
       onError?.(error as Error);
     }
   }, [isRecording, onError]);
@@ -284,24 +549,38 @@ export function VisionCamera({
   // =============================================
 
   /**
-   * Kamera pozisyonunu değiştir
+   * Kamera pozisyonunu değiştir ve kaydet
    */
   const toggleCameraPosition = useCallback(() => {
+    console.log(`${LOG_PREFIX} Toggle camera position`);
     Haptics.selectionAsync();
-    setCameraPosition((prev) => (prev === "back" ? "front" : "back"));
-    zoom.value = withSpring(device?.neutralZoom ?? 1);
-  }, [device?.neutralZoom, zoom]);
+    setCameraPosition((prev) => {
+      const next = prev === "back" ? "front" : "back";
+      console.log(`${LOG_PREFIX} Camera position: ${prev} -> ${next}`);
+      // Persist to AsyncStorage
+      updatePersistedSetting("cameraPosition", next);
+      return next;
+    });
+    // Zoom sıfırlanacak, device useEffect'te handle edilecek
+  }, [updatePersistedSetting]);
 
   /**
-   * Flash modunu değiştir
+   * Flash modunu değiştir ve kaydet
    */
   const toggleFlash = useCallback(() => {
-    setFlash((prev) => {
-      if (prev === "off") return "on";
-      if (prev === "on") return "auto";
-      return "off";
-    });
-  }, []);
+    try {
+      console.log(`${LOG_PREFIX} Toggle flash - current:`, flash, "hasFlash:", device?.hasFlash);
+      setFlash((prev) => {
+        const next = prev === "off" ? "on" : prev === "on" ? "auto" : "off";
+        console.log(`${LOG_PREFIX} Flash changed: ${prev} -> ${next}`);
+        // Persist to AsyncStorage
+        updatePersistedSetting("flashMode", next);
+        return next;
+      });
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Flash toggle error:`, error);
+    }
+  }, [flash, device?.hasFlash, updatePersistedSetting]);
 
   /**
    * Yakalama butonuna basıldığında
@@ -324,6 +603,82 @@ export function VisionCamera({
   const handleModeChange = useCallback((newMode: CameraMode) => {
     setCurrentMode(newMode);
   }, []);
+
+  /**
+   * HDR toggle ve kaydet
+   */
+  const toggleHdr = useCallback(() => {
+    console.log(`${LOG_PREFIX} Toggle HDR - current:`, hdrEnabled);
+    setHdrEnabled((prev) => {
+      const next = !prev;
+      // Persist to AsyncStorage
+      updatePersistedSetting("hdrEnabled", next);
+      return next;
+    });
+    Haptics.selectionAsync();
+  }, [hdrEnabled, updatePersistedSetting]);
+
+  /**
+   * Zoom değiştir (preset butonlarından)
+   */
+  const handleZoomChange = useCallback(
+    (newZoom: number) => {
+      console.log(`${LOG_PREFIX} Zoom change requested:`, newZoom);
+      zoom.value = newZoom;
+      setCurrentZoom(newZoom);
+    },
+    [zoom]
+  );
+
+  /**
+   * Camera error handler - Türkçe hata mesajları
+   */
+  const handleCameraError = useCallback(
+    (error: { code: string; message: string }) => {
+      let turkishMessage = "Bilinmeyen hata oluştu";
+
+      switch (error.code) {
+        case "session/camera-not-ready":
+        case "device/camera-not-available":
+          turkishMessage = "Kamera kullanılamıyor";
+          break;
+        case "session/camera-already-in-use":
+          turkishMessage = "Kamera başka uygulama tarafından kullanılıyor";
+          break;
+        case "permission/camera-permission-denied":
+          turkishMessage = "Kamera izni reddedildi";
+          break;
+        case "session/audio-session-failed-to-activate":
+          turkishMessage = "Ses kaydı başlatılamadı";
+          break;
+        case "capture/insufficient-storage":
+          turkishMessage = "Yetersiz depolama alanı";
+          break;
+        case "capture/recording-in-progress":
+          turkishMessage = "Kayıt zaten devam ediyor";
+          break;
+        case "capture/file-io-error":
+          turkishMessage = "Dosya yazma hatası";
+          break;
+        default:
+          turkishMessage = error.message || "Bilinmeyen hata oluştu";
+      }
+
+      Alert.alert("Kamera Hatası", turkishMessage, [{ text: "Tamam", style: "default" }]);
+
+      onError?.(error as unknown as Error);
+    },
+    [onError]
+  );
+
+  // HDR desteği kontrolü
+  const supportsHdr =
+    (currentMode === "photo" && format?.supportsPhotoHdr) ||
+    (currentMode === "video" && format?.supportsVideoHdr);
+
+  // Aktif HDR değerleri
+  const activePhotoHdr = hdrEnabled && format?.supportsPhotoHdr && currentMode === "photo";
+  const activeVideoHdr = hdrEnabled && format?.supportsVideoHdr && currentMode === "video";
 
   // =============================================
   // RENDER CONDITIONS
@@ -358,8 +713,37 @@ export function VisionCamera({
   }
 
   // =============================================
+  // PREVIEW HANDLERS
+  // =============================================
+  const handlePreviewConfirm = useCallback(
+    (media: CapturedMedia) => {
+      console.log(`${LOG_PREFIX} Preview confirmed:`, media.type);
+      setPreviewMedia(null);
+      onCapture?.(media);
+    },
+    [onCapture]
+  );
+
+  const handlePreviewRetake = useCallback(() => {
+    console.log(`${LOG_PREFIX} Retake requested`);
+    setPreviewMedia(null);
+  }, []);
+
+  // =============================================
   // MAIN RENDER
   // =============================================
+
+  // Preview ekranı göster
+  if (previewMedia) {
+    return (
+      <MediaPreview
+        media={previewMedia}
+        onConfirm={handlePreviewConfirm}
+        onRetake={handlePreviewRetake}
+      />
+    );
+  }
+
   return (
     <View style={[styles.container, style]}>
       <StatusBar barStyle="light-content" />
@@ -375,13 +759,27 @@ export function VisionCamera({
           photo={currentMode === "photo"}
           video={currentMode === "video"}
           audio={enableAudio && hasMicPermission}
-          torch={flash === "on" ? "on" : "off"}
+          torch={device?.hasTorch && flash === "on" ? "on" : "off"}
           enableZoomGesture={false}
           animatedProps={animatedProps}
-          photoHdr={format?.supportsPhotoHdr}
-          videoHdr={format?.supportsVideoHdr}
-          videoStabilizationMode="cinematic"
-          lowLightBoost={device.supportsLowLightBoost}
+          photoHdr={activePhotoHdr ?? false}
+          videoHdr={activeVideoHdr ?? false}
+          videoStabilizationMode={
+            format?.videoStabilizationModes?.includes("cinematic") ? "cinematic" : "off"
+          }
+          lowLightBoost={device?.supportsLowLightBoost ?? false}
+          photoQualityBalance="quality"
+          outputOrientation="device"
+          onInitialized={() => {
+            console.log(`${LOG_PREFIX} Camera initialized`);
+          }}
+          onError={(error) => {
+            console.error(`${LOG_PREFIX} Camera error:`, error.code, error.message);
+            handleCameraError(error);
+          }}
+          onUIRotationChanged={(rotation) => {
+            console.log(`${LOG_PREFIX} UI rotation changed:`, rotation);
+          }}
         />
       </GestureDetector>
 
@@ -394,10 +792,23 @@ export function VisionCamera({
             onFlashToggle={toggleFlash}
             onClose={onClose}
             hasFlash={device.hasFlash}
+            hdrEnabled={hdrEnabled}
+            onHdrToggle={toggleHdr}
+            supportsHdr={supportsHdr ?? false}
+            onSettings={() => setShowSettings(true)}
           />
 
           {/* Kayıt Göstergesi */}
-          {isRecording && <RecordingIndicator duration={recordingDuration} />}
+          {isRecording && (
+            <RecordingIndicator
+              duration={recordingDuration}
+              isPaused={isPaused}
+              onPause={pauseRecording}
+              onResume={resumeRecording}
+              onCancel={cancelRecording}
+              onSnapshot={takeSnapshot}
+            />
+          )}
 
           {/* Alt Kontroller */}
           <BottomControls
@@ -411,9 +822,29 @@ export function VisionCamera({
           />
 
           {/* Zoom Göstergesi */}
-          <ZoomIndicator zoom={zoomDisplay} />
+          <ZoomIndicator
+            zoom={currentZoom}
+            onZoomChange={handleZoomChange}
+            minZoom={device.minZoom}
+            maxZoom={device.maxZoom}
+            neutralZoom={device.neutralZoom}
+          />
+
+          {/* Focus Göstergesi */}
+          {focusPoint && <FocusIndicator point={focusPoint} />}
+
+          {/* Exposure Göstergesi */}
+          <ExposureIndicator value={exposureDisplay} />
         </>
       )}
+
+      {/* Settings Sheet */}
+      <CameraSettingsSheet
+        visible={showSettings}
+        settings={cameraSettings}
+        onSettingsChange={setCameraSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </View>
   );
 }
