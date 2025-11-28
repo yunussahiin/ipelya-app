@@ -2,6 +2,8 @@ import { createAdminSupabaseClient } from '@/lib/supabase/server';
 import { terminateSessionByOps } from '@ipelya/api';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }

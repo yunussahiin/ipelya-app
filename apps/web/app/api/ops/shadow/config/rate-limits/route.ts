@@ -2,6 +2,8 @@ import { createAdminSupabaseClient } from '@/lib/supabase/server';
 import { updateRateLimitConfig } from '@ipelya/api';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabase = createAdminSupabaseClient();

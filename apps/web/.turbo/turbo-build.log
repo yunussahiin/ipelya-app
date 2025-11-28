@@ -2,24 +2,152 @@
 > web@0.1.0 build /Users/yunussahin/ipelya-app/apps/web
 > next build
 
-   ▲ Next.js 16.0.3 (Turbopack)
+   [1m[38;2;173;127;168m▲ Next.js 16.0.3[39m[22m (Turbopack)
    - Environments: .env.local
 
- ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
-   Creating an optimized production build ...
- ✓ Compiled successfully in 7.3s
-   Running TypeScript ...
-Failed to compile.
+ [33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+ [37m[1m [22m[39m Creating an optimized production build ...
+ [32m[1m✓[22m[39m Compiled successfully in 6.8s
+[?25l [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G [37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[?25h[?25l [37m[1m [22m[39m Finished TypeScript in 10.1s  [36m.[39m[2K[1G[?25h [37m[1m [22m[39m Finished TypeScript in 10.1s     [32m[1m✓[22m[39m Finished TypeScript in 10.1s 
+[?25l [37m[1m [22m[39m Collecting page data using 9 workers  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting page data using 9 workers  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting page data using 9 workers  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting page data using 9 workers  [36m.[39m[2K[1G[?25h [37m[1m [22m[39m Collecting page data using 9 workers in 619.3ms     [32m[1m✓[22m[39m Collecting page data using 9 workers in 619.3ms 
+[?25l [37m[1m [22m[39m Generating static pages using 9 workers (0/103)  [36m[    ][39m[2K[1G [37m[1m [22m[39m Generating static pages using 9 workers (0/103)  [36m[=   ][39m[2K[1G [37m[1m [22m[39m Generating static pages using 9 workers (0/103)  [36m[==  ][39m[2K[1G [37m[1m [22m[39m Generating static pages using 9 workers (6/103)  [36m[=== ][39m[2K[1G [37m[1m [22m[39m Generating static pages using 9 workers (51/103)  [36m[ ===][39m[2K[1G [37m[1m [22m[39m Generating static pages using 9 workers (90/103)  [36m[  ==][39m[2K[1G[?25h [32m[1m✓[22m[39m Generating static pages using 9 workers (103/103) in 1139.4ms
+[?25l [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G[?25h [37m[1m [22m[39m Finalizing page optimization in 63.4ms     [32m[1m✓[22m[39m Finalizing page optimization in 63.4ms 
 
-../../packages/api/src/messaging/conversations.ts:103:63
-Type error: Property 'display_name' does not exist on type '{ display_name: any; }[]'.
+[4mRoute (app)[24m
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/notifications/[id]/delete
+├ ƒ /api/notifications/mark-read
+├ ƒ /api/notifications/send
+├ ƒ /api/ops/admin-chat/admins
+├ ƒ /api/ops/admin-chat/conversations
+├ ƒ /api/ops/admin-chat/groups
+├ ƒ /api/ops/admin-chat/groups/[groupId]
+├ ƒ /api/ops/admin-chat/messages
+├ ƒ /api/ops/admin-chat/messages/[messageId]
+├ ƒ /api/ops/admin-chat/messages/[messageId]/read
+├ ƒ /api/ops/admin-chat/typing
+├ ƒ /api/ops/ai/action-logs
+├ ƒ /api/ops/ai/activity
+├ ƒ /api/ops/ai/chat
+├ ƒ /api/ops/ai/credits
+├ ƒ /api/ops/ai/endpoints
+├ ƒ /api/ops/ai/logs
+├ ƒ /api/ops/ai/models
+├ ƒ /api/ops/ai/providers
+├ ƒ /api/ops/ai/settings
+├ ƒ /api/ops/ai/threads
+├ ƒ /api/ops/ai/threads/[threadId]
+├ ƒ /api/ops/analytics
+├ ƒ /api/ops/feed/algorithm/diversity
+├ ƒ /api/ops/feed/algorithm/intent
+├ ƒ /api/ops/feed/algorithm/vibe
+├ ƒ /api/ops/feed/algorithm/weights
+├ ƒ /api/ops/feed/experiments
+├ ƒ /api/ops/feed/live
+├ ƒ /api/ops/feed/poll-voters
+├ ƒ /api/ops/feed/post-details
+├ ƒ /api/ops/feed/viewer
+├ ƒ /api/ops/messaging/broadcast/channels
+├ ƒ /api/ops/messaging/broadcast/messages
+├ ƒ /api/ops/messaging/conversations
+├ ƒ /api/ops/messaging/impersonate
+├ ƒ /api/ops/messaging/impersonation-logs
+├ ƒ /api/ops/messaging/messages
+├ ƒ /api/ops/messaging/moderate
+├ ƒ /api/ops/messaging/users/[userId]/conversations
+├ ƒ /api/ops/messaging/users/search
+├ ƒ /api/ops/messaging/users/with-conversations
+├ ƒ /api/ops/moderation/action
+├ ƒ /api/ops/moderation/history
+├ ƒ /api/ops/moderation/logs
+├ ƒ /api/ops/moderation/queue
+├ ƒ /api/ops/moderation/queue/action
+├ ƒ /api/ops/moderation/reasons
+├ ƒ /api/ops/shadow/analytics
+├ ƒ /api/ops/shadow/anomalies
+├ ƒ /api/ops/shadow/anomalies/[anomalyId]/resolve
+├ ƒ /api/ops/shadow/audit-logs
+├ ƒ /api/ops/shadow/audit-logs/users
+├ ƒ /api/ops/shadow/config/anomaly-detection
+├ ƒ /api/ops/shadow/config/rate-limits
+├ ƒ /api/ops/shadow/rate-limits
+├ ƒ /api/ops/shadow/sessions
+├ ƒ /api/ops/shadow/sessions/[sessionId]/terminate
+├ ƒ /api/ops/shadow/users
+├ ƒ /api/ops/shadow/users/[userId]/lockout
+├ ƒ /api/ops/shadow/users/[userId]/unlock
+├ ƒ /api/ops/storage
+├ ƒ /api/ops/storage/[bucketId]
+├ ƒ /api/ops/storage/[bucketId]/signed-url
+├ ƒ /api/ops/storage/analytics/top-users
+├ ƒ /api/ops/storage/analytics/user/[userId]
+├ ƒ /api/ops/system/cron
+├ ƒ /api/ops/system/observability
+├ ƒ /api/ops/users/[userId]/anomaly-alert
+├ ƒ /api/ops/users/[userId]/lock
+├ ƒ /api/ops/users/[userId]/rate-limit
+├ ƒ /api/ops/users/[userId]/unlock
+├ ƒ /api/users/[id]
+├ ƒ /ops
+├ ƒ /ops/account
+├ ƒ /ops/admin-chat
+├ ƒ /ops/ai
+├ ƒ /ops/ai/action-logs
+├ ƒ /ops/ai/logs
+├ ƒ /ops/ai/settings
+├ ƒ /ops/content
+├ ƒ /ops/economy
+├ ƒ /ops/feed
+├ ƒ /ops/feed/algorithm
+├ ƒ /ops/feed/algorithm/diversity
+├ ƒ /ops/feed/algorithm/intent
+├ ƒ /ops/feed/algorithm/vibe
+├ ƒ /ops/feed/algorithm/weights
+├ ƒ /ops/feed/analytics
+├ ƒ /ops/feed/experiments
+├ ƒ /ops/feed/live
+├ ƒ /ops/feed/moderation
+├ ƒ /ops/feed/moderation/logs
+├ ƒ /ops/feed/moderation/queue
+├ ƒ /ops/feed/viewer
+├ ○ /ops/login
+├ ƒ /ops/messaging
+├ ƒ /ops/messaging/broadcast
+├ ƒ /ops/messaging/broadcast/[channelId]
+├ ƒ /ops/messaging/conversations
+├ ƒ /ops/messaging/conversations/[conversationId]
+├ ƒ /ops/messaging/impersonate
+├ ƒ /ops/messaging/impersonate/logs
+├ ƒ /ops/notifications
+├ ƒ /ops/notifications/analytics
+├ ƒ /ops/notifications/cleanup
+├ ƒ /ops/notifications/history
+├ ƒ /ops/notifications/send
+├ ƒ /ops/notifications/templates
+├ ○ /ops/register
+├ ƒ /ops/security
+├ ƒ /ops/settings
+├ ƒ /ops/shadow
+├ ƒ /ops/shadow/analytics
+├ ƒ /ops/shadow/anomalies
+├ ƒ /ops/shadow/audit-logs
+├ ƒ /ops/shadow/config
+├ ƒ /ops/shadow/rate-limits
+├ ƒ /ops/shadow/sessions
+├ ƒ /ops/shadow/users
+├ ƒ /ops/storage
+├ ƒ /ops/storage/analytics
+├ ƒ /ops/system/cron
+├ ƒ /ops/system/observability
+├ ƒ /ops/users
+├ ƒ /ops/users/banned
+└ ƒ /ops/users/creators
 
-[0m [90m 101 |[39m             content[33m:[39m conv[33m.[39mlast_message[[35m0[39m][33m.[39mcontent[33m,[39m
- [90m 102 |[39m             content_type[33m:[39m conv[33m.[39mlast_message[[35m0[39m][33m.[39mcontent_type[33m,[39m
-[31m[1m>[22m[39m[90m 103 |[39m             sender_name[33m:[39m conv[33m.[39mlast_message[[35m0[39m][33m.[39msender_profile[33m?[39m[33m.[39mdisplay_name[33m,[39m
- [90m     |[39m                                                               [31m[1m^[22m[39m
- [90m 104 |[39m             is_mine[33m:[39m
- [90m 105 |[39m               conv[33m.[39mlast_message[[35m0[39m][33m.[39msender_id [33m===[39m supabase[33m.[39mauth[33m.[39mgetUser()[33m,[39m
- [90m 106 |[39m           }[0m
-Next.js build worker exited with code: 1 and signal: null
- ELIFECYCLE  Command failed with exit code 1.
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+[?25h

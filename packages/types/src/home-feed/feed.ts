@@ -13,6 +13,8 @@
  * import { FeedItem, ContentType } from '@ipelya/types/feed';
  */
 
+import { VibeType, IntentType } from './vibe';
+
 /**
  * Content Type Enum
  * Feed'de görüntülenebilecek içerik tipleri
@@ -68,52 +70,6 @@ export interface FeedResponse {
   error?: string;
 }
 
-/**
- * Vibe Type
- * Kullanıcı mood tipleri
- */
-export type VibeType =
-  | 'energetic'
-  | 'chill'
-  | 'social'
-  | 'creative'
-  | 'adventurous';
-
-/**
- * Intent Type
- * Dating intent tipleri
- */
-export type IntentType =
-  | 'meet_new'
-  | 'activity_partner'
-  | 'flirt'
-  | 'serious_relationship';
-
-/**
- * User Vibe
- * Kullanıcı mood state
- */
-export interface UserVibe {
-  id: string;
-  user_id: string;
-  vibe_type: VibeType;
-  intensity: number; // 1-5
-  created_at: string;
-  expires_at: string;
-}
-
-/**
- * User Intent
- * Kullanıcı dating intent
- */
-export interface UserIntent {
-  id: string;
-  user_id: string;
-  intent_type: IntentType;
-  priority: number; // 1-5
-  created_at: string;
-  updated_at: string;
-}
 
 /**
  * User Interest

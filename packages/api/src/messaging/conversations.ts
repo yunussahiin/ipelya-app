@@ -100,7 +100,7 @@ export async function getConversations(params?: {
         ? {
             content: conv.last_message[0].content,
             content_type: conv.last_message[0].content_type,
-            sender_name: conv.last_message[0].sender_profile?.display_name,
+            sender_name: (Array.isArray(conv.last_message[0].sender_profile) ? conv.last_message[0].sender_profile[0] : conv.last_message[0].sender_profile)?.display_name,
             is_mine:
               conv.last_message[0].sender_id === supabase.auth.getUser(),
           }

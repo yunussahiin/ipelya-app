@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminSupabaseClient } from '@/lib/supabase/server';
+import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { sendAnomalyAlert } from '@ipelya/api';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const authSupabase = await createServerSupabaseClient();
     const supabase = createAdminSupabaseClient();
     const { userId } = await params;
     
     // Check if user is ops
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await authSupabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

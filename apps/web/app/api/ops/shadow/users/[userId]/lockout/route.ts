@@ -1,17 +1,20 @@
-import { createAdminSupabaseClient } from '@/lib/supabase/server';
+import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { lockUserByOps } from '@ipelya/api';
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const authSupabase = await createServerSupabaseClient();
     const supabase = createAdminSupabaseClient();
     const { userId } = await params;
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await authSupabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
