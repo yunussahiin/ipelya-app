@@ -22,7 +22,12 @@ import {
   MessageSquare,
   MessagesSquare,
   Star,
-  Lock
+  Lock,
+  CheckCircle,
+  XCircle,
+  PlusCircle,
+  LayoutDashboard,
+  BadgeCheck
 } from "lucide-react";
 
 interface Tool {
@@ -86,6 +91,14 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         example: '"X\'in banını kaldır"',
         icon: UserCheck,
         enabled: true
+      },
+      {
+        id: "verifyUser",
+        name: "Kullanıcı Doğrula",
+        description: "Kullanıcıya mavi tik ekle veya kaldır",
+        example: '"X\'i doğrula" veya "X\'e mavi tik ekle"',
+        icon: BadgeCheck,
+        enabled: true
       }
     ]
   },
@@ -126,6 +139,23 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         icon: Trash2,
         enabled: true,
         dangerous: true
+      },
+      {
+        id: "approvePost",
+        name: "Post Onayla",
+        description: "Bekleyen postu onayla ve yayınla",
+        example: '"X postunu onayla"',
+        icon: CheckCircle,
+        enabled: true
+      },
+      {
+        id: "rejectPost",
+        name: "Post Reddet",
+        description: "Postu reddet ve kullanıcıyı bilgilendir",
+        example: '"X postunu reddet, spam içeriyor"',
+        icon: XCircle,
+        enabled: true,
+        dangerous: true
       }
     ]
   },
@@ -161,6 +191,14 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         description: "Kullanıcı, post, mesaj sayıları ve trendler",
         example: '"Bu haftanın istatistikleri"',
         icon: BarChart3,
+        enabled: true
+      },
+      {
+        id: "getDashboardSummary",
+        name: "Dashboard Özeti",
+        description: "Günlük özet: yeni kullanıcılar, postlar, moderasyon, gelir",
+        example: '"Günlük özet ver" veya "Dashboard göster"',
+        icon: LayoutDashboard,
         enabled: true
       }
     ]
@@ -198,6 +236,15 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         example: '"X\'in bakiyesi ne kadar?"',
         icon: Wallet,
         enabled: true
+      },
+      {
+        id: "adjustCoinBalance",
+        name: "Coin Ekle/Çıkar",
+        description: "Kullanıcının bakiyesine coin ekle veya çıkar",
+        example: '"X\'e 100 coin ekle, hediye"',
+        icon: PlusCircle,
+        enabled: true,
+        dangerous: true
       }
     ]
   },
@@ -352,8 +399,8 @@ export function ToolsSection() {
           <div className="space-y-2 text-center">
             <p className="text-sm font-medium">💡 İpucu: @ ile Tool Seçimi</p>
             <p className="text-sm text-muted-foreground">
-              Chat input&apos;ta <code className="bg-muted px-1 rounded">@</code> yazarak tool
-              listesini açabilir ve direkt tool çalıştırabilirsiniz.
+              Chat input&apos;ta <code className="bg-muted px-1 rounded">Shift + /</code> yazarak
+              tool listesini açabilir ve direkt tool çalıştırabilirsiniz.
             </p>
           </div>
         </CardContent>

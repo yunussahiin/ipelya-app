@@ -21,6 +21,11 @@ import {
   MessagesSquare,
   Star,
   Lock,
+  CheckCircle,
+  XCircle,
+  PlusCircle,
+  LayoutDashboard,
+  BadgeCheck,
   type LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -76,6 +81,14 @@ const TOOLS: Tool[] = [
     icon: UserCheck,
     category: "Kullanıcı"
   },
+  {
+    id: "verifyUser",
+    name: "Kullanıcı Doğrula",
+    description: "Kullanıcıya mavi tik ekle/kaldır",
+    example: "X'i doğrula",
+    icon: BadgeCheck,
+    category: "Kullanıcı"
+  },
 
   // İçerik
   {
@@ -110,6 +123,22 @@ const TOOLS: Tool[] = [
     icon: Trash2,
     category: "İçerik"
   },
+  {
+    id: "approvePost",
+    name: "Post Onayla",
+    description: "Bekleyen postu onayla",
+    example: "X postunu onayla",
+    icon: CheckCircle,
+    category: "İçerik"
+  },
+  {
+    id: "rejectPost",
+    name: "Post Reddet",
+    description: "Postu reddet ve bilgilendir",
+    example: "X postunu reddet, spam",
+    icon: XCircle,
+    category: "İçerik"
+  },
 
   // Moderasyon
   {
@@ -138,6 +167,14 @@ const TOOLS: Tool[] = [
     icon: BarChart3,
     category: "Sistem"
   },
+  {
+    id: "getDashboardSummary",
+    name: "Dashboard Özeti",
+    description: "Günlük özet: kullanıcı, post, moderasyon",
+    example: "Günlük özet ver",
+    icon: LayoutDashboard,
+    category: "Sistem"
+  },
 
   // Bildirim
   {
@@ -164,6 +201,14 @@ const TOOLS: Tool[] = [
     description: "Kullanıcının coin bakiyesi",
     example: "X'in bakiyesi ne kadar?",
     icon: Wallet,
+    category: "Finansal"
+  },
+  {
+    id: "adjustCoinBalance",
+    name: "Coin Ekle/Çıkar",
+    description: "Kullanıcıya coin ekle veya çıkar",
+    example: "X'e 100 coin ekle",
+    icon: PlusCircle,
     category: "Finansal"
   },
 

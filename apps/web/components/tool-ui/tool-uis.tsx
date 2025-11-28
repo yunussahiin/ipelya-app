@@ -6,9 +6,10 @@
  * makeAssistantToolUI ile tanımlanır
  */
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import { makeAssistantToolUI, useAssistantRuntime } from "@assistant-ui/react";
 import { DataTable, type Column } from "./data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -26,7 +27,9 @@ import {
   Star,
   FileText,
   Bell,
-  Lock
+  Lock,
+  TrendingUp,
+  Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +60,54 @@ function SuccessState({ message }: { message: string }) {
     <div className="flex items-center gap-2 p-4 rounded-lg border border-green-500/50 bg-green-500/10">
       <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
       <span className="text-sm text-green-600 dark:text-green-400">{message}</span>
+    </div>
+  );
+}
+
+// ============================================
+// Action Buttons Component
+// ============================================
+
+interface ActionButtonConfig {
+  label: string;
+  command: string;
+  icon?: React.ReactNode;
+  variant?: "default" | "secondary" | "outline" | "destructive" | "ghost";
+}
+
+function ActionButtons({
+  actions,
+  title = "💡 İlgili İşlemler"
+}: {
+  actions: ActionButtonConfig[];
+  title?: string;
+}) {
+  const runtime = useAssistantRuntime();
+
+  const handleClick = (command: string) => {
+    runtime.thread.append({
+      role: "user",
+      content: [{ type: "text", text: command }]
+    });
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t">
+      <p className="text-sm font-medium text-muted-foreground mb-2">{title}</p>
+      <div className="flex flex-wrap gap-2">
+        {actions.map((action) => (
+          <Button
+            key={action.command}
+            variant={action.variant || "outline"}
+            size="sm"
+            onClick={() => handleClick(action.command)}
+            className="gap-1.5"
+          >
+            {action.icon}
+            {action.label}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -158,26 +209,35 @@ export const SearchUsersUI = makeAssistantToolUI<
 // lookupUser Tool UI
 interface LookupUserResult {
   success: boolean;
-  user: {
+  user?: {
     id: string;
     user_id: string;
     username: string;
     display_name: string;
     email: string;
+    phone?: string;
     role: string;
     is_creator: boolean;
     is_verified: boolean;
     is_active: boolean;
-    created_at: string;
-    last_login: string;
+    gender?: string;
     bio?: string;
+    location?: string;
     avatar_url?: string;
-    stats?: {
-      posts: number;
-      followers: number;
-      following: number;
-    };
+    cover_url?: string;
+    created_at: string;
+    last_login_at?: string;
+    banned_until?: string | null;
+    onboarding_completed?: boolean;
+    shadow_profile_active?: boolean;
+    biometric_enabled?: boolean;
   };
+  stats?: {
+    post_count: number;
+    follower_count: number;
+    following_count: number;
+  };
+  device_info?: object | null;
 }
 
 export const LookupUserUI = makeAssistantToolUI<
@@ -232,25 +292,60 @@ export const LookupUserUI = makeAssistantToolUI<
             </div>
           </div>
 
-          {user.stats && (
+          {result.stats && (
             <>
               <Separator />
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold">{user.stats.posts}</div>
+                  <div className="text-2xl font-bold">{result.stats.post_count}</div>
                   <div className="text-xs text-muted-foreground">Post</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{user.stats.followers}</div>
+                  <div className="text-2xl font-bold">{result.stats.follower_count}</div>
                   <div className="text-xs text-muted-foreground">Takipçi</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{user.stats.following}</div>
+                  <div className="text-2xl font-bold">{result.stats.following_count}</div>
                   <div className="text-xs text-muted-foreground">Takip</div>
                 </div>
               </div>
             </>
           )}
+
+          <ActionButtons
+            actions={[
+              {
+                label: "Postlarını Göster",
+                command: `${user.username} kullanıcısının postlarını göster`,
+                icon: <FileText className="size-3.5" />
+              },
+              {
+                label: "Bakiyesini Göster",
+                command: `${user.username} bakiyesini göster`,
+                icon: <Coins className="size-3.5" />
+              },
+              {
+                label: "Bildirim Gönder",
+                command: `${user.username} kullanıcısına bildirim gönder`,
+                icon: <Send className="size-3.5" />
+              },
+              ...(user.is_creator
+                ? [
+                    {
+                      label: "Creator İstatistikleri",
+                      command: `${user.username} creator istatistikleri`,
+                      icon: <TrendingUp className="size-3.5" />
+                    }
+                  ]
+                : []),
+              {
+                label: "Banla",
+                command: `${user.username} kullanıcısını banla`,
+                icon: <Ban className="size-3.5" />,
+                variant: "destructive" as const
+              }
+            ]}
+          />
         </CardContent>
       </Card>
     );
@@ -405,7 +500,7 @@ export const GetSystemStatsUI = makeAssistantToolUI<{ period?: string }, SystemS
 
         {(stats.users?.new_in_period ?? 0) > 0 && (
           <div className="text-sm text-muted-foreground">
-            📈 Bu dönemde {stats.users.new_in_period} yeni kullanıcı katıldı
+            📈 Bu dönemde {stats.users?.new_in_period ?? 0} yeni kullanıcı katıldı
           </div>
         )}
       </div>
@@ -513,13 +608,40 @@ interface RecentPostsResult {
   count: number;
   posts: Array<{
     id: string;
-    content: string;
-    author: string;
-    likes: number;
-    comments: number;
+    post_type: string; // 'standard' | 'vibe'
+    caption?: string;
+    is_exclusive?: boolean;
+    is_anon?: boolean;
+    visibility?: string;
+    is_hidden?: boolean;
+    is_flagged?: boolean;
+    moderation_status?: string;
     created_at: string;
-    is_hidden: boolean;
-    moderation_status: string;
+    engagement?: {
+      likes: number;
+      comments: number;
+      shares: number;
+      views: number;
+    };
+    media?: Array<{
+      type: string; // 'image' | 'video' | 'audio'
+      url?: string | null;
+      thumbnail?: string | null;
+      duration?: number | null; // Video süresi (saniye)
+    }>;
+    media_count?: number;
+    author?: {
+      username: string;
+      display_name?: string;
+      is_creator?: boolean;
+      is_verified?: boolean;
+    } | null;
+    poll?: {
+      question: string;
+      options: string[] | object;
+      expires_at?: string;
+      total_votes: number;
+    } | null;
   }>;
 }
 
@@ -539,9 +661,29 @@ export const GetRecentPostsUI = makeAssistantToolUI<
 
     if (!result?.posts) return null;
 
-    const columns: Column<RecentPostsResult["posts"][0]>[] = [
-      { key: "content", label: "İçerik", priority: "primary", truncate: true },
+    // Medya içeren postları ayır
+    const postsWithMedia = result.posts.filter((p) => p.media && p.media.length > 0);
+    const hasMediaPosts = postsWithMedia.length > 0;
+
+    // Veriyi DataTable için düzleştir
+    const flattenedPosts = result.posts.map((post) => ({
+      id: post.id,
+      caption: post.caption || "(İçerik yok)",
+      author: post.author?.username || "Anonim",
+      post_type: post.post_type,
+      likes: post.engagement?.likes || 0,
+      comments: post.engagement?.comments || 0,
+      views: post.engagement?.views || 0,
+      media_count: post.media_count || 0,
+      moderation_status: post.moderation_status || "pending",
+      created_at: post.created_at
+    }));
+
+    const columns: Column<(typeof flattenedPosts)[0]>[] = [
+      { key: "caption", label: "İçerik", priority: "primary", truncate: true },
       { key: "author", label: "Yazar" },
+      { key: "post_type", label: "Tip", format: { kind: "badge" } },
+      { key: "media_count", label: "Medya", align: "right", format: { kind: "number" } },
       { key: "likes", label: "Beğeni", align: "right", format: { kind: "number" } },
       { key: "comments", label: "Yorum", align: "right", format: { kind: "number" } },
       {
@@ -560,17 +702,82 @@ export const GetRecentPostsUI = makeAssistantToolUI<
     ];
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <FileText className="size-4" />
           <span>{result.count} post</span>
+          {hasMediaPosts && <Badge variant="outline">{postsWithMedia.length} medyalı</Badge>}
         </div>
+
+        {/* Medya Galerisi - Thumbnail'ler */}
+        {hasMediaPosts && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">📸 Medya Önizleme</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {postsWithMedia.slice(0, 10).map((post) =>
+                post.media?.slice(0, 1).map((m, idx) => (
+                  <a
+                    key={`${post.id}-${idx}`}
+                    href={m.url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative aspect-square rounded-lg overflow-hidden border bg-muted hover:opacity-80 transition-opacity group"
+                  >
+                    {m.thumbnail || m.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.thumbnail || m.url || ""}
+                        alt={post.caption || "Post media"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        {m.type === "video" ? "🎬" : "📷"}
+                      </div>
+                    )}
+                    {m.type === "video" && (
+                      <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+                        {m.duration
+                          ? `${Math.floor(m.duration / 60)}:${String(m.duration % 60).padStart(2, "0")}`
+                          : "🎬"}
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-white text-xs truncate">{post.author?.username}</p>
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         <DataTable
           rowIdKey="id"
           columns={columns}
-          data={result.posts}
+          data={flattenedPosts}
           defaultSort={{ by: "created_at", direction: "desc" }}
           maxRows={10}
+        />
+
+        <ActionButtons
+          actions={[
+            {
+              label: "Moderasyon Kuyruğu",
+              command: "Moderasyon kuyruğunu göster",
+              icon: <AlertTriangle className="size-3.5" />
+            },
+            {
+              label: "Trend Postlar",
+              command: "En çok beğenilen postları göster",
+              icon: <TrendingUp className="size-3.5" />
+            },
+            {
+              label: "Platform İstatistikleri",
+              command: "Platform istatistiklerini göster",
+              icon: <BarChart3 className="size-3.5" />
+            }
+          ]}
         />
       </div>
     );
@@ -583,21 +790,21 @@ export const GetRecentPostsUI = makeAssistantToolUI<
 
 interface SecurityLogsResult {
   success: boolean;
+  userId?: string;
+  period?: string;
+  logType?: string;
   count: number;
   logs: Array<{
-    id: string;
-    event_type: string;
-    user_id: string;
+    type: string;
     username: string;
-    details: string;
-    ip_address?: string;
+    description: string;
+    ip_address?: string | null;
     created_at: string;
-    severity: "low" | "medium" | "high";
   }>;
 }
 
 export const GetSecurityLogsUI = makeAssistantToolUI<
-  { userId?: string; eventType?: string; limit?: number },
+  { userId?: string; logType?: string; limit?: number },
   SecurityLogsResult
 >({
   toolName: "getSecurityLogs",
@@ -612,35 +819,29 @@ export const GetSecurityLogsUI = makeAssistantToolUI<
 
     if (!result?.logs) return null;
 
-    const columns: Column<SecurityLogsResult["logs"][0]>[] = [
+    // Veriyi DataTable için düzleştir (id ekle)
+    const logsWithId = result.logs.map((log, index) => ({
+      id: `log-${index}`,
+      ...log
+    }));
+
+    const columns: Column<(typeof logsWithId)[0]>[] = [
       {
-        key: "event_type",
-        label: "Olay",
+        key: "type",
+        label: "Tip",
         priority: "primary",
         format: {
           kind: "badge",
           colorMap: {
-            shadow_mode: "warning",
             screenshot: "danger",
             login_failed: "danger",
-            password_change: "info"
+            login: "info"
           }
         }
       },
       { key: "username", label: "Kullanıcı" },
-      { key: "details", label: "Detay", truncate: true },
-      {
-        key: "severity",
-        label: "Seviye",
-        format: {
-          kind: "status",
-          statusMap: {
-            low: { tone: "neutral", label: "Düşük" },
-            medium: { tone: "warning", label: "Orta" },
-            high: { tone: "danger", label: "Yüksek" }
-          }
-        }
-      },
+      { key: "description", label: "Detay", truncate: true },
+      { key: "ip_address", label: "IP" },
       { key: "created_at", label: "Zaman", format: { kind: "date", dateFormat: "relative" } }
     ];
 
@@ -649,11 +850,12 @@ export const GetSecurityLogsUI = makeAssistantToolUI<
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Lock className="size-4" />
           <span>{result.count} güvenlik olayı</span>
+          {result.logType && <Badge variant="outline">{result.logType}</Badge>}
         </div>
         <DataTable
           rowIdKey="id"
           columns={columns}
-          data={result.logs}
+          data={logsWithId}
           defaultSort={{ by: "created_at", direction: "desc" }}
           maxRows={15}
         />
@@ -701,6 +903,255 @@ export const SendNotificationUI = makeAssistantToolUI<
 });
 
 // ============================================
+// V2 Tool UIs - Yeni Eklenenler
+// ============================================
+
+// Approve Post UI
+interface ApprovePostResult {
+  success: boolean;
+  message: string;
+  postId: string;
+  previousStatus?: string;
+  error?: string;
+}
+
+export const ApprovePostUI = makeAssistantToolUI<{ postId: string }, ApprovePostResult>({
+  toolName: "approvePost",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Post onaylanıyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Post onaylanamadı"} />;
+    }
+    return <SuccessState message={result.message} />;
+  }
+});
+
+// Reject Post UI
+interface RejectPostResult {
+  success: boolean;
+  message: string;
+  postId: string;
+  reason: string;
+  userNotified: boolean;
+  error?: string;
+}
+
+export const RejectPostUI = makeAssistantToolUI<
+  { postId: string; reason: string; notifyUser?: boolean },
+  RejectPostResult
+>({
+  toolName: "rejectPost",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Post reddediliyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Post reddedilemedi"} />;
+    }
+    return (
+      <SuccessState
+        message={`${result.message}${result.userNotified ? " (Kullanıcı bilgilendirildi)" : ""}`}
+      />
+    );
+  }
+});
+
+// Adjust Coin Balance UI
+interface AdjustCoinBalanceResult {
+  success: boolean;
+  message: string;
+  username: string;
+  previousBalance: number;
+  adjustment: number;
+  newBalance: number;
+  reason: string;
+  error?: string;
+}
+
+export const AdjustCoinBalanceUI = makeAssistantToolUI<
+  { userId: string; amount: number; reason: string },
+  AdjustCoinBalanceResult
+>({
+  toolName: "adjustCoinBalance",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Bakiye güncelleniyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Bakiye güncellenemedi"} />;
+    }
+    return (
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-green-100 dark:bg-green-900">
+              <Coins className="size-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="font-medium">{result.message}</p>
+              <p className="text-sm text-muted-foreground">
+                {result.previousBalance} → {result.newBalance} ({result.adjustment > 0 ? "+" : ""}
+                {result.adjustment})
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Sebep: {result.reason}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+});
+
+// Dashboard Summary UI
+interface DashboardSummaryResult {
+  success: boolean;
+  period: string;
+  periodLabel: string;
+  summary: {
+    newUsers: number;
+    newPosts: number;
+    pendingModeration: number;
+    activeReports: number;
+    totalCreators: number;
+    totalRevenue: number;
+  };
+  alerts: string[];
+  error?: string;
+}
+
+export const GetDashboardSummaryUI = makeAssistantToolUI<
+  { period?: string },
+  DashboardSummaryResult
+>({
+  toolName: "getDashboardSummary",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Dashboard yükleniyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Dashboard yüklenemedi"} />;
+    }
+
+    const { summary, alerts, periodLabel } = result;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="size-5 text-primary" />
+          <span className="font-medium">📊 {periodLabel} Özeti</span>
+        </div>
+
+        {/* Alerts */}
+        {alerts.length > 0 && (
+          <div className="space-y-1">
+            {alerts.map((alert, i) => (
+              <div
+                key={i}
+                className="text-sm p-2 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200"
+              >
+                {alert}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-primary">{summary.newUsers}</div>
+              <div className="text-xs text-muted-foreground">Yeni Kullanıcı</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-primary">{summary.newPosts}</div>
+              <div className="text-xs text-muted-foreground">Yeni Post</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-orange-500">{summary.pendingModeration}</div>
+              <div className="text-xs text-muted-foreground">Bekleyen Moderasyon</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-red-500">{summary.activeReports}</div>
+              <div className="text-xs text-muted-foreground">Aktif Rapor</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-purple-500">{summary.totalCreators}</div>
+              <div className="text-xs text-muted-foreground">Toplam Creator</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-green-500">{summary.totalRevenue}</div>
+              <div className="text-xs text-muted-foreground">Coin Geliri</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <ActionButtons
+          actions={[
+            {
+              label: "Moderasyon Kuyruğu",
+              command: "Moderasyon kuyruğunu göster",
+              icon: <AlertTriangle className="size-3.5" />
+            },
+            {
+              label: "Raporları Göster",
+              command: "Aktif raporları göster",
+              icon: <FileText className="size-3.5" />
+            },
+            {
+              label: "Son Postlar",
+              command: "Son postları göster",
+              icon: <FileText className="size-3.5" />
+            }
+          ]}
+        />
+      </div>
+    );
+  }
+});
+
+// Verify User UI
+interface VerifyUserResult {
+  success: boolean;
+  message: string;
+  username: string;
+  verified: boolean;
+  error?: string;
+}
+
+export const VerifyUserUI = makeAssistantToolUI<
+  { userId: string; verified?: boolean },
+  VerifyUserResult
+>({
+  toolName: "verifyUser",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Doğrulama güncelleniyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Doğrulama güncellenemedi"} />;
+    }
+    return <SuccessState message={result.message} />;
+  }
+});
+
+// ============================================
 // Export all Tool UIs
 // ============================================
 
@@ -714,5 +1165,11 @@ export const AllToolUIs = () => (
     <GetRecentPostsUI />
     <GetSecurityLogsUI />
     <SendNotificationUI />
+    {/* V2 Tool UIs */}
+    <ApprovePostUI />
+    <RejectPostUI />
+    <AdjustCoinBalanceUI />
+    <GetDashboardSummaryUI />
+    <VerifyUserUI />
   </>
 );
