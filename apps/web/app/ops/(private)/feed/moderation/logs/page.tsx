@@ -1,11 +1,10 @@
 /**
  * Moderation Logs Sayfası
  *
- * Tüm moderasyon işlemlerinin kayıtlarını gösterir
- * - Hangi admin hangi işlemi yaptı
- * - Neden ve açıklama
- * - Tarih ve saat
- * - Filtreleme ve arama
+ * TanStack Table ile gelişmiş data table
+ * - Sıralama, filtreleme, sayfalama
+ * - Kolon görünürlüğü
+ * - Satır seçimi
  */
 
 "use client";
@@ -13,109 +12,66 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   IconAlertTriangle,
-  IconCalendar,
-  IconChevronLeft,
-  IconChevronRight,
+  IconClock,
+  IconEdit,
   IconEye,
   IconEyeOff,
-  IconFilter,
+  IconInfoCircle,
   IconRefresh,
   IconTrash,
-  IconUser
+  IconUser,
+  IconX
 } from "@tabler/icons-react";
 import Image from "next/image";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
-interface ModerationLog {
-  id: string;
-  admin_id: string;
-  target_type: string;
-  target_id: string;
-  target_user_id: string;
-  action_type: string;
-  reason_code: string | null;
-  reason_custom: string | null;
-  reason_title: string | null;
-  notification_sent: boolean;
-  created_at: string;
-  admin: {
-    display_name: string;
-    email?: string;
-  };
-  target_user: {
-    username: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  total_pages: number;
-}
+import { ModerationDialog } from "../../viewer/components/moderation-dialog";
+import { columns, DataTable, type ModerationLog } from "./components";
 
 export default function ModerationLogsPage() {
   const [logs, setLogs] = useState<ModerationLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    total_pages: 0
-  });
 
-  // Filters
-  const [targetType, setTargetType] = useState<string>("all");
-  const [actionType, setActionType] = useState<string>("all");
+  // Detail modal
+  const [selectedLog, setSelectedLog] = useState<ModerationLog | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  // Moderation dialog for changing action
+  const [moderationTarget, setModerationTarget] = useState<{
+    type: "post" | "mini_post" | "poll" | "voice_moment" | "comment";
+    id: string;
+    currentStatus?: "visible" | "hidden" | "deleted";
+  } | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set("page", pagination.page.toString());
-      params.set("limit", pagination.limit.toString());
-
-      if (targetType !== "all") {
-        params.set("target_type", targetType);
-      }
-      if (actionType !== "all") {
-        params.set("action_type", actionType);
-      }
-
-      const response = await fetch(`/api/ops/moderation/logs?${params.toString()}`);
+      // Tüm logları çek, filtreleme client-side yapılacak
+      const response = await fetch("/api/ops/moderation/logs?limit=500");
       const data = await response.json();
 
       if (data.success) {
         setLogs(data.data.logs);
-        setPagination(data.data.pagination);
       }
     } catch (error) {
       console.error("Logs fetch error:", error);
+      toast.error("Loglar yüklenirken hata oluştu");
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, targetType, actionType]);
+  }, []);
 
   useEffect(() => {
     fetchLogs();
@@ -169,205 +125,241 @@ export default function ModerationLogsPage() {
     return <Badge variant="outline">{labels[type] || type}</Badge>;
   };
 
+  const handleRowClick = (log: ModerationLog) => {
+    setSelectedLog(log);
+    setDetailOpen(true);
+  };
+
   return (
-    <>
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Moderasyon Logları</h1>
-          <p className="text-muted-foreground">Tüm moderasyon işlemlerinin kayıtları</p>
+          <p className="text-muted-foreground">
+            Tüm moderasyon işlemlerinin kayıtları • {logs.length} kayıt
+          </p>
         </div>
-        <Button variant="outline" onClick={fetchLogs}>
-          <IconRefresh className="mr-2 h-4 w-4" />
-          Yenile
-        </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-4 py-4">
-          <div className="flex items-center gap-2">
-            <IconFilter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filtreler:</span>
-          </div>
-
-          <Select value={targetType} onValueChange={setTargetType}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="İçerik Türü" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tümü</SelectItem>
-              <SelectItem value="post">Post</SelectItem>
-              <SelectItem value="mini_post">Vibe</SelectItem>
-              <SelectItem value="poll">Anket</SelectItem>
-              <SelectItem value="voice_moment">Ses</SelectItem>
-              <SelectItem value="comment">Yorum</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={actionType} onValueChange={setActionType}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="İşlem Türü" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tümü</SelectItem>
-              <SelectItem value="hide">Gizle</SelectItem>
-              <SelectItem value="unhide">Göster</SelectItem>
-              <SelectItem value="delete">Sil</SelectItem>
-              <SelectItem value="restore">Geri Yükle</SelectItem>
-              <SelectItem value="warn">Uyar</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Badge variant="secondary" className="ml-auto">
-            {pagination.total} kayıt
-          </Badge>
-        </CardContent>
-      </Card>
-
-      {/* Logs Table */}
+      {/* Data Table */}
       <Card>
         <CardHeader>
           <CardTitle>İşlem Geçmişi</CardTitle>
-          <CardDescription>Tüm moderasyon işlemleri burada listelenir</CardDescription>
+          <CardDescription>
+            Tüm moderasyon işlemleri burada listelenir. Sıralama, filtreleme ve arama yapabilirsiniz.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                  <Skeleton className="h-6 w-20" />
-                </div>
-              ))}
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <IconCalendar className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="text-lg font-medium">Kayıt bulunamadı</h3>
-              <p className="text-sm text-muted-foreground">Henüz moderasyon işlemi yapılmamış</p>
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tarih</TableHead>
-                    <TableHead>Admin</TableHead>
-                    <TableHead>İşlem</TableHead>
-                    <TableHead>İçerik Türü</TableHead>
-                    <TableHead>Hedef Kullanıcı</TableHead>
-                    <TableHead>Neden</TableHead>
-                    <TableHead>Bildirim</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(log.created_at).toLocaleDateString("tr-TR", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                            <IconUser className="h-4 w-4" />
-                          </div>
-                          <span className="text-sm font-medium">
-                            {log.admin.display_name || "Admin"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getActionBadge(log.action_type)}</TableCell>
-                      <TableCell>{getTargetTypeBadge(log.target_type)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {log.target_user.avatar_url ? (
-                            <Image
-                              src={log.target_user.avatar_url}
-                              alt={log.target_user.username}
-                              width={24}
-                              height={24}
-                              className="rounded-full"
-                            />
-                          ) : (
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
-                              <span className="text-xs">
-                                {log.target_user.username?.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <span className="text-sm">@{log.target_user.username}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-[200px]">
-                          {log.reason_title && (
-                            <Badge variant="outline" className="mb-1">
-                              {log.reason_title}
-                            </Badge>
-                          )}
-                          {log.reason_custom && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {log.reason_custom}
-                            </p>
-                          )}
-                          {!log.reason_title && !log.reason_custom && (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {log.notification_sent ? (
-                          <Badge variant="outline" className="border-green-500 text-green-600">
-                            Gönderildi
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Gönderilmedi</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Pagination */}
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Sayfa {pagination.page} / {pagination.total_pages}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pagination.page <= 1}
-                    onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
-                  >
-                    <IconChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pagination.page >= pagination.total_pages}
-                    onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
-                  >
-                    <IconChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
+          <DataTable
+            columns={columns}
+            data={logs}
+            isLoading={loading}
+            onRefresh={fetchLogs}
+            onRowClick={handleRowClick}
+          />
         </CardContent>
       </Card>
-    </>
+
+      {/* Detail Modal */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconInfoCircle className="h-5 w-5" />
+              Moderasyon Detayı
+            </DialogTitle>
+            <DialogDescription>İşlem hakkında detaylı bilgi</DialogDescription>
+          </DialogHeader>
+
+          {selectedLog && (
+            <div className="space-y-4">
+              {/* Tarih/Saat */}
+              <div className="rounded-lg bg-muted p-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <IconClock className="h-4 w-4" />
+                  <span>İşlem Zamanı</span>
+                </div>
+                <p className="mt-1 text-lg font-semibold">
+                  {new Date(selectedLog.created_at).toLocaleString("tr-TR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                  })}
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Admin Bilgisi */}
+              <div className="flex items-center gap-3">
+                {selectedLog.admin.avatar_url ? (
+                  <Image
+                    src={selectedLog.admin.avatar_url}
+                    alt={selectedLog.admin.display_name || "Admin"}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <span className="text-sm font-medium">
+                      {(selectedLog.admin.display_name || "A").charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-muted-foreground">İşlemi Yapan Admin</p>
+                  <p className="font-medium">
+                    {selectedLog.admin.display_name || "Bilinmeyen Admin"}
+                  </p>
+                  {selectedLog.admin.email && (
+                    <p className="text-xs text-muted-foreground">{selectedLog.admin.email}</p>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* İşlem Detayları */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">İşlem Türü</p>
+                  <div className="mt-1">{getActionBadge(selectedLog.action_type)}</div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">İçerik Türü</p>
+                  <div className="mt-1">{getTargetTypeBadge(selectedLog.target_type)}</div>
+                </div>
+              </div>
+
+              {/* Hedef Kullanıcı */}
+              <div className="flex items-center gap-3">
+                {selectedLog.target_user.avatar_url ? (
+                  <Image
+                    src={selectedLog.target_user.avatar_url}
+                    alt={selectedLog.target_user.username}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <span className="text-sm font-medium">
+                      {selectedLog.target_user.username?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-muted-foreground">Hedef Kullanıcı</p>
+                  <p className="font-medium">@{selectedLog.target_user.username}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Neden */}
+              <div>
+                <p className="text-sm text-muted-foreground">Moderasyon Nedeni</p>
+                {selectedLog.reason_title ? (
+                  <Badge variant="outline" className="mt-1">
+                    {selectedLog.reason_title}
+                  </Badge>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">Belirtilmemiş</p>
+                )}
+              </div>
+
+              {selectedLog.reason_custom && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Ek Açıklama (Kullanıcı Görür)</p>
+                  <p className="mt-1 rounded-lg bg-muted p-3 text-sm">
+                    {selectedLog.reason_custom}
+                  </p>
+                </div>
+              )}
+
+              {/* Yönetim Notu - Sadece adminler görür */}
+              {selectedLog.admin_note && (
+                <div>
+                  <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <IconUser className="h-3 w-3" />
+                    Yönetim Notu (Sadece Adminler Görür)
+                  </p>
+                  <p className="mt-1 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm dark:border-yellow-900 dark:bg-yellow-950/50">
+                    {selectedLog.admin_note}
+                  </p>
+                </div>
+              )}
+
+              {/* Bildirim Durumu */}
+              <div className="flex items-center justify-between rounded-lg bg-muted p-3">
+                <span className="text-sm">Kullanıcıya Bildirim</span>
+                {selectedLog.notification_sent ? (
+                  <Badge variant="outline" className="border-green-500 text-green-600">
+                    Gönderildi
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Gönderilmedi</Badge>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Aksiyonlar */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setDetailOpen(false);
+                    setModerationTarget({
+                      type: selectedLog.target_type as
+                        | "post"
+                        | "mini_post"
+                        | "poll"
+                        | "voice_moment"
+                        | "comment",
+                      id: selectedLog.target_id,
+                      currentStatus:
+                        selectedLog.action_type === "delete"
+                          ? "deleted"
+                          : selectedLog.action_type === "hide"
+                            ? "hidden"
+                            : "visible"
+                    });
+                  }}
+                >
+                  <IconEdit className="h-4 w-4" />
+                  İşlemi Değiştir
+                </Button>
+                <Button variant="ghost" onClick={() => setDetailOpen(false)}>
+                  <IconX className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Moderation Dialog for changing action */}
+      {moderationTarget && (
+        <ModerationDialog
+          open={!!moderationTarget}
+          onClose={() => setModerationTarget(null)}
+          targetType={moderationTarget.type}
+          targetId={moderationTarget.id}
+          currentStatus={moderationTarget.currentStatus}
+          onSuccess={() => {
+            setModerationTarget(null);
+            fetchLogs();
+            toast.success("Moderasyon işlemi güncellendi");
+          }}
+        />
+      )}
+    </div>
   );
 }

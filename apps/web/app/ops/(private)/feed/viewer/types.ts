@@ -54,6 +54,16 @@ export interface FeedItem {
   created_at: string;
   is_hidden?: boolean;
   is_flagged?: boolean;
+  moderation_status?: "visible" | "hidden" | "deleted";
+  moderated_at?: string;
+  moderated_by?: string;
+  last_moderation?: {
+    action_type: string;
+    reason_code?: string;
+    reason_title?: string;
+    admin_name?: string;
+    created_at: string;
+  };
 }
 
 export interface Comment {

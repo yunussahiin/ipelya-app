@@ -15,7 +15,9 @@ import {
   IconUsers,
   IconBell,
   IconMask,
-  IconNews
+  IconNews,
+  IconServer,
+  IconMessage
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -73,7 +75,25 @@ const data = {
         },
         {
           title: "Algoritma",
-          url: "/ops/feed/algorithm"
+          url: "/ops/feed/algorithm",
+          items: [
+            {
+              title: "Weights",
+              url: "/ops/feed/algorithm/weights"
+            },
+            {
+              title: "Vibe Matrix",
+              url: "/ops/feed/algorithm/vibe"
+            },
+            {
+              title: "Intent Matrix",
+              url: "/ops/feed/algorithm/intent"
+            },
+            {
+              title: "Diversity",
+              url: "/ops/feed/algorithm/diversity"
+            }
+          ]
         },
         {
           title: "Moderasyon",
@@ -84,8 +104,20 @@ const data = {
           url: "/ops/feed/moderation/logs"
         },
         {
+          title: "Moderasyon Kuyruğu",
+          url: "/ops/feed/moderation/queue"
+        },
+        {
           title: "Analytics",
           url: "/ops/feed/analytics"
+        },
+        {
+          title: "A/B Testing",
+          url: "/ops/feed/experiments"
+        },
+        {
+          title: "Canlı İstatistikler",
+          url: "/ops/feed/live"
         }
       ]
     },
@@ -147,6 +179,29 @@ const data = {
         {
           title: "Raporlar",
           url: "/ops/economy/reports"
+        }
+      ]
+    },
+    {
+      title: "Mesajlaşma",
+      url: "/ops/messaging",
+      icon: IconMessage,
+      items: [
+        {
+          title: "Genel Bakış",
+          url: "/ops/messaging"
+        },
+        {
+          title: "DM Sohbetleri",
+          url: "/ops/messaging/conversations"
+        },
+        {
+          title: "Broadcast Kanalları",
+          url: "/ops/messaging/broadcast"
+        },
+        {
+          title: "Admin Chat",
+          url: "/ops/admin-chat"
         }
       ]
     },
@@ -213,6 +268,29 @@ const data = {
         {
           title: "Shadow Kullanıcılar",
           url: "/ops/shadow/users"
+        }
+      ]
+    },
+    {
+      title: "Sistem",
+      url: "/ops/system",
+      icon: IconServer,
+      items: [
+        {
+          title: "Observability",
+          url: "/ops/system/observability"
+        },
+        {
+          title: "Cron Jobs",
+          url: "/ops/system/cron"
+        },
+        {
+          title: "Storage",
+          url: "/ops/storage"
+        },
+        {
+          title: "Storage Analytics",
+          url: "/ops/storage/analytics"
         }
       ]
     }

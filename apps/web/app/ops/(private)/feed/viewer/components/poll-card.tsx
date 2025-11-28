@@ -4,7 +4,14 @@
  * Kim oy verdi modalı için tıklanabilir
  */
 
-import { IconChartBar, IconCheck, IconClock, IconEyeOff, IconUsers } from "@tabler/icons-react";
+import {
+  IconChartBar,
+  IconCheck,
+  IconClock,
+  IconEye,
+  IconEyeOff,
+  IconUsers
+} from "@tabler/icons-react";
 import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { FeedItem } from "../types";
+import { ModerationBadge } from "./moderation-badge";
 
 interface PollCardProps {
   item: FeedItem;
@@ -58,9 +66,12 @@ export function PollCard({ item, onClick, onModerate }: PollCardProps) {
             })}
           </p>
         </div>
-        <Badge variant="outline" className="gap-1">
-          <IconChartBar className="h-3 w-3" /> Anket
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1">
+            <IconChartBar className="h-3 w-3" /> Anket
+          </Badge>
+          <ModerationBadge item={item} onChangeAction={onModerate} />
+        </div>
       </CardHeader>
 
       {/* Poll Content */}
@@ -101,16 +112,29 @@ export function PollCard({ item, onClick, onModerate }: PollCardProps) {
             <IconUsers className="h-4 w-4" />
             {totalVotes} oy
           </span>
-          {content.expires_at && (
-            <span className="flex items-center gap-1">
-              <IconClock className="h-4 w-4" />
-              {new Date(content.expires_at) > new Date() ? (
-                <>Bitiş: {new Date(content.expires_at).toLocaleDateString("tr-TR")}</>
-              ) : (
-                <span className="text-orange-600">Sona erdi</span>
-              )}
-            </span>
-          )}
+          <span className="flex items-center gap-1">
+            <IconClock className="h-4 w-4" />
+            {(() => {
+              if (!content.expires_at) {
+                return "Süresiz";
+              }
+              const expiresAt = new Date(content.expires_at);
+              const now = new Date();
+              const createdAt = new Date(created_at);
+              const totalDuration = expiresAt.getTime() - createdAt.getTime();
+              const totalDays = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+
+              if (expiresAt > now) {
+                const remaining = expiresAt.getTime() - now.getTime();
+                const remainingDays = Math.ceil(remaining / (1000 * 60 * 60 * 24));
+                return `${totalDays} günlük anket - ${remainingDays} gün kaldı`;
+              } else {
+                return (
+                  <span className="text-orange-600">{totalDays} günlük anket - Sona erdi</span>
+                );
+              }
+            })()}
+          </span>
           {content.multiple_choice && (
             <Badge variant="secondary" className="text-xs">
               Çoklu Seçim
@@ -123,8 +147,26 @@ export function PollCard({ item, onClick, onModerate }: PollCardProps) {
       </CardContent>
 
       {/* Footer - Actions */}
-      <CardFooter className="flex items-center justify-end border-t p-4">
+      <CardFooter className="flex items-center justify-between border-t p-4">
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          {/* Detay Butonu */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick?.();
+                }}
+              >
+                <IconEye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Detay</TooltipContent>
+          </Tooltip>
+          {/* Moderasyon Butonu */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

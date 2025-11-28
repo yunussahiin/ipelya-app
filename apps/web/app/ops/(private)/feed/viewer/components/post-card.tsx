@@ -23,6 +23,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { FeedItem } from "../types";
+import { ModerationBadge } from "./moderation-badge";
 
 interface PostCardProps {
   item: FeedItem;
@@ -93,7 +94,8 @@ export function PostCard({ item, onClick, onModerate }: PostCardProps) {
             </Badge>
           )}
           {is_flagged && <Badge variant="destructive">İşaretli</Badge>}
-          {is_hidden && <Badge variant="secondary">Gizli</Badge>}
+          {/* Moderasyon Badge - detaylı bilgi gösterir */}
+          <ModerationBadge item={item} onChangeAction={onModerate} />
         </div>
       </CardHeader>
 

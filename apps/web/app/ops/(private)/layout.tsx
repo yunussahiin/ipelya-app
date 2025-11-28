@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OpsProviders } from "@/components/ops-providers";
+import { AIAssistantProvider } from "@/components/ops/ai/AIAssistantProvider";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function PrivateLayout({ children }: { children: React.ReactNode }) {
@@ -47,28 +48,30 @@ export default async function PrivateLayout({ children }: { children: React.Reac
   return (
     <OpsProviders>
       <TooltipProvider>
-        <SidebarProvider
-          style={
-            {
-              "--sidebar-width": "calc(var(--spacing) * 72)",
-              "--header-height": "calc(var(--spacing) * 12)"
-            } as CSSProperties
-          }
-          suppressHydrationWarning
-        >
-          <AppSidebar variant="inset" user={user} />
-          <SidebarInset suppressHydrationWarning>
-            <SiteHeader user={user} />
-            <div className="flex flex-1 flex-col">
-              <div className="@container/main flex flex-1 flex-col gap-2">
-                <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:px-6 md:py-6">
-                  {children}
+        <AIAssistantProvider>
+          <SidebarProvider
+            style={
+              {
+                "--sidebar-width": "calc(var(--spacing) * 72)",
+                "--header-height": "calc(var(--spacing) * 12)"
+              } as CSSProperties
+            }
+            suppressHydrationWarning
+          >
+            <AppSidebar variant="inset" user={user} />
+            <SidebarInset suppressHydrationWarning>
+              <SiteHeader user={user} />
+              <div className="flex flex-1 flex-col">
+                <div className="@container/main flex flex-1 flex-col gap-2">
+                  <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:px-6 md:py-6">
+                    {children}
+                  </div>
                 </div>
               </div>
-            </div>
-          </SidebarInset>
-          <Toaster position="top-right" />
-        </SidebarProvider>
+            </SidebarInset>
+            <Toaster position="top-right" />
+          </SidebarProvider>
+        </AIAssistantProvider>
       </TooltipProvider>
     </OpsProviders>
   );

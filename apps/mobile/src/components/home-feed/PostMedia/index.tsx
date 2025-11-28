@@ -22,10 +22,9 @@ import {
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  useWindowDimensions
+  useWindowDimensions,
+  Image
 } from "react-native";
-import { Image } from "expo-image";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useTheme } from "@/theme/ThemeProvider";
 import { LikeAnimation } from "../LikeAnimation";
 import type { PostMedia as PostMediaType } from "@ipelya/types";
@@ -47,31 +46,12 @@ export function PostMedia({ media, onPress, onDoubleTap }: PostMediaProps) {
   // Early return BEFORE hooks is not allowed - check after all hooks
   const hasMedia = media && media.length > 0;
 
-  // Get first video URL for single video player (hooks must be called unconditionally)
-  const firstVideoUrl = hasMedia
-    ? media.find((item) => item.media_type === "video")?.media_url
-    : null;
-
-  // Single video player for the first video (hooks can't be in loops)
-  const videoPlayer = useVideoPlayer(firstVideoUrl || "", (player) => {
-    player.loop = true;
-    player.muted = false;
-  });
-
   if (!hasMedia) return null;
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / screenWidth);
     setActiveIndex(index);
-
-    // Play/pause video based on active index
-    const currentMedia = media[index];
-    if (currentMedia?.media_type === "video" && videoPlayer) {
-      videoPlayer.play();
-    } else if (videoPlayer) {
-      videoPlayer.pause();
-    }
   };
 
   const handleMediaPress = (index: number) => {
@@ -112,34 +92,15 @@ export function PostMedia({ media, onPress, onDoubleTap }: PostMediaProps) {
         scrollEventThrottle={16}
         style={styles.carousel}
       >
-        {media.map((item, index) => {
-          // Use single video player for first video only
-          const isFirstVideo = item.media_type === "video" && item.media_url === firstVideoUrl;
-
-          return (
-            <Pressable
-              key={item.id}
-              onPress={() => handleMediaPress(index)}
-              style={[styles.mediaItem, { width: screenWidth }]}
-            >
-              {item.media_type === "video" && isFirstVideo && videoPlayer ? (
-                <VideoView
-                  player={videoPlayer}
-                  style={styles.image}
-                  contentFit="cover"
-                  nativeControls
-                />
-              ) : (
-                <Image
-                  source={{ uri: item.media_url }}
-                  style={styles.image}
-                  contentFit="cover"
-                  transition={200}
-                />
-              )}
-            </Pressable>
-          );
-        })}
+        {media.map((item, index) => (
+          <Pressable
+            key={item.id}
+            onPress={() => handleMediaPress(index)}
+            style={[styles.mediaItem, { width: screenWidth }]}
+          >
+            <Image source={{ uri: item.media_url }} style={styles.image} resizeMode="cover" />
+          </Pressable>
+        ))}
       </ScrollView>
 
       {/* Pagination dots */}

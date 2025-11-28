@@ -10,3 +10,6 @@ export * from "./shadow";
 
 // Home Feed types
 export * from "./home-feed";
+
+// Storage types
+export * from "./storage";

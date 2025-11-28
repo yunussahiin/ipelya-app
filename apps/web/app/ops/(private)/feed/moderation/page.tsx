@@ -16,7 +16,15 @@
  * - moderate-content
  */
 
-import { IconAlertTriangle, IconCheck, IconClock, IconX } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconClock,
+  IconHistory,
+  IconListCheck,
+  IconX
+} from "@tabler/icons-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +77,20 @@ export default async function ModerationPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">İçerik Moderasyonu</h1>
           <p className="text-muted-foreground">Feed içeriklerini inceleyin ve yönetin</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/ops/feed/moderation/logs">
+            <Button variant="outline">
+              <IconHistory className="mr-2 h-4 w-4" />
+              Moderasyon Logları
+            </Button>
+          </Link>
+          <Link href="/ops/feed/moderation/queue">
+            <Button>
+              <IconListCheck className="mr-2 h-4 w-4" />
+              AI Kuyruğu
+            </Button>
+          </Link>
         </div>
       </div>
 

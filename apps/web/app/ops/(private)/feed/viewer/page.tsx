@@ -46,11 +46,13 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import { FeedGrid } from "./components/feed-grid";
-import { FeedSkeleton } from "./components/feed-skeleton";
-import { ModerationDialog } from "./components/moderation-dialog";
-import { PollVotersModal } from "./components/poll-voters-modal";
-import { PostDetailModal } from "./components/post-detail-modal";
+import {
+  FeedGrid,
+  FeedSkeleton,
+  ModerationDialog,
+  PollVotersModal,
+  PostDetailModal
+} from "./components";
 import type { FeedItem } from "./types";
 
 export default function FeedViewerPage() {
@@ -64,12 +66,13 @@ export default function FeedViewerPage() {
   // Filters
   const [contentType, setContentType] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
-  const [columns, setColumns] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("feed-viewer-columns") || "3";
-    }
-    return "3";
-  });
+  const [columns, setColumns] = useState<string>("3");
+
+  // Client-side localStorage okuma (hydration hatası önleme)
+  useEffect(() => {
+    const saved = localStorage.getItem("feed-viewer-columns");
+    if (saved) setColumns(saved);
+  }, []);
 
   // Infinite scroll ref
   const observerRef = useRef<IntersectionObserver | null>(null);

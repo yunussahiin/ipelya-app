@@ -4,7 +4,7 @@
  * Mobil ile aynı görünüm
  */
 
-import { IconCheck, IconEyeOff, IconHeart, IconMessageCircle } from "@tabler/icons-react";
+import { IconCheck, IconEye, IconEyeOff, IconHeart, IconMessageCircle } from "@tabler/icons-react";
 import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { FeedItem } from "../types";
+import { ModerationBadge } from "./moderation-badge";
 
 interface MiniPostCardProps {
   item: FeedItem;
@@ -72,7 +73,7 @@ export function MiniPostCard({ item, onClick, onModerate }: MiniPostCardProps) {
             <IconMessageCircle className="h-3 w-3" /> Vibe
           </Badge>
           {is_flagged && <Badge variant="destructive">İşaretli</Badge>}
-          {is_hidden && <Badge variant="secondary">Gizli</Badge>}
+          <ModerationBadge item={item} onChangeAction={onModerate} />
         </div>
       </CardHeader>
 
@@ -100,6 +101,24 @@ export function MiniPostCard({ item, onClick, onModerate }: MiniPostCardProps) {
           </span>
         </div>
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          {/* Detay Butonu */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick?.();
+                }}
+              >
+                <IconEye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Detay</TooltipContent>
+          </Tooltip>
+          {/* Moderasyon Butonu */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

@@ -14,8 +14,9 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { Comment, FeedItem } from "../types";
@@ -85,6 +86,11 @@ export function PostDetailModal({ item, open, onClose }: PostDetailModalProps) {
         hideCloseButton
         className="flex h-full w-full max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none md:w-[85vw] lg:w-[80vw]"
       >
+        {/* Erişilebilirlik için gizli başlık */}
+        <VisuallyHidden>
+          <SheetTitle>İçerik Detayı</SheetTitle>
+        </VisuallyHidden>
+
         {/* Header - Sabit */}
         <div className="flex shrink-0 items-center gap-4 border-b px-6 py-4">
           {item.content.user.avatar_url ? (
@@ -121,7 +127,7 @@ export function PostDetailModal({ item, open, onClose }: PostDetailModalProps) {
 
         {/* Content - Flex row */}
         <div className="flex min-h-0 flex-1">
-          {/* Sol taraf - Media */}
+          {/* Sol taraf - Media veya İçerik */}
           <div className="relative hidden w-3/5 bg-black md:flex md:items-center md:justify-center">
             {item.content.media && item.content.media.length > 0 ? (
               <Image src={item.content.media[0].media_url} alt="" fill className="object-contain" />
@@ -136,9 +142,37 @@ export function PostDetailModal({ item, open, onClose }: PostDetailModalProps) {
                   </div>
                 </div>
               </div>
+            ) : item.content_type === "poll" ? (
+              <div className="flex h-full w-full items-center justify-center bg-muted/50 p-8">
+                {/* Anket Görünümü */}
+                <div className="w-full max-w-lg space-y-4 rounded-2xl bg-background p-6 shadow-lg">
+                  <Badge variant="outline" className="gap-1">
+                    <IconMessageCircle className="h-3 w-3" /> Anket
+                  </Badge>
+                  {item.content.caption && (
+                    <p className="text-sm text-muted-foreground">{item.content.caption}</p>
+                  )}
+                  <p className="text-xl font-semibold">{item.content.question}</p>
+                  <div className="space-y-2">
+                    {item.content.options?.map((opt) => (
+                      <div key={opt.id} className="rounded-lg bg-muted p-3">
+                        <div className="flex justify-between text-sm">
+                          <span>{opt.option_text}</span>
+                          <span className="text-muted-foreground">{opt.votes_count} oy</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-muted">
-                <p className="text-lg text-muted-foreground">Medya yok</p>
+              <div className="flex h-full w-full items-center justify-center bg-muted/30 p-8">
+                {/* Medyasız Text Post */}
+                <div className="w-full max-w-lg rounded-2xl bg-background p-8 shadow-lg">
+                  <p className="text-center text-xl leading-relaxed">
+                    {item.content.caption || item.content.content || "İçerik yok"}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -260,31 +294,29 @@ function CommentItem({
           </div>
         )}
         <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">@{comment.user.username}</span>
-              {comment.user.is_creator && (
-                <Badge variant="secondary" className="text-xs">
-                  Creator
-                </Badge>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {new Date(comment.created_at).toLocaleDateString("tr-TR")}
-              </span>
-            </div>
-            {/* Moderasyon Butonu */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">@{comment.user.username}</span>
+            {comment.user.is_creator && (
+              <Badge variant="secondary" className="text-xs">
+                Creator
+              </Badge>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {new Date(comment.created_at).toLocaleDateString("tr-TR")}
+            </span>
+            {/* Moderasyon Butonu - Kullanıcı adının yanında */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
                   onClick={() => onModerate(comment.id)}
                 >
                   <IconEyeOff className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Yorumu Moderasyona Al</TooltipContent>
+              <TooltipContent>Moderasyon</TooltipContent>
             </Tooltip>
           </div>
           <p className="mt-1 text-sm">{comment.content}</p>
@@ -304,7 +336,7 @@ function CommentItem({
       {comment.replies && comment.replies.length > 0 && (
         <div className="ml-11 space-y-3 border-l-2 border-muted pl-4">
           {comment.replies.map((reply) => (
-            <div key={reply.id} className="flex gap-3">
+            <div key={reply.id} className="group/reply flex gap-3">
               {reply.user.avatar_url ? (
                 <Image
                   src={reply.user.avatar_url}
@@ -324,6 +356,20 @@ function CommentItem({
                   <span className="text-xs text-muted-foreground">
                     {new Date(reply.created_at).toLocaleDateString("tr-TR")}
                   </span>
+                  {/* Alt yorum moderasyon butonu - kullanıcı adının yanında */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 opacity-0 transition-opacity group-hover/reply:opacity-100"
+                        onClick={() => onModerate(reply.id)}
+                      >
+                        <IconEyeOff className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Moderasyon</TooltipContent>
+                  </Tooltip>
                 </div>
                 <p className="mt-1 text-sm">{reply.content}</p>
               </div>
