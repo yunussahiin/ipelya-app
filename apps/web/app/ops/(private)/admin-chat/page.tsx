@@ -209,29 +209,34 @@ export default function AdminChatPage() {
         });
 
         // Conversations'ları oluştur
-        const convs: OpsConversation[] = participations.map((p) => {
-          const conv = p.conversation as {
-            id: string;
-            type: "direct" | "group";
-            name: string | null;
-            avatar_url: string | null;
-            last_message_at: string | null;
-            created_at: string;
-          };
-          const participants =
-            allParticipants
-              ?.filter((ap) => ap.conversation_id === p.conversation_id)
-              .map((ap) => ({
-                admin_id: ap.admin_id,
-                admin: adminMap[ap.admin_id] || null
-              })) || [];
+        const convs: OpsConversation[] = participations
+          .filter((p) => p.conversation) // conversation null olabilir
+          .map((p) => {
+            // Supabase join array döndürür, ilk elemanı al
+            const convData = Array.isArray(p.conversation) ? p.conversation[0] : p.conversation;
 
-          return {
-            ...conv,
-            participants,
-            unread_count: p.unread_count || 0
-          };
-        });
+            const conv = convData as {
+              id: string;
+              type: "direct" | "group";
+              name: string | null;
+              avatar_url: string | null;
+              last_message_at: string | null;
+              created_at: string;
+            };
+            const participants =
+              allParticipants
+                ?.filter((ap) => ap.conversation_id === p.conversation_id)
+                .map((ap) => ({
+                  admin_id: ap.admin_id,
+                  admin: adminMap[ap.admin_id] || null
+                })) || [];
+
+            return {
+              ...conv,
+              participants,
+              unread_count: p.unread_count || 0
+            };
+          });
 
         // Son mesaja göre sırala
         convs.sort((a, b) => {
