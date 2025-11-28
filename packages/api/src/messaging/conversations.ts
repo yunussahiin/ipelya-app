@@ -74,10 +74,10 @@ export async function getConversations(params?: {
   // Veriyi ConversationListItem formatına dönüştür
   const conversations: ConversationListItem[] = (data || []).map((conv) => {
     const myParticipant = conv.conversation_participants?.find(
-      (p: ConversationParticipant) => p.user_id === supabase.auth.getUser()
+      (p: any) => p.user_id === supabase.auth.getUser()
     );
     const otherParticipant = conv.conversation_participants?.find(
-      (p: ConversationParticipant) => p.user_id !== supabase.auth.getUser()
+      (p: any) => p.user_id !== supabase.auth.getUser()
     );
 
     return {
@@ -91,9 +91,9 @@ export async function getConversations(params?: {
       other_participant: otherParticipant?.profile
         ? {
             user_id: otherParticipant.user_id,
-            display_name: otherParticipant.profile.display_name,
-            avatar_url: otherParticipant.profile.avatar_url,
-            username: otherParticipant.profile.username,
+            display_name: (Array.isArray(otherParticipant.profile) ? otherParticipant.profile[0] : otherParticipant.profile)?.display_name,
+            avatar_url: (Array.isArray(otherParticipant.profile) ? otherParticipant.profile[0] : otherParticipant.profile)?.avatar_url,
+            username: (Array.isArray(otherParticipant.profile) ? otherParticipant.profile[0] : otherParticipant.profile)?.username,
           }
         : undefined,
       last_message_preview: conv.last_message?.[0]

@@ -73,9 +73,9 @@ export async function getJoinedBroadcastChannels(): Promise<
 
   if (error) throw error;
 
-  // Channel'ları düzleştir
+  // Channel'ları düzleştir - Supabase join array döndürebilir
   return (data || [])
-    .map((d) => d.channel)
+    .map((d) => (Array.isArray(d.channel) ? d.channel[0] : d.channel))
     .filter((c): c is BroadcastChannel => c !== null);
 }
 
