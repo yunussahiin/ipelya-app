@@ -225,6 +225,30 @@ export const verifyUserSchema = z.object({
   verified: z.boolean().default(true).describe('Doğrulama durumu (true=doğrula, false=kaldır)'),
 });
 
+// V2 Phase 2 - Yüksek Öncelikli Tool'lar
+export const getTrendingContentSchema = z.object({
+  period: z.enum(['today', 'week', 'month']).default('today').describe('Trend dönemi'),
+  limit: z.number().min(1).max(50).default(10).describe('Maksimum sonuç sayısı'),
+  sortBy: z.enum(['likes', 'comments', 'views', 'engagement']).default('likes').describe('Sıralama kriteri'),
+});
+
+export const getTopCreatorsSchema = z.object({
+  period: z.enum(['today', 'week', 'month', 'all']).default('month').describe('Dönem'),
+  limit: z.number().min(1).max(50).default(10).describe('Maksimum sonuç sayısı'),
+  sortBy: z.enum(['subscribers', 'earnings', 'engagement', 'posts']).default('subscribers').describe('Sıralama kriteri'),
+});
+
+export const resolveReportSchema = z.object({
+  reportId: z.string().describe('Rapor ID'),
+  action: z.enum(['warn', 'hide', 'delete', 'ban']).describe('Alınacak aksiyon'),
+  notes: z.string().optional().describe('Moderatör notu'),
+});
+
+export const dismissReportSchema = z.object({
+  reportId: z.string().describe('Rapor ID'),
+  reason: z.string().min(5).describe('Reddetme sebebi'),
+});
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -968,15 +992,50 @@ export async function executeGetUserActivity({
 }: z.infer<typeof getUserActivitySchema>) {
   const supabase = createAdminSupabaseClient();
   
+  // UUID mi yoksa username mi kontrol et
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+  // Kullanıcıyı bul
+  let targetUserId: string;
+  let username: string;
+
+  if (isUUID) {
+    const { data: user } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .eq('user_id', userId)
+      .eq('type', 'real')
+      .single();
+
+    if (!user) {
+      return { success: false, error: `Kullanıcı bulunamadı (ID: ${userId})`, count: 0, activities: [] };
+    }
+    targetUserId = user.user_id;
+    username = user.username || 'Bilinmiyor';
+  } else {
+    const { data: user } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .eq('username', userId)
+      .eq('type', 'real')
+      .single();
+
+    if (!user) {
+      return { success: false, error: `Kullanıcı bulunamadı (username: ${userId})`, count: 0, activities: [] };
+    }
+    targetUserId = user.user_id;
+    username = user.username || 'Bilinmiyor';
+  }
+
   const periodFilter = getPeriodFilter(period);
   const activities: Array<{type: string; description: string; created_at: string}> = [];
 
-  // Posts
+  // Posts - targetUserId kullan
   if (activityType === 'all' || activityType === 'posts') {
     const { data: posts } = await supabase
       .from('posts')
       .select('id, caption, created_at')
-      .eq('user_id', userId)
+      .eq('user_id', targetUserId)
       .gte('created_at', periodFilter)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -988,12 +1047,12 @@ export async function executeGetUserActivity({
     }));
   }
 
-  // Likes
+  // Likes - targetUserId kullan
   if (activityType === 'all' || activityType === 'likes') {
     const { data: likes } = await supabase
       .from('post_likes')
       .select('id, created_at')
-      .eq('user_id', userId)
+      .eq('user_id', targetUserId)
       .gte('created_at', periodFilter)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -1005,12 +1064,12 @@ export async function executeGetUserActivity({
     }));
   }
 
-  // Messages
+  // Messages - targetUserId kullan
   if (activityType === 'all' || activityType === 'messages') {
     const { data: messages } = await supabase
       .from('messages')
       .select('id, created_at')
-      .eq('sender_id', userId)
+      .eq('sender_id', targetUserId)
       .gte('created_at', periodFilter)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -1027,7 +1086,8 @@ export async function executeGetUserActivity({
 
   return {
     success: true,
-    userId,
+    userId: targetUserId,
+    username,
     period,
     activityType,
     count: activities.length,
@@ -1065,15 +1125,39 @@ export async function executeBanUser({
 }: z.infer<typeof banUserSchema>) {
   const supabase = createAdminSupabaseClient();
 
-  // Kullanıcıyı kontrol et
-  const { data: user, error: userError } = await supabase
-    .from('profiles')
-    .select('id, username, is_active')
-    .eq('user_id', userId)
-    .single();
+  // UUID mi yoksa username mi kontrol et
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
 
-  if (userError || !user) {
-    return { success: false, error: 'Kullanıcı bulunamadı' };
+  // Kullanıcıyı kontrol et
+  let user;
+  let targetUserId: string;
+
+  if (isUUID) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, username, is_active')
+      .eq('user_id', userId)
+      .eq('type', 'real')
+      .single();
+
+    if (error || !data) {
+      return { success: false, error: `Kullanıcı bulunamadı (ID: ${userId})` };
+    }
+    user = data;
+    targetUserId = data.user_id;
+  } else {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, username, is_active')
+      .eq('username', userId)
+      .eq('type', 'real')
+      .single();
+
+    if (error || !data) {
+      return { success: false, error: `Kullanıcı bulunamadı (username: ${userId})` };
+    }
+    user = data;
+    targetUserId = data.user_id;
   }
 
   // Ban süresini hesapla
@@ -1085,11 +1169,11 @@ export async function executeBanUser({
     lockedUntil = until.toISOString();
   }
 
-  // User lock kaydı oluştur
+  // User lock kaydı oluştur - targetUserId kullan
   const { error: lockError } = await supabase
     .from('user_locks')
     .insert({
-      user_id: userId,
+      user_id: targetUserId,
       reason,
       locked_until: lockedUntil,
       status: 'active',
@@ -1099,16 +1183,16 @@ export async function executeBanUser({
     return { success: false, error: `Ban işlemi başarısız: ${lockError.message}` };
   }
 
-  // Profili deaktif et
+  // Profili deaktif et - targetUserId kullan
   await supabase
     .from('profiles')
     .update({ is_active: false })
-    .eq('user_id', userId);
+    .eq('user_id', targetUserId);
 
   return {
     success: true,
     message: `${user.username} başarıyla banlandı`,
-    userId,
+    userId: targetUserId,
     duration,
     lockedUntil,
     reason,
@@ -1124,16 +1208,51 @@ export async function executeUnbanUser({
 }: z.infer<typeof unbanUserSchema>) {
   const supabase = createAdminSupabaseClient();
 
+  // UUID mi yoksa username mi kontrol et
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+  // Kullanıcıyı bul
+  let targetUserId: string;
+  let username: string;
+
+  if (isUUID) {
+    const { data: user } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .eq('user_id', userId)
+      .eq('type', 'real')
+      .single();
+
+    if (!user) {
+      return { success: false, error: `Kullanıcı bulunamadı (ID: ${userId})` };
+    }
+    targetUserId = user.user_id;
+    username = user.username || 'Bilinmiyor';
+  } else {
+    const { data: user } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .eq('username', userId)
+      .eq('type', 'real')
+      .single();
+
+    if (!user) {
+      return { success: false, error: `Kullanıcı bulunamadı (username: ${userId})` };
+    }
+    targetUserId = user.user_id;
+    username = user.username || 'Bilinmiyor';
+  }
+
   // Aktif ban'ı bul
   const { data: lock, error: lockError } = await supabase
     .from('user_locks')
     .select('id')
-    .eq('user_id', userId)
+    .eq('user_id', targetUserId)
     .eq('status', 'active')
     .single();
 
   if (lockError || !lock) {
-    return { success: false, error: 'Aktif ban bulunamadı' };
+    return { success: false, error: `${username} için aktif ban bulunamadı` };
   }
 
   // Ban'ı kaldır
@@ -1146,12 +1265,13 @@ export async function executeUnbanUser({
   await supabase
     .from('profiles')
     .update({ is_active: true })
-    .eq('user_id', userId);
+    .eq('user_id', targetUserId);
 
   return {
     success: true,
-    message: 'Ban başarıyla kaldırıldı',
-    userId,
+    message: `${username} için ban başarıyla kaldırıldı`,
+    userId: targetUserId,
+    username,
     reason,
   };
 }
@@ -1558,46 +1678,85 @@ export async function executeGetCreatorStats({
   const supabase = createAdminSupabaseClient();
   const periodFilter = getPeriodFilter(period);
 
-  // Creator profili
-  const { data: creator, error } = await supabase
-    .from('profiles')
-    .select('id, username, display_name, is_creator, is_verified')
-    .eq('user_id', creatorId)
-    .single();
+  // UUID mi yoksa username mi kontrol et
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(creatorId);
 
-  if (error || !creator || !creator.is_creator) {
-    return { success: false, error: 'Creator bulunamadı' };
+  // Creator profili - hem UUID hem username ile arama yap
+  let creator;
+  let targetUserId: string;
+
+  if (isUUID) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, username, display_name, is_creator, is_verified')
+      .eq('user_id', creatorId)
+      .eq('type', 'real')
+      .single();
+    
+    if (error || !data) {
+      return { success: false, error: `Creator bulunamadı (ID: ${creatorId}). Hata: ${error?.message || 'Kayıt yok'}` };
+    }
+    creator = data;
+    targetUserId = data.user_id;
+  } else {
+    // Username ile ara
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, username, display_name, is_creator, is_verified')
+      .eq('username', creatorId)
+      .eq('type', 'real')
+      .single();
+    
+    if (error || !data) {
+      return { success: false, error: `Creator bulunamadı (username: ${creatorId}). Hata: ${error?.message || 'Kayıt yok'}` };
+    }
+    creator = data;
+    targetUserId = data.user_id;
   }
 
-  // Abone sayısı
+  if (!creator.is_creator) {
+    return { success: false, error: `${creator.username} bir creator değil (is_creator: false)` };
+  }
+
+  // Abone sayısı - targetUserId kullan
   const { count: subscriberCount } = await supabase
     .from('creator_subscriptions')
     .select('*', { count: 'exact', head: true })
-    .eq('creator_id', creatorId)
+    .eq('creator_id', targetUserId)
     .eq('status', 'active');
 
-  // Post sayısı
+  // Post sayısı - targetUserId kullan
   const { count: postCount } = await supabase
     .from('posts')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', creatorId)
+    .eq('user_id', targetUserId)
     .gte('created_at', periodFilter);
 
-  // Toplam etkileşim
+  // Toplam etkileşim - targetUserId kullan
   const { data: posts } = await supabase
     .from('posts')
     .select('likes_count, comments_count, views_count')
-    .eq('user_id', creatorId)
+    .eq('user_id', targetUserId)
     .gte('created_at', periodFilter);
 
   const totalLikes = posts?.reduce((sum, p) => sum + (p.likes_count || 0), 0) || 0;
   const totalComments = posts?.reduce((sum, p) => sum + (p.comments_count || 0), 0) || 0;
   const totalViews = posts?.reduce((sum, p) => sum + (p.views_count || 0), 0) || 0;
 
+  // Kazanç bilgisi (opsiyonel)
+  const { data: earnings } = await supabase
+    .from('coin_transactions')
+    .select('amount')
+    .eq('user_id', targetUserId)
+    .eq('type', 'subscription_earning')
+    .gte('created_at', periodFilter);
+
+  const totalEarnings = earnings?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+
   return {
     success: true,
     creator: {
-      id: creator.id,
+      id: targetUserId,
       username: creator.username,
       display_name: creator.display_name,
       is_verified: creator.is_verified,
@@ -1609,6 +1768,7 @@ export async function executeGetCreatorStats({
       total_likes: totalLikes,
       total_comments: totalComments,
       total_views: totalViews,
+      total_earnings: totalEarnings,
       engagement_rate: totalViews > 0 ? ((totalLikes + totalComments) / totalViews * 100).toFixed(2) + '%' : '0%',
     },
   };
@@ -2122,6 +2282,358 @@ export async function executeVerifyUser({
 }
 
 // ============================================
+// V2 Phase 2 - Yüksek Öncelikli Execute Functions
+// ============================================
+
+/**
+ * Trend içerikleri getir
+ */
+export async function executeGetTrendingContent({
+  period,
+  limit,
+  sortBy,
+}: z.infer<typeof getTrendingContentSchema>) {
+  const supabase = createAdminSupabaseClient();
+
+  // Tarih hesapla
+  const now = new Date();
+  let startDate: Date;
+  
+  switch (period) {
+    case 'week':
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case 'month':
+      startDate = new Date(now);
+      startDate.setMonth(startDate.getMonth() - 1);
+      break;
+    default: // today
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+  }
+
+  // Sıralama alanı
+  const orderField = sortBy === 'engagement' 
+    ? 'likes_count' // engagement için likes + comments toplamı yapılabilir
+    : `${sortBy}_count`;
+
+  const { data: posts, error } = await supabase
+    .from('posts')
+    .select(`
+      id,
+      user_id,
+      caption,
+      post_type,
+      likes_count,
+      comments_count,
+      shares_count,
+      views_count,
+      created_at
+    `)
+    .gte('created_at', startDate.toISOString())
+    .eq('is_hidden', false)
+    .eq('moderation_status', 'approved')
+    .order(orderField, { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    return { success: false, error: `Trend içerikler alınamadı: ${error.message}` };
+  }
+
+  if (!posts || posts.length === 0) {
+    return { success: true, count: 0, posts: [], message: 'Bu dönemde trend içerik bulunamadı' };
+  }
+
+  // Profil bilgilerini al
+  const userIds = [...new Set(posts.map(p => p.user_id))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, username, display_name, is_creator, is_verified')
+    .in('user_id', userIds)
+    .eq('type', 'real');
+
+  const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+
+  // Medya bilgilerini al
+  const postIds = posts.map(p => p.id);
+  const { data: mediaData } = await supabase
+    .from('post_media')
+    .select('post_id, media_type, media_url, thumbnail_url, duration')
+    .in('post_id', postIds);
+
+  const mediaMap = new Map<string, typeof mediaData>();
+  mediaData?.forEach(m => {
+    const existing = mediaMap.get(m.post_id) || [];
+    existing.push(m);
+    mediaMap.set(m.post_id, existing);
+  });
+
+  return {
+    success: true,
+    period,
+    sortBy,
+    count: posts.length,
+    posts: posts.map((post, index) => {
+      const profile = profileMap.get(post.user_id);
+      const media = mediaMap.get(post.id) || [];
+      const engagement = (post.likes_count || 0) + (post.comments_count || 0) * 2 + (post.shares_count || 0) * 3;
+      return {
+        rank: index + 1,
+        id: post.id,
+        caption: post.caption?.slice(0, 80) + (post.caption && post.caption.length > 80 ? '...' : ''),
+        author: profile?.username || 'Anonim',
+        is_verified: profile?.is_verified || false,
+        likes: post.likes_count || 0,
+        comments: post.comments_count || 0,
+        shares: post.shares_count || 0,
+        views: post.views_count || 0,
+        engagement_score: engagement,
+        created_at: getTimeAgo(post.created_at),
+        // Medya bilgileri
+        media_count: media.length,
+        media: media.map(m => ({
+          type: m.media_type,
+          url: m.media_url,
+          thumbnail: m.thumbnail_url,
+          duration: m.duration,
+        })),
+      };
+    }),
+  };
+}
+
+/**
+ * Top creator'ları getir
+ */
+export async function executeGetTopCreators({
+  period,
+  limit,
+  sortBy,
+}: z.infer<typeof getTopCreatorsSchema>) {
+  const supabase = createAdminSupabaseClient();
+
+  // Creator'ları al
+  const { data: creators, error } = await supabase
+    .from('profiles')
+    .select(`
+      user_id,
+      username,
+      display_name,
+      avatar_url,
+      is_verified,
+      created_at
+    `)
+    .eq('is_creator', true)
+    .eq('type', 'real')
+    .eq('is_active', true)
+    .limit(100); // Daha fazla al, sonra sırala
+
+  if (error) {
+    return { success: false, error: `Creator'lar alınamadı: ${error.message}` };
+  }
+
+  if (!creators || creators.length === 0) {
+    return { success: true, count: 0, creators: [] };
+  }
+
+  // Her creator için istatistikleri al
+  const creatorStats = await Promise.all(
+    creators.map(async (creator) => {
+      // Abone sayısı
+      const { count: subscriberCount } = await supabase
+        .from('creator_subscriptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('creator_id', creator.user_id)
+        .eq('status', 'active');
+
+      // Post sayısı
+      const { count: postCount } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', creator.user_id)
+        .eq('is_hidden', false);
+
+      // Toplam etkileşim
+      const { data: engagement } = await supabase
+        .from('posts')
+        .select('likes_count, comments_count')
+        .eq('user_id', creator.user_id)
+        .eq('is_hidden', false);
+
+      const totalLikes = engagement?.reduce((sum, p) => sum + (p.likes_count || 0), 0) || 0;
+      const totalComments = engagement?.reduce((sum, p) => sum + (p.comments_count || 0), 0) || 0;
+
+      return {
+        ...creator,
+        subscribers: subscriberCount || 0,
+        posts: postCount || 0,
+        totalLikes,
+        totalComments,
+        engagement: totalLikes + totalComments * 2,
+      };
+    })
+  );
+
+  // Sıralama
+  const sortedCreators = creatorStats.sort((a, b) => {
+    switch (sortBy) {
+      case 'subscribers': return b.subscribers - a.subscribers;
+      case 'posts': return b.posts - a.posts;
+      case 'engagement': return b.engagement - a.engagement;
+      default: return b.subscribers - a.subscribers;
+    }
+  }).slice(0, limit);
+
+  return {
+    success: true,
+    period,
+    sortBy,
+    count: sortedCreators.length,
+    creators: sortedCreators.map((c, index) => ({
+      rank: index + 1,
+      username: c.username,
+      display_name: c.display_name,
+      is_verified: c.is_verified,
+      subscribers: c.subscribers,
+      posts: c.posts,
+      total_likes: c.totalLikes,
+      total_comments: c.totalComments,
+      engagement_score: c.engagement,
+    })),
+  };
+}
+
+/**
+ * Raporu çöz
+ */
+export async function executeResolveReport({
+  reportId,
+  action,
+  notes,
+}: z.infer<typeof resolveReportSchema>) {
+  const supabase = createAdminSupabaseClient();
+
+  // Raporu bul
+  const { data: report, error: reportError } = await supabase
+    .from('user_reports')
+    .select('*')
+    .eq('id', reportId)
+    .single();
+
+  if (reportError || !report) {
+    return { success: false, error: 'Rapor bulunamadı' };
+  }
+
+  if (report.status === 'resolved') {
+    return { success: false, error: 'Bu rapor zaten çözülmüş' };
+  }
+
+  // Aksiyonu uygula
+  let actionResult = '';
+  
+  switch (action) {
+    case 'warn':
+      // Kullanıcıya uyarı bildirimi gönder
+      await supabase.from('notifications').insert({
+        recipient_id: report.reported_id,
+        type: 'warning',
+        title: 'Uyarı',
+        body: 'İçeriğiniz topluluk kurallarına aykırı bulundu. Lütfen kurallara uyun.',
+      });
+      actionResult = 'Kullanıcıya uyarı gönderildi';
+      break;
+      
+    case 'hide':
+      if (report.content_type === 'post') {
+        await supabase.from('posts').update({ is_hidden: true }).eq('id', report.content_id);
+        actionResult = 'İçerik gizlendi';
+      }
+      break;
+      
+    case 'delete':
+      if (report.content_type === 'post') {
+        await supabase.from('posts').update({ is_hidden: true, moderation_status: 'rejected' }).eq('id', report.content_id);
+        actionResult = 'İçerik silindi';
+      }
+      break;
+      
+    case 'ban':
+      await supabase.from('user_bans').insert({
+        user_id: report.reported_id,
+        reason: `Rapor sonucu: ${report.reason}`,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 gün
+      });
+      actionResult = 'Kullanıcı 7 gün banlandı';
+      break;
+  }
+
+  // Raporu güncelle
+  await supabase
+    .from('user_reports')
+    .update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+      resolution_notes: notes || actionResult,
+    })
+    .eq('id', reportId);
+
+  return {
+    success: true,
+    message: `Rapor çözüldü: ${actionResult}`,
+    reportId,
+    action,
+    actionResult,
+  };
+}
+
+/**
+ * Raporu reddet
+ */
+export async function executeDismissReport({
+  reportId,
+  reason,
+}: z.infer<typeof dismissReportSchema>) {
+  const supabase = createAdminSupabaseClient();
+
+  // Raporu bul
+  const { data: report, error: reportError } = await supabase
+    .from('user_reports')
+    .select('*')
+    .eq('id', reportId)
+    .single();
+
+  if (reportError || !report) {
+    return { success: false, error: 'Rapor bulunamadı' };
+  }
+
+  if (report.status !== 'pending') {
+    return { success: false, error: 'Bu rapor zaten işlenmiş' };
+  }
+
+  // Raporu reddet
+  const { error } = await supabase
+    .from('user_reports')
+    .update({
+      status: 'dismissed',
+      resolved_at: new Date().toISOString(),
+      resolution_notes: `Reddedildi: ${reason}`,
+    })
+    .eq('id', reportId);
+
+  if (error) {
+    return { success: false, error: `Rapor reddedilemedi: ${error.message}` };
+  }
+
+  return {
+    success: true,
+    message: 'Rapor reddedildi',
+    reportId,
+    reason,
+  };
+}
+
+// ============================================
 // Tools Configuration for Vercel AI SDK
 // ============================================
 
@@ -2308,6 +2820,34 @@ export const aiTools = {
     inputSchema: verifyUserSchema,
     execute: executeVerifyUser,
   },
+
+  // ============================================
+  // V2 Phase 2 - Yüksek Öncelikli Tool'lar
+  // ============================================
+  
+  // Trend & Analytics
+  getTrendingContent: {
+    description: `Trend içerikleri getir. En popüler postları beğeni, yorum, görüntülenme veya engagement'a göre sıralar.`,
+    inputSchema: getTrendingContentSchema,
+    execute: executeGetTrendingContent,
+  },
+  getTopCreators: {
+    description: `En başarılı creator'ları getir. Abone sayısı, post sayısı veya engagement'a göre sıralar.`,
+    inputSchema: getTopCreatorsSchema,
+    execute: executeGetTopCreators,
+  },
+  
+  // Rapor Yönetimi
+  resolveReport: {
+    description: `Raporu çöz ve aksiyon al. Uyarı gönder, içerik gizle/sil veya kullanıcıyı banla.`,
+    inputSchema: resolveReportSchema,
+    execute: executeResolveReport,
+  },
+  dismissReport: {
+    description: `Raporu reddet. Geçersiz veya hatalı raporları kapatır.`,
+    inputSchema: dismissReportSchema,
+    execute: executeDismissReport,
+  },
 };
 
 /**
@@ -2352,4 +2892,9 @@ export const toolDescriptions: Record<keyof typeof aiTools, string> = {
   adjustCoinBalance: 'Coin bakiyesi ayarla',
   getDashboardSummary: 'Dashboard özeti',
   verifyUser: 'Kullanıcı doğrula',
+  // V2 Phase 2 - Yüksek Öncelikli
+  getTrendingContent: 'Trend içerikler',
+  getTopCreators: 'Top creator\'lar',
+  resolveReport: 'Raporu çöz',
+  dismissReport: 'Raporu reddet',
 };

@@ -27,7 +27,11 @@ import {
   XCircle,
   PlusCircle,
   LayoutDashboard,
-  BadgeCheck
+  BadgeCheck,
+  TrendingUp,
+  Crown,
+  CheckSquare,
+  XSquare
 } from "lucide-react";
 
 interface Tool {
@@ -178,6 +182,23 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         example: '"Spam raporlarını göster"',
         icon: Flag,
         enabled: true
+      },
+      {
+        id: "resolveReport",
+        name: "Raporu Çöz",
+        description: "Raporu çöz ve aksiyon al (uyarı, gizle, sil, banla)",
+        example: '"X raporunu çöz, içeriği gizle"',
+        icon: CheckSquare,
+        enabled: true,
+        dangerous: true
+      },
+      {
+        id: "dismissReport",
+        name: "Raporu Reddet",
+        description: "Geçersiz veya hatalı raporu kapat",
+        example: '"X raporunu reddet, geçersiz şikayet"',
+        icon: XSquare,
+        enabled: true
       }
     ]
   },
@@ -199,6 +220,22 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         description: "Günlük özet: yeni kullanıcılar, postlar, moderasyon, gelir",
         example: '"Günlük özet ver" veya "Dashboard göster"',
         icon: LayoutDashboard,
+        enabled: true
+      },
+      {
+        id: "getTrendingContent",
+        name: "Trend İçerikler",
+        description: "En popüler postları beğeni, yorum veya engagement'a göre listele",
+        example: '"Bugünün trend postları" veya "En çok beğenilen postlar"',
+        icon: TrendingUp,
+        enabled: true
+      },
+      {
+        id: "getTopCreators",
+        name: "Top Creator'lar",
+        description: "En başarılı creator'ları abone, post veya engagement'a göre listele",
+        example: '"En popüler creator\'lar" veya "Top 10 creator"',
+        icon: Crown,
         enabled: true
       }
     ]

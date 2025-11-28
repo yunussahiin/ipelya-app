@@ -90,6 +90,10 @@ export const BASE_SYSTEM_PROMPT = `You are the AI assistant for İpelya platform
 | "X'in bakiyesi" | getUserBalance |
 | "Sohbetleri göster" | getConversations |
 | "Creator X'in istatistikleri" | getCreatorStats |
+| "Trend postlar" / "Popüler içerikler" | getTrendingContent |
+| "Top creator'lar" / "En iyi creator'lar" | getTopCreators |
+| "X raporunu çöz" | resolveReport |
+| "X raporunu reddet" | dismissReport |
 
 ### CRITICAL Rules - MUST FOLLOW!
 

@@ -12,32 +12,52 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  retryCount: number;
 }
 
 export class AIErrorBoundary extends Component<Props, State> {
+  private autoRetryTimeout: NodeJS.Timeout | null = null;
+
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, retryCount: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Tool call args hatası için özel handling
+    // Tool call args hatası için özel handling - otomatik recovery
     if (error.message.includes("Tool call argsText can only be appended")) {
       console.warn(
-        "[AIErrorBoundary] Tool call streaming error - will auto-recover:",
+        "[AIErrorBoundary] Tool call streaming error - auto-recovering in 500ms:",
         error.message
       );
+
+      // Otomatik retry (max 3 kez)
+      if (this.state.retryCount < 3) {
+        this.autoRetryTimeout = setTimeout(() => {
+          this.setState((prev) => ({
+            hasError: false,
+            error: null,
+            retryCount: prev.retryCount + 1
+          }));
+        }, 500);
+      }
     } else {
       console.error("[AIErrorBoundary] Error caught:", error, errorInfo);
     }
   }
 
+  componentWillUnmount() {
+    if (this.autoRetryTimeout) {
+      clearTimeout(this.autoRetryTimeout);
+    }
+  }
+
   handleRetry = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, retryCount: 0 });
   };
 
   handleRefresh = () => {
@@ -50,6 +70,16 @@ export class AIErrorBoundary extends Component<Props, State> {
       const isToolCallError = this.state.error?.message.includes(
         "Tool call argsText can only be appended"
       );
+
+      // Otomatik retry devam ediyorsa loading göster
+      if (isToolCallError && this.state.retryCount < 3) {
+        return (
+          <div className="flex items-center justify-center h-full gap-2 p-8">
+            <RefreshCw className="size-5 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Yeniden deneniyor...</span>
+          </div>
+        );
+      }
 
       if (this.props.fallback) {
         return this.props.fallback;

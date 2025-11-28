@@ -26,6 +26,10 @@ import {
   PlusCircle,
   LayoutDashboard,
   BadgeCheck,
+  TrendingUp,
+  Crown,
+  CheckSquare,
+  XSquare,
   type LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -157,6 +161,22 @@ const TOOLS: Tool[] = [
     icon: Flag,
     category: "Moderasyon"
   },
+  {
+    id: "resolveReport",
+    name: "Raporu Çöz",
+    description: "Raporu çöz ve aksiyon al",
+    example: "X raporunu çöz, içeriği gizle",
+    icon: CheckSquare,
+    category: "Moderasyon"
+  },
+  {
+    id: "dismissReport",
+    name: "Raporu Reddet",
+    description: "Geçersiz raporu kapat",
+    example: "X raporunu reddet",
+    icon: XSquare,
+    category: "Moderasyon"
+  },
 
   // Sistem
   {
@@ -173,6 +193,22 @@ const TOOLS: Tool[] = [
     description: "Günlük özet: kullanıcı, post, moderasyon",
     example: "Günlük özet ver",
     icon: LayoutDashboard,
+    category: "Sistem"
+  },
+  {
+    id: "getTrendingContent",
+    name: "Trend İçerikler",
+    description: "En popüler postlar",
+    example: "Bugünün trend postları",
+    icon: TrendingUp,
+    category: "Sistem"
+  },
+  {
+    id: "getTopCreators",
+    name: "Top Creator'lar",
+    description: "En başarılı creator'lar",
+    example: "Top 10 creator",
+    icon: Crown,
     category: "Sistem"
   },
 

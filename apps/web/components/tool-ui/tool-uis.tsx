@@ -6,6 +6,7 @@
  * makeAssistantToolUI ile tanımlanır
  */
 
+import { useState } from "react";
 import { makeAssistantToolUI, useAssistantRuntime } from "@assistant-ui/react";
 import { DataTable, type Column } from "./data-table";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
   Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MediaPreviewModal } from "@/components/ops/ai/MediaPreviewModal";
 
 // ============================================
 // Helper Components
@@ -645,63 +647,85 @@ interface RecentPostsResult {
   }>;
 }
 
-export const GetRecentPostsUI = makeAssistantToolUI<
-  { userId?: string; limit?: number },
-  RecentPostsResult
->({
-  toolName: "getRecentPosts",
-  render: ({ result, status }) => {
-    if (status.type === "running") {
-      return <LoadingState message="Son postlar yükleniyor..." />;
-    }
+// Recent Posts Content Component (with state for modal)
+function RecentPostsContent({ result }: { result: RecentPostsResult }) {
+  const [mediaModal, setMediaModal] = useState<{
+    open: boolean;
+    media: Array<{ type: "image" | "video"; url: string; thumbnail?: string; duration?: number }>;
+    postInfo?: {
+      id: string;
+      caption?: string;
+      author?: string;
+      createdAt?: string;
+      likes?: number;
+      comments?: number;
+    };
+  }>({ open: false, media: [] });
 
-    if (status.type === "incomplete" && status.reason === "error") {
-      return <ErrorState message="Postlar yüklenemedi" />;
-    }
+  // Medya içeren postları ayır
+  const postsWithMedia = result.posts.filter((p) => p.media && p.media.length > 0);
+  const hasMediaPosts = postsWithMedia.length > 0;
 
-    if (!result?.posts) return null;
+  // Veriyi DataTable için düzleştir
+  const flattenedPosts = result.posts.map((post) => ({
+    id: post.id,
+    caption: post.caption || "(İçerik yok)",
+    author: post.author?.username || "Anonim",
+    post_type: post.post_type,
+    likes: post.engagement?.likes || 0,
+    comments: post.engagement?.comments || 0,
+    views: post.engagement?.views || 0,
+    media_count: post.media_count || 0,
+    moderation_status: post.moderation_status || "pending",
+    created_at: post.created_at
+  }));
 
-    // Medya içeren postları ayır
-    const postsWithMedia = result.posts.filter((p) => p.media && p.media.length > 0);
-    const hasMediaPosts = postsWithMedia.length > 0;
-
-    // Veriyi DataTable için düzleştir
-    const flattenedPosts = result.posts.map((post) => ({
-      id: post.id,
-      caption: post.caption || "(İçerik yok)",
-      author: post.author?.username || "Anonim",
-      post_type: post.post_type,
-      likes: post.engagement?.likes || 0,
-      comments: post.engagement?.comments || 0,
-      views: post.engagement?.views || 0,
-      media_count: post.media_count || 0,
-      moderation_status: post.moderation_status || "pending",
-      created_at: post.created_at
-    }));
-
-    const columns: Column<(typeof flattenedPosts)[0]>[] = [
-      { key: "caption", label: "İçerik", priority: "primary", truncate: true },
-      { key: "author", label: "Yazar" },
-      { key: "post_type", label: "Tip", format: { kind: "badge" } },
-      { key: "media_count", label: "Medya", align: "right", format: { kind: "number" } },
-      { key: "likes", label: "Beğeni", align: "right", format: { kind: "number" } },
-      { key: "comments", label: "Yorum", align: "right", format: { kind: "number" } },
-      {
-        key: "moderation_status",
-        label: "Durum",
-        format: {
-          kind: "status",
-          statusMap: {
-            approved: { tone: "success", label: "Onaylı" },
-            pending: { tone: "warning", label: "Bekliyor" },
-            rejected: { tone: "danger", label: "Reddedildi" }
-          }
+  const columns: Column<(typeof flattenedPosts)[0]>[] = [
+    { key: "caption", label: "İçerik", priority: "primary", truncate: true },
+    { key: "author", label: "Yazar" },
+    { key: "post_type", label: "Tip", format: { kind: "badge" } },
+    { key: "media_count", label: "Medya", align: "right", format: { kind: "number" } },
+    { key: "likes", label: "Beğeni", align: "right", format: { kind: "number" } },
+    { key: "comments", label: "Yorum", align: "right", format: { kind: "number" } },
+    {
+      key: "moderation_status",
+      label: "Durum",
+      format: {
+        kind: "status",
+        statusMap: {
+          approved: { tone: "success", label: "Onaylı" },
+          pending: { tone: "warning", label: "Bekliyor" },
+          rejected: { tone: "danger", label: "Reddedildi" }
         }
-      },
-      { key: "created_at", label: "Tarih", format: { kind: "date", dateFormat: "relative" } }
-    ];
+      }
+    },
+    { key: "created_at", label: "Tarih", format: { kind: "date", dateFormat: "relative" } }
+  ];
 
-    return (
+  const openMediaModal = (post: RecentPostsResult["posts"][0]) => {
+    if (!post.media || post.media.length === 0) return;
+
+    setMediaModal({
+      open: true,
+      media: post.media.map((m) => ({
+        type: (m.type === "video" ? "video" : "image") as "image" | "video",
+        url: m.url || "",
+        thumbnail: m.thumbnail || undefined,
+        duration: m.duration || undefined
+      })),
+      postInfo: {
+        id: post.id,
+        caption: post.caption,
+        author: post.author?.username,
+        createdAt: post.created_at,
+        likes: post.engagement?.likes,
+        comments: post.engagement?.comments
+      }
+    });
+  };
+
+  return (
+    <>
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <FileText className="size-4" />
@@ -709,19 +733,17 @@ export const GetRecentPostsUI = makeAssistantToolUI<
           {hasMediaPosts && <Badge variant="outline">{postsWithMedia.length} medyalı</Badge>}
         </div>
 
-        {/* Medya Galerisi - Thumbnail'ler */}
+        {/* Medya Galerisi - Thumbnail'ler (tıklanabilir) */}
         {hasMediaPosts && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">📸 Medya Önizleme</h4>
+            <h4 className="text-sm font-medium">📸 Medya Önizleme (tıkla görüntüle)</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {postsWithMedia.slice(0, 10).map((post) =>
                 post.media?.slice(0, 1).map((m, idx) => (
-                  <a
+                  <button
                     key={`${post.id}-${idx}`}
-                    href={m.url || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative aspect-square rounded-lg overflow-hidden border bg-muted hover:opacity-80 transition-opacity group"
+                    onClick={() => openMediaModal(post)}
+                    className="relative aspect-square rounded-lg overflow-hidden border bg-muted hover:opacity-80 transition-opacity group cursor-pointer"
                   >
                     {m.thumbnail || m.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -745,7 +767,7 @@ export const GetRecentPostsUI = makeAssistantToolUI<
                     <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <p className="text-white text-xs truncate">{post.author?.username}</p>
                     </div>
-                  </a>
+                  </button>
                 ))
               )}
             </div>
@@ -780,7 +802,35 @@ export const GetRecentPostsUI = makeAssistantToolUI<
           ]}
         />
       </div>
-    );
+
+      {/* Media Preview Modal */}
+      <MediaPreviewModal
+        isOpen={mediaModal.open}
+        onClose={() => setMediaModal({ open: false, media: [] })}
+        media={mediaModal.media}
+        postInfo={mediaModal.postInfo}
+      />
+    </>
+  );
+}
+
+export const GetRecentPostsUI = makeAssistantToolUI<
+  { userId?: string; limit?: number },
+  RecentPostsResult
+>({
+  toolName: "getRecentPosts",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Son postlar yükleniyor..." />;
+    }
+
+    if (status.type === "incomplete" && status.reason === "error") {
+      return <ErrorState message="Postlar yüklenemedi" />;
+    }
+
+    if (!result?.posts) return null;
+
+    return <RecentPostsContent result={result} />;
   }
 });
 
@@ -1152,6 +1202,284 @@ export const VerifyUserUI = makeAssistantToolUI<
 });
 
 // ============================================
+// V2 Phase 2 - Yüksek Öncelikli Tool UIs
+// ============================================
+
+// Trending Content UI
+interface TrendingContentResult {
+  success: boolean;
+  period: string;
+  sortBy: string;
+  count: number;
+  posts: Array<{
+    rank: number;
+    id: string;
+    caption: string;
+    author: string;
+    is_verified: boolean;
+    likes: number;
+    comments: number;
+    shares: number;
+    views: number;
+    engagement_score: number;
+    created_at: string;
+    media_count?: number;
+    media?: Array<{
+      type: string;
+      url: string;
+      thumbnail?: string;
+      duration?: number;
+    }>;
+  }>;
+  error?: string;
+}
+
+export const GetTrendingContentUI = makeAssistantToolUI<
+  { period?: string; limit?: number; sortBy?: string },
+  TrendingContentResult
+>({
+  toolName: "getTrendingContent",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Trend içerikler yükleniyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Trend içerikler yüklenemedi"} />;
+    }
+
+    if (result.count === 0) {
+      return (
+        <div className="p-4 text-muted-foreground text-center">
+          Bu dönemde trend içerik bulunamadı
+        </div>
+      );
+    }
+
+    // Medya içeren postları ayır
+    const postsWithMedia = result.posts.filter((p) => p.media && p.media.length > 0);
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <TrendingUp className="size-4" />
+          <span>
+            🔥 {result.count} Trend Post ({result.period})
+          </span>
+          <Badge variant="outline">{result.sortBy}</Badge>
+          {postsWithMedia.length > 0 && (
+            <Badge variant="secondary">{postsWithMedia.length} medyalı</Badge>
+          )}
+        </div>
+
+        {/* Medya Galerisi */}
+        {postsWithMedia.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">📸 Medya Önizleme</h4>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {postsWithMedia.slice(0, 10).map((post) =>
+                post.media?.slice(0, 1).map((m, idx) => (
+                  <a
+                    key={`${post.id}-${idx}`}
+                    href={m.url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative aspect-square rounded-lg overflow-hidden border bg-muted hover:opacity-80 transition-opacity"
+                  >
+                    {m.thumbnail || m.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.thumbnail || m.url || ""}
+                        alt={post.caption || "Post media"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        {m.type === "video" ? "🎬" : "📷"}
+                      </div>
+                    )}
+                    {m.type === "video" && (
+                      <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+                        🎬
+                      </div>
+                    )}
+                    <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                      #{post.rank}
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {result.posts.slice(0, 10).map((post) => (
+            <div key={post.id} className="p-3 rounded-lg border bg-muted/30 flex items-start gap-3">
+              <div className="text-lg font-bold text-primary w-6">#{post.rank}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">@{post.author}</span>
+                  {post.is_verified && (
+                    <Badge variant="secondary" className="text-xs">
+                      ✓
+                    </Badge>
+                  )}
+                  {post.media_count && post.media_count > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      {post.media_count} {post.media?.[0]?.type === "video" ? "🎬" : "📷"}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  {post.caption || "Başlıksız"}
+                </p>
+                <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                  <span>❤️ {post.likes}</span>
+                  <span>💬 {post.comments}</span>
+                  <span>👁️ {post.views}</span>
+                  <span className="text-primary">⚡ {post.engagement_score}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+});
+
+// Top Creators UI
+interface TopCreatorsResult {
+  success: boolean;
+  period: string;
+  sortBy: string;
+  count: number;
+  creators: Array<{
+    rank: number;
+    username: string;
+    display_name: string;
+    is_verified: boolean;
+    subscribers: number;
+    posts: number;
+    total_likes: number;
+    total_comments: number;
+    engagement_score: number;
+  }>;
+  error?: string;
+}
+
+export const GetTopCreatorsUI = makeAssistantToolUI<
+  { period?: string; limit?: number; sortBy?: string },
+  TopCreatorsResult
+>({
+  toolName: "getTopCreators",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Top creator'lar yükleniyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Creator'lar yüklenemedi"} />;
+    }
+
+    if (result.count === 0) {
+      return <div className="p-4 text-muted-foreground text-center">Creator bulunamadı</div>;
+    }
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Star className="size-4" />
+          <span>👑 {result.count} Top Creator</span>
+          <Badge variant="outline">{result.sortBy}</Badge>
+        </div>
+        <div className="space-y-2">
+          {result.creators.map((creator) => (
+            <div
+              key={creator.username}
+              className="p-3 rounded-lg border bg-muted/30 flex items-start gap-3"
+            >
+              <div className="text-lg font-bold text-primary w-6">#{creator.rank}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">@{creator.username}</span>
+                  {creator.is_verified && (
+                    <Badge variant="secondary" className="text-xs">
+                      ✓
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">{creator.display_name}</p>
+                <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                  <span>👥 {creator.subscribers} abone</span>
+                  <span>📝 {creator.posts} post</span>
+                  <span>❤️ {creator.total_likes}</span>
+                  <span className="text-primary">⚡ {creator.engagement_score}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+});
+
+// Resolve Report UI
+interface ResolveReportResult {
+  success: boolean;
+  message: string;
+  reportId: string;
+  action: string;
+  actionResult: string;
+  error?: string;
+}
+
+export const ResolveReportUI = makeAssistantToolUI<
+  { reportId: string; action: string; notes?: string },
+  ResolveReportResult
+>({
+  toolName: "resolveReport",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Rapor çözülüyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Rapor çözülemedi"} />;
+    }
+    return <SuccessState message={result.message} />;
+  }
+});
+
+// Dismiss Report UI
+interface DismissReportResult {
+  success: boolean;
+  message: string;
+  reportId: string;
+  reason: string;
+  error?: string;
+}
+
+export const DismissReportUI = makeAssistantToolUI<
+  { reportId: string; reason: string },
+  DismissReportResult
+>({
+  toolName: "dismissReport",
+  render: ({ result, status }) => {
+    if (status.type === "running") {
+      return <LoadingState message="Rapor reddediliyor..." />;
+    }
+    if (!result) return null;
+    if (!result.success) {
+      return <ErrorState message={result.error || "Rapor reddedilemedi"} />;
+    }
+    return <SuccessState message={result.message} />;
+  }
+});
+
+// ============================================
 // Export all Tool UIs
 // ============================================
 
@@ -1171,5 +1499,10 @@ export const AllToolUIs = () => (
     <AdjustCoinBalanceUI />
     <GetDashboardSummaryUI />
     <VerifyUserUI />
+    {/* V2 Phase 2 Tool UIs */}
+    <GetTrendingContentUI />
+    <GetTopCreatorsUI />
+    <ResolveReportUI />
+    <DismissReportUI />
   </>
 );
