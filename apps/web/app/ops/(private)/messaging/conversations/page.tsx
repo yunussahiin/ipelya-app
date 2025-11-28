@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { ConversationsClient } from "./conversations-client";
+import { UnifiedConversationsClient } from "./unified-client";
 
 export default async function ConversationsPage() {
   const supabase = await createServerSupabaseClient();
@@ -78,6 +78,8 @@ export default async function ConversationsPage() {
       display_name: string | null;
       avatar_url: string | null;
       username: string | null;
+      gender?: "male" | "female" | "other" | null;
+      is_creator?: boolean;
     }>
   > = {};
 
@@ -95,7 +97,7 @@ export default async function ConversationsPage() {
     // Profilleri getir
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, display_name, avatar_url, username")
+      .select("user_id, display_name, avatar_url, username, gender, is_creator")
       .in("user_id", Array.from(userIds))
       .eq("type", "real");
 
@@ -116,12 +118,16 @@ export default async function ConversationsPage() {
         display_name: string | null;
         avatar_url: string | null;
         username: string | null;
+        gender?: "male" | "female" | "other" | null;
+        is_creator?: boolean;
       } | null;
       participantsData[p.conversation_id].push({
         user_id: p.user_id,
         display_name: profile?.display_name || null,
         avatar_url: profile?.avatar_url || null,
-        username: profile?.username || null
+        username: profile?.username || null,
+        gender: profile?.gender || null,
+        is_creator: profile?.is_creator || false
       });
     });
   }
@@ -175,9 +181,9 @@ export default async function ConversationsPage() {
         </Card>
       </div>
 
-      {/* Conversations List */}
+      {/* Unified Conversations Client */}
       <Suspense fallback={<div className="text-muted-foreground">Yükleniyor...</div>}>
-        <ConversationsClient conversations={enrichedConversations} />
+        <UnifiedConversationsClient conversations={enrichedConversations} />
       </Suspense>
     </div>
   );

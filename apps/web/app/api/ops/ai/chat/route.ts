@@ -13,7 +13,7 @@ import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 
 import { createServerSupabaseClient, createAdminSupabaseClient } from '@/lib/supabase/server';
 import { openrouter, DEFAULT_MODEL } from '@/lib/ai/openrouter';
 import { aiTools } from '@/lib/ai/tools';
-import { getSystemPrompt } from '@/lib/ai/prompts';
+import { getSystemPrompt, buildSystemPromptWithUser } from '@/lib/ai/prompts';
 import type { AIModelConfig, AISystemPromptConfig, SystemPromptPreset } from '@/lib/ai/types';
 
 // Streaming response için max duration
@@ -77,11 +77,12 @@ export async function POST(request: NextRequest) {
     // Request body'yi parse et
     console.log('[AI Chat API] 📥 Parsing request body...');
     const body = await request.json();
-    const { messages, sessionId, model: requestModel } = body;
+    const { messages, sessionId, model: requestModel, threadId } = body;
 
     console.log('[AI Chat API] 📋 Request body:', {
       messagesCount: Array.isArray(messages) ? messages.length : 'invalid',
       sessionId: sessionId?.substring(0, 8) + '...',
+      threadId: threadId?.substring(0, 8) + '...',
       requestModel,
       bodyKeys: Object.keys(body),
       firstMessageRaw: messages?.[0] ? JSON.stringify(messages[0]).substring(0, 200) : 'none'
@@ -92,11 +93,72 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
     }
 
-    // SessionId opsiyonel - assistant-ui kendi session yönetimini yapıyor
-    // if (!sessionId) {
-    //   console.error('[AI Chat API] ❌ Session ID is required');
-    //   return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
-    // }
+    // Thread yönetimi - threadId yoksa yeni thread oluştur, varsa önceki mesajları al
+    let activeThreadId = threadId;
+    let previousMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    
+    if (activeThreadId) {
+      // Mevcut thread'den önceki mesajları al
+      const { data: existingThread } = await adminSupabase
+        .from('ai_chat_threads')
+        .select('messages')
+        .eq('id', activeThreadId)
+        .eq('admin_id', user.id)
+        .single();
+      
+      if (existingThread?.messages && Array.isArray(existingThread.messages)) {
+        previousMessages = existingThread.messages.map((m: { role: string; content: string }) => {
+          let content = m.content;
+          
+          // Eğer content JSON string ise parse et
+          if (typeof content === 'string' && content.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(content);
+              if (Array.isArray(parsed) && parsed[0]?.type === 'text' && parsed[0]?.text) {
+                content = parsed[0].text;
+              }
+            } catch {
+              // Parse başarısız olursa orijinal content'i kullan
+            }
+          }
+          
+          return {
+            role: m.role as 'user' | 'assistant',
+            content
+          };
+        });
+        console.log('[AI Chat API] 📚 Loaded previous messages:', previousMessages.length);
+      }
+    } else {
+      // İlk mesajdan başlık oluştur
+      const firstUserMessage = messages.find((m: UIMessage) => m.role === 'user');
+      let title = 'Yeni Sohbet';
+      if (firstUserMessage?.parts && Array.isArray(firstUserMessage.parts)) {
+        const textPart = firstUserMessage.parts.find((p: { type: string }) => p.type === 'text');
+        if (textPart && 'text' in textPart) {
+          title = (textPart.text as string).substring(0, 50) + ((textPart.text as string).length > 50 ? '...' : '');
+        }
+      }
+
+      // Yeni thread oluştur
+      const { data: newThread, error: threadError } = await adminSupabase
+        .from('ai_chat_threads')
+        .insert({
+          admin_id: user.id,
+          title,
+          model: requestModel || DEFAULT_MODEL,
+          messages: []
+        })
+        .select('id')
+        .single();
+
+      if (threadError) {
+        console.error('[AI Chat API] ⚠️ Failed to create thread:', threadError);
+      } else {
+        activeThreadId = newThread.id;
+        console.log('[AI Chat API] 📝 Created new thread:', activeThreadId);
+      }
+    }
 
     // AI ayarlarını al
     const { data: settings } = await adminSupabase
@@ -115,10 +177,12 @@ export async function POST(request: NextRequest) {
     const temperature = modelConfig?.temperature ?? 0.7;
     const maxTokens = modelConfig?.max_tokens ?? 4096;
     
-    const systemPrompt = getSystemPrompt(
+    // System prompt'u kullanıcı ismiyle birlikte oluştur
+    const baseSystemPrompt = getSystemPrompt(
       (systemPromptConfig?.preset as SystemPromptPreset) || 'technical',
       systemPromptConfig?.custom
     );
+    const systemPrompt = buildSystemPromptWithUser(baseSystemPrompt, adminProfile?.full_name);
 
     // User mesajını logla (UIMessage formatından text çıkar)
     const lastUserMessage = messages[messages.length - 1] as UIMessage | undefined;
@@ -151,11 +215,48 @@ export async function POST(request: NextRequest) {
     // Mesajları ModelMessage formatına dönüştür
     // assistant-ui UIMessage formatını AI SDK'nın convertToModelMessages ile dönüştür
     console.log('[AI Chat API] 📝 Converting messages with convertToModelMessages...');
-    const coreMessages = convertToModelMessages(messages as UIMessage[]);
+    const newMessages = convertToModelMessages(messages as UIMessage[]);
+    
+    // Mesajları temizle - JSON string'den text'e çevir
+    const cleanedNewMessages = newMessages.map(m => {
+      let content = m.content;
+      
+      // Eğer content JSON string ise parse et
+      if (typeof content === 'string' && content.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed) && parsed[0]?.type === 'text' && parsed[0]?.text) {
+            content = parsed[0].text;
+          }
+        } catch {
+          // Parse başarısız olursa orijinal content'i kullan
+        }
+      }
+      
+      return {
+        role: m.role as 'user' | 'assistant',
+        content
+      };
+    });
+    
+    // Önceki mesajları yeni mesajlarla birleştir
+    const coreMessages = [
+      ...previousMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content
+      })),
+      ...cleanedNewMessages
+    ] as any;
     
     console.log('[AI Chat API] 📝 Converted messages:', {
-      count: coreMessages.length,
-      firstMessage: coreMessages[0] ? { role: coreMessages[0].role, contentLength: JSON.stringify(coreMessages[0].content).length } : null
+      previousCount: previousMessages.length,
+      newCount: newMessages.length,
+      totalCount: coreMessages.length,
+      allMessages: coreMessages.map((m, i) => ({
+        index: i,
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content.substring(0, 100) : JSON.stringify(m.content).substring(0, 100)
+      }))
     });
     
     // Eğer mesaj yoksa hata döndür
@@ -181,18 +282,30 @@ export async function POST(request: NextRequest) {
       firstMessage: coreMessages[0]
     });
 
+    // Tool'ları structured args (useText: false) ile wrap et
+    // Bu, assistant-ui'nin argsText sıra problemi sorununu çözer
+    const toolsWithStructuredArgs = Object.fromEntries(
+      Object.entries(aiTools).map(([name, tool]) => [
+        name,
+        {
+          ...tool,
+          useText: false, // JSON parametreleri text yerine structured arg olarak işle
+        },
+      ])
+    );
+
     // Streaming response oluştur
     // stopWhen: Tool call sonrası model'in yanıt üretmesini sağlar
     const result = streamText({
       model: openrouter.chat(modelId),
       system: systemPrompt,
       messages: coreMessages,
-      tools: aiTools,
+      tools: toolsWithStructuredArgs,
       toolChoice: 'auto', // Model tool kullanıp kullanmamaya karar verir
       stopWhen: stepCountIs(5), // Max 5 step (tool call + response)
       temperature,
       maxOutputTokens: maxTokens,
-      // Streaming tamamlandığında log kaydet
+      // Streaming tamamlandığında log kaydet ve thread'e mesajları ekle
       onFinish: async ({ text, usage, toolCalls, toolResults }) => {
         const duration = Date.now() - startTime;
         
@@ -201,7 +314,8 @@ export async function POST(request: NextRequest) {
           textLength: text.length,
           totalTokens: usage?.totalTokens,
           toolCallsCount: toolCalls?.length || 0,
-          toolResultsCount: toolResults?.length || 0
+          toolResultsCount: toolResults?.length || 0,
+          activeThreadId
         });
         
         // Assistant yanıtını logla
@@ -216,6 +330,65 @@ export async function POST(request: NextRequest) {
           tokens_used: usage?.totalTokens,
           duration_ms: duration,
         });
+
+        // Thread'e mesajları kaydet (eğer activeThreadId varsa)
+        if (activeThreadId) {
+          try {
+            // Mevcut thread'i al
+            const { data: thread } = await adminSupabase
+              .from('ai_chat_threads')
+              .select('messages')
+              .eq('id', activeThreadId)
+              .eq('admin_id', user.id)
+              .single();
+
+            if (thread) {
+              // Yeni mesajları ekle
+              const existingMessages = thread.messages || [];
+              
+              // User mesajını ekle (son user mesajı)
+              const lastUserMessage = messages[messages.length - 1] as UIMessage | undefined;
+              if (lastUserMessage?.role === 'user') {
+                let userContent = '';
+                if (lastUserMessage.parts && Array.isArray(lastUserMessage.parts)) {
+                  userContent = lastUserMessage.parts
+                    .filter((part) => part.type === 'text')
+                    .map((part) => 'text' in part ? part.text : '')
+                    .join('');
+                }
+                existingMessages.push({
+                  id: lastUserMessage.id || crypto.randomUUID(),
+                  role: 'user',
+                  content: userContent,
+                  createdAt: new Date().toISOString()
+                });
+              }
+
+              // Assistant mesajını ekle (sadece text content - tool calls UI'da sorun çıkarıyor)
+              existingMessages.push({
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                content: text,
+                createdAt: new Date().toISOString()
+              });
+
+              // Thread'i güncelle
+              await adminSupabase
+                .from('ai_chat_threads')
+                .update({ messages: existingMessages })
+                .eq('id', activeThreadId)
+                .eq('admin_id', user.id);
+
+              console.log('[AI Chat API] 💾 Thread updated with new messages:', {
+                activeThreadId,
+                totalMessages: existingMessages.length
+              });
+            }
+          } catch (threadError) {
+            console.error('[AI Chat API] ⚠️ Failed to update thread:', threadError);
+            // Thread güncelleme hatası streaming'i etkilememeli
+          }
+        }
       },
     });
 

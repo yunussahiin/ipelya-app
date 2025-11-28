@@ -59,6 +59,12 @@ const SETTINGS_CATEGORIES: SettingsCategory[] = [
         label: "Kullanım Analitikleri",
         icon: <BarChart3 className="h-4 w-4" />,
         description: "Token kullanımı ve maliyet raporları"
+      },
+      {
+        id: "providers",
+        label: "Providers",
+        icon: <Globe className="h-4 w-4" />,
+        description: "AI model sağlayıcıları listesi"
       }
     ]
   },

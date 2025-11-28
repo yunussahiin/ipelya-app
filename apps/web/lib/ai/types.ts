@@ -205,47 +205,34 @@ export interface AISettingsUpdateRequest {
  * İstediğin modeli buraya ekleyebilirsin
  */
 export const RECOMMENDED_MODELS = [
-  // Tool Calling Destekli Ücretsiz Modeller
+  // Google Gemini Modelleri
   {
-    id: 'google/gemini-2.0-flash-exp:free',
+    id: 'google/gemini-2.0-flash-001',
     name: 'Gemini 2.0 Flash ⚡',
-    description: 'Tool calling, 1M context',
-    free: true,
+    description: 'En hızlı, tool calling',
+    free: false,
     supportsTools: true,
   },
   {
-    id: 'openai/gpt-oss-20b:free',
-    name: 'GPT OSS 20B 🔧',
-    description: 'Tool calling, function calling',
-    free: true,
+    id: 'google/gemini-2.5-flash-lite',
+    name: 'Gemini 2.5 Flash Lite 🚀',
+    description: 'Hafif ve hızlı',
+    free: false,
     supportsTools: true,
   },
   {
-    id: 'z-ai/glm-4.5-air:free',
-    name: 'GLM 4.5 Air 🔧',
+    id: 'google/gemini-2.5-flash-lite-preview-09-2025',
+    name: 'Gemini 2.5 Flash Lite Preview',
+    description: 'Preview version',
+    free: false,
+    supportsTools: true,
+  },
+  // Z.AI GLM
+  {
+    id: 'z-ai/glm-4-32b',
+    name: 'GLM 4 32B 🔧',
     description: 'Tool calling, thinking mode',
-    free: true,
-    supportsTools: true,
-  },
-  {
-    id: 'qwen/qwen3-coder-480b-a35b:free',
-    name: 'Qwen3 Coder 480B 🔧',
-    description: 'Tool calling, agentic coding',
-    free: true,
-    supportsTools: true,
-  },
-  {
-    id: 'qwen/qwen3-235b-a22b:free',
-    name: 'Qwen3 235B 🔧',
-    description: 'Tool calling, 131K context',
-    free: true,
-    supportsTools: true,
-  },
-  {
-    id: 'mistralai/mistral-small-3.1-24b-instruct:free',
-    name: 'Mistral Small 3.1 🔧',
-    description: 'Tool calling, 128K context',
-    free: true,
+    free: false,
     supportsTools: true,
   },
   // Ücretli Modeller (En iyi performans)
@@ -262,14 +249,6 @@ export const RECOMMENDED_MODELS = [
     description: 'OpenAI flagship',
     free: false,
     supportsTools: true,
-  },
-  // Sadece Chat (Tool yok)
-  {
-    id: 'meta-llama/llama-3.3-70b-instruct:free',
-    name: 'Llama 3.3 70B',
-    description: 'Güçlü reasoning',
-    free: true,
-    supportsTools: false,
   },
 ] as const;
 

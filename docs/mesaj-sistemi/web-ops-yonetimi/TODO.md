@@ -543,8 +543,46 @@ const setActive = useAdminChatStore((s) => s.setActiveConversation);
 
 ---
 
-**Son Güncelleme:** 2025-11-28 04:30
+**Son Güncelleme:** 2025-11-28 06:10
 **Tahmini Toplam Süre:** 13 gün
+
+---
+
+## 🤖 AI Settings Sayfası (2025-11-28)
+
+### Tamamlanan Özellikler ✅
+
+#### OpenRouter API Kategorisi
+- [x] **Kredi Durumu** - Hesap bakiyesi ve kullanım
+- [x] **Model Listesi** - Kullanılabilir modeller ve özellikleri
+- [x] **API Anahtarları** - OpenRouter API key yönetimi
+- [x] **Kullanım Analitikleri** - Token kullanımı ve maliyet raporları
+  - OpenRouter Provisioning Key ile aktivite çekme
+  - Fallback: Yerel veritabanından istatistik
+
+#### AI Sistem Ayarları Kategorisi
+- [x] **Model Tercihleri** - Varsayılan model, temperature ve parametreler
+- [x] **Tool Ayarları** - Veritabanı tool izinleri ve yapılandırması
+- [x] **System Prompts** - Preset ve özel system promptlar
+- [x] **Chat Logları** - AI sohbet geçmişi ve loglar
+  - TanStack Table (DataTable) ile gelişmiş tablo
+  - Admin avatar desteği (profiles → admin_profiles senkronizasyonu)
+  - Rol filtresi, sıralama, pagination
+  - Genişletilebilir satırlar (içerik, tool calls, hatalar)
+- [x] **Veritabanı Şeması** - AI tool'larının eriştiği tablolar
+
+#### Database Değişiklikleri
+- [x] `admin_profiles.avatar_url` sütunu eklendi
+- [x] `profiles` → `admin_profiles` avatar senkronizasyonu için trigger
+
+### Yapılacaklar (Opsiyonel)
+
+#### OpenRouter API Ek Özellikler
+- [x] **Providers** - Provider listesi ve durumları ✅
+- [x] **Endpoints** - Model Listesi'nde modal olarak entegre edildi ✅
+  - Her modelin yanında Network ikonu ile endpoint detayları
+  - Provider, tag, context, fiyatlandırma, uptime, status bilgileri
+- [ ] **Generations** - Generation detayları ve geçmişi (opsiyonel)
 
 ---
 

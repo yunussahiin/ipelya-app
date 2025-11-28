@@ -17,10 +17,47 @@
   - Türkçe + Markdown formatında yanıt
 - [x] `stopWhen: stepCountIs(5)` ile multi-step tool calling
 - [x] System prompt güncellendi (halüsinasyon önleme)
+- [x] **AI Settings Sayfası** ✅ (2025-11-28)
+  - [x] `/api/ops/ai/credits` endpoint
+  - [x] `/api/ops/ai/activity` endpoint
+  - [x] `/api/ops/ai/models` endpoint
+  - [x] `/api/ops/ai/providers` endpoint
+  - [x] `/api/ops/ai/endpoints` endpoint
+  - [x] `/api/ops/ai/logs` endpoint
+  - [x] `/api/ops/ai/settings` endpoint
+  - [x] Settings sayfası UI (`/ops/ai/settings`)
+  - [x] CreditsSection - Kredi durumu gösterimi
+  - [x] AnalyticsSection - Kullanım analitikleri
+  - [x] ModelsSection - Model listesi (DataTable + Sayfalandırma + Filtreleme)
+  - [x] ProvidersSection - Provider listesi
+  - [x] Endpoints Modal - Model satırına tıklayınca endpoint detayları
+  - [x] LogsSection - AI chat logları (DataTable)
+  - [x] PreferencesSection - Model tercihleri
+  - [x] PromptsSection - System prompt yönetimi
+  - [x] ToolsSection - Tool tanımları görüntüleme
+  - [x] DatabaseSection - Veritabanı istatistikleri
+  - [x] ApiKeysSection - API key yönetimi
+
+- [x] **Chat Persistence** ✅ (2025-11-28)
+  - [x] `ai_chat_threads` tablosu (messages JSONB olarak)
+  - [x] RLS policies mevcut
+  - [x] `/api/ops/ai/threads` - Thread listesi (GET)
+  - [x] `/api/ops/ai/threads` - Yeni thread oluştur (POST)
+  - [x] `/api/ops/ai/threads/[threadId]` - Thread detayı (GET)
+  - [x] `/api/ops/ai/threads/[threadId]` - Thread güncelle (PATCH)
+  - [x] `/api/ops/ai/threads/[threadId]` - Thread sil (DELETE)
+  - [x] Chat API thread desteği (mesajları kaydet)
+  - [x] Thread list sidebar component
+  - [x] Thread oluşturma/seçme/silme/arşivleme UI
+  - [x] `useThreadPersistence` hook
+- [x] **Header Kredi Badge** ✅ (2025-11-28)
+  - [x] `CreditsBadge` component
+  - [x] Düşük kredi uyarısı (< $1)
+  - [x] Tooltip ile detaylı bilgi
+  - [x] Tıklanınca settings'e yönlendirme
 
 ### 🔄 Devam Eden
-- [ ] Chat persistence (thread'lerin kaydedilmesi)
-- [ ] AI Settings sayfası
+- [ ] Thread başlığı otomatik oluşturma (AI ile)
 
 ### ⚠️ Bilinen Sorunlar
 - Free modeller rate limit'e takılabiliyor (Gemini 2.0 Flash)
@@ -28,118 +65,63 @@
 
 ---
 
-## 📋 Öncelik 1: AI Settings Sayfası ⭐ YENİ
+## 📋 ~~Öncelik 1: AI Settings Sayfası~~ ✅ TAMAMLANDI
 
-### Sayfa: `/ops/ai/settings`
-
-### Bölüm 1: Kredi Durumu
-**API:** `GET /api/v1/credits`
-```typescript
-interface CreditsResponse {
-  data: {
-    total_credits: number;  // Toplam satın alınan
-    total_usage: number;    // Toplam kullanılan
-  }
-}
-// Kalan = total_credits - total_usage
-```
-
-**UI:**
-- 💰 Kalan Kredi: $X.XX
-- 📊 Kullanılan: $X.XX
-- Progress bar (kullanım yüzdesi)
-- "Kredi Ekle" butonu → OpenRouter'a yönlendir
-
-### Bölüm 2: Kullanım Analitikleri
-**API:** `GET /api/v1/activity`
-```typescript
-interface ActivityResponse {
-  data: {
-    date: string;           // YYYY-MM-DD
-    model_id: string;       // Model adı
-    usage: number;          // Token kullanımı
-    cost: number;           // Maliyet
-    num_requests: number;   // İstek sayısı
-  }[]
-}
-```
-
-**UI:**
-- 📈 Son 7 gün grafiği (recharts)
-- Model bazlı kullanım tablosu
-- Günlük/Haftalık/Aylık filtre
-
-### Bölüm 3: Model Tercihleri
-**Kaynak:** localStorage + Supabase
-
-**UI:**
-- Varsayılan model seçimi
-- Fallback model seçimi
-- Temperature slider (0-2)
-- Max tokens input
-
-### Bölüm 4: System Prompt Yönetimi
-**UI:**
-- Preset seçimi (Technical, Support, Analytics, Moderation)
-- Özel prompt textarea
-- Prompt test butonu
-
-### Dosya Yapısı
-```
-/apps/web/app/ops/(private)/ai/
-├── page.tsx              # Chat sayfası (mevcut)
-└── settings/
-    └── page.tsx          # Settings sayfası (YENİ)
-
-/apps/web/app/api/ops/ai/
-├── chat/route.ts         # Chat API (mevcut)
-├── credits/route.ts      # Kredi API (YENİ)
-├── activity/route.ts     # Aktivite API (YENİ)
-└── settings/route.ts     # Settings API (YENİ)
-```
-
-### Yapılacaklar
-- [ ] `/api/ops/ai/credits` endpoint oluştur
-- [ ] `/api/ops/ai/activity` endpoint oluştur
-- [ ] Settings sayfası UI oluştur
-- [ ] Kredi göstergesi component
-- [ ] Kullanım grafiği component
-- [ ] Model tercihleri formu
-- [ ] Header'a kredi badge ekle
+> Tüm API endpoints ve UI components tamamlandı.
 
 ---
 
-## 📋 Öncelik 2: Chat Persistence
+## 📋 ~~Öncelik 1: Chat Persistence~~ ✅ TAMAMLANDI
 
-### Yapılacaklar
-- [ ] Thread'leri Supabase'e kaydet
-- [ ] Thread list'i Supabase'den yükle
-- [ ] Thread silme/arşivleme
-- [ ] Thread başlığı otomatik oluşturma
+> Thread persistence, sidebar UI ve kredi badge tamamlandı.
 
-### Tablo Şeması (ai_chat_threads)
+---
+
+## 📋 ~~Öncelik 2: Header Kredi Badge~~ ✅ TAMAMLANDI
+
+> CreditsBadge component oluşturuldu ve AIFullPageChat header'ına eklendi.
+
+### Tablo Şeması
 ```sql
+-- ai_chat_threads
 CREATE TABLE ai_chat_threads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_id UUID REFERENCES admin_profiles(id),
+  admin_id UUID REFERENCES admin_profiles(id) ON DELETE CASCADE,
   title TEXT,
   model TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ,
-  metadata JSONB
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
+-- ai_chat_messages (mevcut ai_chat_logs'dan farklı - thread bazlı)
 CREATE TABLE ai_chat_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   thread_id UUID REFERENCES ai_chat_threads(id) ON DELETE CASCADE,
-  role TEXT NOT NULL, -- 'user' | 'assistant' | 'tool'
+  role TEXT NOT NULL, -- 'user' | 'assistant' | 'tool' | 'system'
   content TEXT,
   tool_calls JSONB,
   tool_results JSONB,
+  tokens_used INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_threads_admin ON ai_chat_threads(admin_id);
+CREATE INDEX idx_threads_created ON ai_chat_threads(created_at DESC);
+CREATE INDEX idx_messages_thread ON ai_chat_messages(thread_id);
 ```
+
+---
+
+## 📋 Öncelik 2: Header Kredi Badge
+
+### Yapılacaklar
+- [ ] Header component'e kredi badge ekle
+- [ ] Kredi durumunu context/store'da tut
+- [ ] Düşük kredi uyarısı (< $1)
+- [ ] Tıklanınca settings'e yönlendir
 
 ---
 

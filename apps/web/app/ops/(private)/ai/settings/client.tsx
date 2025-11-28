@@ -11,6 +11,7 @@ import {
   ModelsSection,
   ApiKeysSection,
   AnalyticsSection,
+  ProvidersSection,
   // AI System Sections
   PreferencesSection,
   ToolsSection,
@@ -33,6 +34,8 @@ export function AISettingsClient() {
         return <ApiKeysSection />;
       case "analytics":
         return <AnalyticsSection />;
+      case "providers":
+        return <ProvidersSection />;
       // AI System
       case "preferences":
         return <PreferencesSection />;

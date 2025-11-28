@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -22,15 +21,18 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import { Search, Users, User, ChevronRight, Archive } from "lucide-react";
+import { Search, ChevronRight, Archive } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
+import { AvatarSmartGroup } from "@/components/ui/avatar-smart-group";
 
 interface Participant {
   user_id: string;
   display_name: string | null;
   avatar_url: string | null;
   username: string | null;
+  gender?: "male" | "female" | "other" | null;
+  is_creator?: boolean;
 }
 
 interface Conversation {
@@ -85,14 +87,6 @@ export function ConversationsClient({ conversations }: ConversationsClientProps)
     return "İsimsiz Sohbet";
   };
 
-  const getConversationAvatar = (conv: Conversation) => {
-    if (conv.avatar_url) return conv.avatar_url;
-    if (conv.participants.length > 0) {
-      return conv.participants[0]?.avatar_url || null;
-    }
-    return null;
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -138,7 +132,7 @@ export function ConversationsClient({ conversations }: ConversationsClientProps)
               <TableRow>
                 <TableHead>Sohbet</TableHead>
                 <TableHead>Tür</TableHead>
-                <TableHead>Katılımcılar</TableHead>
+                <TableHead className="text-center">Katılımcılar</TableHead>
                 <TableHead>Son Mesaj</TableHead>
                 <TableHead>Oluşturulma</TableHead>
                 <TableHead className="w-10"></TableHead>
@@ -153,16 +147,17 @@ export function ConversationsClient({ conversations }: ConversationsClientProps)
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={getConversationAvatar(conv) || undefined} />
-                        <AvatarFallback>
-                          {conv.type === "group" ? (
-                            <Users className="h-4 w-4" />
-                          ) : (
-                            <User className="h-4 w-4" />
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
+                      <AvatarSmartGroup
+                        users={conv.participants.slice(0, 1).map((p) => ({
+                          name: p.display_name || p.username || "Anonim",
+                          image: p.avatar_url || undefined,
+                          gender: p.gender as "male" | "female" | "other" | undefined,
+                          is_creator: p.is_creator
+                        }))}
+                        size={40}
+                        overlap={0}
+                        variant="uniform"
+                      />
                       <div>
                         <div className="font-medium">{getConversationName(conv)}</div>
                         {conv.is_archived && (
@@ -179,20 +174,18 @@ export function ConversationsClient({ conversations }: ConversationsClientProps)
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex -space-x-2">
-                      {conv.participants.slice(0, 3).map((p) => (
-                        <Avatar key={p.user_id} className="h-6 w-6 border-2 border-background">
-                          <AvatarImage src={p.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {p.display_name?.[0] || "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                      {conv.participants.length > 3 && (
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted text-xs">
-                          +{conv.participants.length - 3}
-                        </div>
-                      )}
+                    <div className="flex justify-center">
+                      <AvatarSmartGroup
+                        users={conv.participants.map((p) => ({
+                          name: p.display_name || p.username || "Anonim",
+                          image: p.avatar_url || undefined,
+                          gender: p.gender as "male" | "female" | "other" | undefined,
+                          is_creator: p.is_creator
+                        }))}
+                        size={24}
+                        overlap={-8}
+                        variant="uniform"
+                      />
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
