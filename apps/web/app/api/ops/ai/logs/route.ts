@@ -69,7 +69,9 @@ export async function GET(request: NextRequest) {
         created_at,
         admin:admin_profiles!ai_chat_logs_admin_id_fkey (
           full_name,
-          email
+          email,
+          id,
+          avatar_url
         )
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -93,6 +95,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 });
     }
 
+    // Logs'a profile nesnesi ekle (admin'den avatar_url'i al)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const logsWithAvatars = logs?.map((log: any) => ({
+      ...log,
+      profile: {
+        avatar_url: log.admin?.avatar_url || null,
+      },
+    })) || [];
+
     // İstatistikleri hesapla
     const { data: statsData } = await adminSupabase
       .from('ai_chat_logs')
@@ -112,7 +123,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      logs,
+      logs: logsWithAvatars,
       total: count || 0,
       stats,
       pagination: {

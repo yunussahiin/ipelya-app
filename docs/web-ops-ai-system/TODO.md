@@ -11,24 +11,101 @@
 - [x] Model seçimi UI + localStorage persistence
 - [x] `convertToModelMessages` ile doğru mesaj dönüşümü
 - [x] Tool calling destekli model listesi güncellendi
+- [x] **Tool calling çalışıyor!** ✅ (2025-11-28)
+  - `getSystemStats` tool test edildi
+  - Doğru veri döndürüyor (5 kullanıcı, 26 post, 77 mesaj)
+  - Türkçe + Markdown formatında yanıt
+- [x] `stopWhen: stepCountIs(5)` ile multi-step tool calling
+- [x] System prompt güncellendi (halüsinasyon önleme)
 
 ### 🔄 Devam Eden
-- [ ] Tool calling test edilecek (kredi eklendi)
 - [ ] Chat persistence (thread'lerin kaydedilmesi)
+- [ ] AI Settings sayfası
+
+### ⚠️ Bilinen Sorunlar
+- Free modeller rate limit'e takılabiliyor (Gemini 2.0 Flash)
+- GPT OSS 20B bazen halüsinasyon yapıyor (ama düzeldi)
 
 ---
 
-## 📋 Öncelik 1: Tool Calling Düzeltmeleri
+## 📋 Öncelik 1: AI Settings Sayfası ⭐ YENİ
 
-### Sorunlar
-1. **Tool calls çalışmıyor** - Model tool'ları çağırmıyor
-   - System prompt'a tool talimatları eklendi ✅
-   - Test edilmeli
+### Sayfa: `/ops/ai/settings`
+
+### Bölüm 1: Kredi Durumu
+**API:** `GET /api/v1/credits`
+```typescript
+interface CreditsResponse {
+  data: {
+    total_credits: number;  // Toplam satın alınan
+    total_usage: number;    // Toplam kullanılan
+  }
+}
+// Kalan = total_credits - total_usage
+```
+
+**UI:**
+- 💰 Kalan Kredi: $X.XX
+- 📊 Kullanılan: $X.XX
+- Progress bar (kullanım yüzdesi)
+- "Kredi Ekle" butonu → OpenRouter'a yönlendir
+
+### Bölüm 2: Kullanım Analitikleri
+**API:** `GET /api/v1/activity`
+```typescript
+interface ActivityResponse {
+  data: {
+    date: string;           // YYYY-MM-DD
+    model_id: string;       // Model adı
+    usage: number;          // Token kullanımı
+    cost: number;           // Maliyet
+    num_requests: number;   // İstek sayısı
+  }[]
+}
+```
+
+**UI:**
+- 📈 Son 7 gün grafiği (recharts)
+- Model bazlı kullanım tablosu
+- Günlük/Haftalık/Aylık filtre
+
+### Bölüm 3: Model Tercihleri
+**Kaynak:** localStorage + Supabase
+
+**UI:**
+- Varsayılan model seçimi
+- Fallback model seçimi
+- Temperature slider (0-2)
+- Max tokens input
+
+### Bölüm 4: System Prompt Yönetimi
+**UI:**
+- Preset seçimi (Technical, Support, Analytics, Moderation)
+- Özel prompt textarea
+- Prompt test butonu
+
+### Dosya Yapısı
+```
+/apps/web/app/ops/(private)/ai/
+├── page.tsx              # Chat sayfası (mevcut)
+└── settings/
+    └── page.tsx          # Settings sayfası (YENİ)
+
+/apps/web/app/api/ops/ai/
+├── chat/route.ts         # Chat API (mevcut)
+├── credits/route.ts      # Kredi API (YENİ)
+├── activity/route.ts     # Aktivite API (YENİ)
+└── settings/route.ts     # Settings API (YENİ)
+```
 
 ### Yapılacaklar
-- [ ] Tool calling test et (Gemini 2.0 Flash veya GPT-4o ile)
-- [ ] Tool results UI'da göster
-- [ ] Tool call hata yönetimi ekle
+- [ ] `/api/ops/ai/credits` endpoint oluştur
+- [ ] `/api/ops/ai/activity` endpoint oluştur
+- [ ] Settings sayfası UI oluştur
+- [ ] Kredi göstergesi component
+- [ ] Kullanım grafiği component
+- [ ] Model tercihleri formu
+- [ ] Header'a kredi badge ekle
 
 ---
 
@@ -66,25 +143,7 @@ CREATE TABLE ai_chat_messages (
 
 ---
 
-## 📋 Öncelik 3: OpenRouter Yönetim API Entegrasyonu
-
-### Referans Dokümantasyon
-- `/docs/web-ops-ai-system/openrouter-docs/openrouter-api-docs/API-Reference/`
-
-### Yapılacaklar
-- [ ] Kredi durumu gösterimi (`GET /api/v1/credits`)
-- [ ] Model listesi dinamik yükleme (`GET /api/v1/models`)
-- [ ] Kullanım analitikleri (`/Analytics/`)
-- [ ] API key yönetimi (opsiyonel)
-
-### UI Eklemeleri
-- [ ] Header'da kredi göstergesi
-- [ ] Model seçiminde dinamik liste
-- [ ] Kullanım istatistikleri sayfası
-
----
-
-## 📋 Öncelik 4: Gelişmiş Özellikler
+## 📋 Öncelik 3: Gelişmiş Özellikler
 
 ### Structured Outputs
 - [ ] JSON Schema ile yapılandırılmış yanıtlar
@@ -100,7 +159,7 @@ CREATE TABLE ai_chat_messages (
 
 ---
 
-## 📋 Öncelik 5: UI/UX İyileştirmeleri
+## 📋 Öncelik 4: UI/UX İyileştirmeleri
 
 ### Yapılacaklar
 - [ ] Tool call sonuçlarını collapsible card olarak göster
