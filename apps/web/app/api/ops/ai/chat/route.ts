@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
       previousCount: previousMessages.length,
       newCount: newMessages.length,
       totalCount: coreMessages.length,
-      allMessages: coreMessages.map((m, i) => ({
+      allMessages: coreMessages.map((m: { role: string; content: unknown }, i: number) => ({
         index: i,
         role: m.role,
         content: typeof m.content === 'string' ? m.content.substring(0, 100) : JSON.stringify(m.content).substring(0, 100)
