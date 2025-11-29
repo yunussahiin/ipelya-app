@@ -57,7 +57,16 @@
           "supportsBackgroundPlayback": true,
           "supportsPictureInPicture": true
         }
-      ]
+      ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Fotoğraf ve video çekmek için kamera erişimi gerekli",
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "Video kaydı için mikrofon erişimi gerekli"
+        }
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "router": {},
