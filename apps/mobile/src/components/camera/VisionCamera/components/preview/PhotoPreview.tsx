@@ -68,6 +68,8 @@ export interface PhotoPreviewRef {
 interface PhotoPreviewProps {
   /** Fotoğraf URI'si */
   uri: string;
+  /** Alt boşluk (TabBar için) */
+  bottomInset?: number;
 }
 
 /**
@@ -110,7 +112,7 @@ function LoadingSkeleton() {
  * PhotoPreview Component
  */
 export const PhotoPreview = forwardRef<PhotoPreviewRef, PhotoPreviewProps>(function PhotoPreview(
-  { uri },
+  { uri, bottomInset = 0 },
   ref
 ) {
   console.log(`${LOG_PREFIX} Rendering with uri:`, uri?.substring(0, 50));
@@ -414,7 +416,7 @@ export const PhotoPreview = forwardRef<PhotoPreviewRef, PhotoPreviewProps>(funct
       )}
 
       {/* Controls */}
-      <View style={[styles.controlsContainer, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.controlsContainer, { paddingBottom: insets.bottom + bottomInset }]}>
         {/* Tab Selector */}
         <View style={styles.tabSelector}>
           <Pressable

@@ -61,6 +61,8 @@ export interface EffectCarouselProps {
   currentMode?: "photo" | "video";
   onModeChange?: (mode: "photo" | "video") => void;
   onFlipCamera?: () => void;
+  /** Alt boşluk (TabBar için) */
+  bottomInset?: number;
 }
 
 // =============================================
@@ -157,7 +159,8 @@ export const EffectCarousel = memo(function EffectCarousel({
   isCapturing = false,
   currentMode = "photo",
   onModeChange,
-  onFlipCamera
+  onFlipCamera,
+  bottomInset = 0
 }: EffectCarouselProps) {
   const { colors } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -224,7 +227,7 @@ export const EffectCarousel = memo(function EffectCarousel({
   const sidePadding = (SCREEN_WIDTH - CAPTURE_BUTTON_SIZE) / 2 - BUTTON_MARGIN;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: 30 + bottomInset }]}>
       {/* Üst: Mode Selector + Flip */}
       <View style={styles.topControls}>
         <View style={styles.modeSelector}>
@@ -312,7 +315,6 @@ export const EffectCarousel = memo(function EffectCarousel({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 30,
     left: 0,
     right: 0,
     alignItems: "center",

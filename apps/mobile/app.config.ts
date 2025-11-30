@@ -5,7 +5,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "ipelya-app",
   slug: "ipelya-app",
   scheme: "ipelya",
-  version: "1.0.0",
+  version: "1.0.1",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
@@ -95,7 +95,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "expo-build-properties",
       {
         ios: {
-          deploymentTarget: "15.5"
+          // Local dev (Xcode 26 beta): 26.0, EAS Build (production): 15.1
+          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "15.1"
         }
       }
     ]

@@ -25,12 +25,14 @@ interface MediaPreviewProps {
   onConfirm: (media: CapturedMedia) => void;
   /** Tekrar çek butonuna basıldığında */
   onRetake: () => void;
+  /** Alt boşluk (TabBar için) */
+  bottomInset?: number;
 }
 
 /**
  * Ana MediaPreview Component
  */
-export function MediaPreview({ media, onConfirm, onRetake }: MediaPreviewProps) {
+export function MediaPreview({ media, onConfirm, onRetake, bottomInset = 0 }: MediaPreviewProps) {
   const photoPreviewRef = useRef<PhotoPreviewRef>(null);
   const videoPreviewRef = useRef<VideoPreviewRef>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -87,9 +89,14 @@ export function MediaPreview({ media, onConfirm, onRetake }: MediaPreviewProps) 
     <View style={styles.container}>
       {/* Media Preview */}
       {media.type === "photo" ? (
-        <PhotoPreview ref={photoPreviewRef} uri={uri} />
+        <PhotoPreview ref={photoPreviewRef} uri={uri} bottomInset={bottomInset} />
       ) : (
-        <VideoPreview ref={videoPreviewRef} uri={uri} duration={media.duration} />
+        <VideoPreview
+          ref={videoPreviewRef}
+          uri={uri}
+          duration={media.duration}
+          bottomInset={bottomInset}
+        />
       )}
 
       {/* Controls */}

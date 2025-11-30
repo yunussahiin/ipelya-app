@@ -18,7 +18,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createPost } from '@ipelya/api/home-feed';
 import type { CreatePostRequest } from '@ipelya/types';
 import { useAuthStore } from '../../store/auth.store';
-import { uploadMultipleMedia } from '../../services/media-upload.service';
+import { uploadMultipleMedia, queueMediaProcessing } from '../../services/media-upload.service';
 
 /**
  * Create Post Hook
@@ -53,6 +53,18 @@ export function useCreatePost() {
           url: result.url,
           type: result.type as 'image' | 'video',
         }));
+        
+        // Queue media for background optimization (non-blocking)
+        // Worker will optimize images/videos in the background
+        for (const result of uploadResults) {
+          queueMediaProcessing(
+            userId,
+            result.path,
+            accessToken,
+            undefined, // no message_id for posts
+            { preset: 'post' }
+          ).catch(err => console.warn('[useCreatePost] Queue error (non-critical):', err));
+        }
       }
       
       return createPost(supabaseUrl, accessToken, postData);

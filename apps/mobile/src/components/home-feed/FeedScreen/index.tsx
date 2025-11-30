@@ -30,6 +30,10 @@ import { FeedHeader } from "../FeedHeader";
 import { TabBar } from "../TabBar";
 import { ContentCreator, CreatedContent } from "../ContentCreator";
 import { useCreatePost } from "../../../hooks/home-feed/useCreatePost";
+import { useCreateStory } from "../../../hooks/stories/useCreateStory";
+import { StoryViewer } from "../StoryViewer";
+import { useStories } from "../../../hooks/home-feed/useStories";
+import type { StoryUser } from "../StoriesRow/types";
 
 type FeedTab = "feed" | "trending" | "following";
 
@@ -42,7 +46,37 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FeedTab>(initialTab);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatorInitialTab, setCreatorInitialTab] = useState<"post" | "mini" | "story" | "reels">(
+    "story"
+  );
   const { mutateAsync: createPost } = useCreatePost();
+  const { mutateAsync: createStory } = useCreateStory();
+
+  // Stories data
+  const { data: storiesData } = useStories({ includeOwn: true, profileType: "real" });
+  const storyUsers: StoryUser[] = storiesData?.users || [];
+
+  // Story viewer state
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [storyViewerUserIndex, setStoryViewerUserIndex] = useState(0);
+  const [storyViewerStoryIndex, setStoryViewerStoryIndex] = useState(0);
+
+  // Hikaye ekle butonuna tıklandığında
+  const handleAddStoryPress = () => {
+    setCreatorInitialTab("story");
+    setShowCreateModal(true);
+  };
+
+  // Hikayeye tıklandığında
+  const handleStoryPress = (user: { user_id: string; username: string }, storyIndex?: number) => {
+    // Kullanıcının index'ini bul
+    const userIndex = storyUsers.findIndex((u) => u.user_id === user.user_id);
+    if (userIndex === -1) return;
+
+    setStoryViewerUserIndex(userIndex);
+    setStoryViewerStoryIndex(storyIndex || 0);
+    setShowStoryViewer(true);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -61,7 +95,11 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
       />
 
       {/* Feed list: Infinite scroll, pull to refresh */}
-      <FeedList tab={activeTab} />
+      <FeedList
+        tab={activeTab}
+        onAddStoryPress={handleAddStoryPress}
+        onStoryPress={handleStoryPress}
+      />
 
       {/* FAB: Create post */}
       <Pressable
@@ -71,21 +109,64 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
         <Plus size={24} color={colors.buttonPrimaryText} />
       </Pressable>
 
+      {/* Story Viewer */}
+      <StoryViewer
+        visible={showStoryViewer}
+        users={storyUsers}
+        initialUserIndex={storyViewerUserIndex}
+        initialStoryIndex={storyViewerStoryIndex}
+        onClose={() => setShowStoryViewer(false)}
+        onStoryViewed={(storyId) => {
+          console.log("📖 Story viewed:", storyId);
+          // TODO: view-story API çağrısı
+        }}
+      />
+
       {/* Content Creator */}
       <ContentCreator
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        initialTab="story"
+        initialTab={creatorInitialTab}
         onContentCreated={async (content: CreatedContent) => {
           try {
-            // Mini post ve text post (MiniPostCreator'dan gelen) zaten kendi API'sini çağırıyor
-            // Tekrar createPost çağırma
-            if (content.type === "mini" || content.type === "post") {
+            // Mini post (MiniPostCreator) zaten kendi API'sini çağırıyor
+            if (content.type === "mini") {
               // Feed zaten MiniPostCreator'da yenileniyor
               return;
             }
 
+            // Story için ayrı akış
+            if (content.type === "story") {
+              const media = content.media?.[0];
+              if (!media) {
+                Alert.alert("❌ Hata", "Medya seçilmedi");
+                return;
+              }
+
+              console.log("📤 Creating story:", {
+                mediaType: media.type,
+                caption: content.caption?.substring(0, 50)
+              });
+
+              await createStory({
+                mediaUri: media.path,
+                mediaType: media.type,
+                caption: content.caption,
+                duration: media.duration
+              });
+
+              Alert.alert("✅ Başarılı", "Hikaye paylaşıldı!");
+              return;
+            }
+
+            // Post, Reels için API çağır
             const mediaUris = content.media?.map((m) => m.path) || [];
+            console.log("📤 Creating post:", {
+              type: content.type,
+              mediaCount: mediaUris.length,
+              caption: content.caption?.substring(0, 50)
+            });
+
             await createPost({
               caption: content.caption,
               visibility: "public",
@@ -95,11 +176,13 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
               poll_options: content.poll?.options,
               poll_question: content.poll?.question
             });
+
             // Feed'i yenile
             await queryClient.invalidateQueries({ queryKey: ["feed"] });
-            Alert.alert("✅ Başarılı", "İçerik oluşturuldu!");
+            Alert.alert("✅ Başarılı", "Gönderi paylaşıldı!");
           } catch (error) {
-            Alert.alert("❌ Hata", "İçerik oluşturulurken hata oluştu.");
+            console.error("❌ Post creation error:", error);
+            Alert.alert("❌ Hata", "Gönderi paylaşılırken hata oluştu.");
           }
         }}
       />

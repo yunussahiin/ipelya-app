@@ -42,14 +42,17 @@ import { MemoizedFeedItem } from "../FeedItem";
 import { FeedCardSkeleton } from "../FeedCardSkeleton";
 import { EmptyFeedState } from "../EmptyFeedState";
 import { ErrorFeedState } from "../ErrorFeedState";
+import { StoriesRow } from "../StoriesRow";
 import { useFeed } from "../../../hooks/home-feed/useFeed";
 import { useTheme } from "@/theme/ThemeProvider";
 
 interface FeedListProps {
   tab: "feed" | "trending" | "following";
+  onAddStoryPress?: () => void;
+  onStoryPress?: (user: { user_id: string; username: string }, storyIndex?: number) => void;
 }
 
-export function FeedList({ tab }: FeedListProps) {
+export function FeedList({ tab, onAddStoryPress, onStoryPress }: FeedListProps) {
   const { colors } = useTheme();
   const [showNewPostsButton, setShowNewPostsButton] = useState(false);
   const [buttonAnim] = useState(new Animated.Value(0));
@@ -187,6 +190,11 @@ export function FeedList({ tab }: FeedListProps) {
       <FlashList
         data={data}
         renderItem={({ item }) => <MemoizedFeedItem item={item} />}
+        ListHeaderComponent={
+          tab === "feed" ? (
+            <StoriesRow onStoryPress={onStoryPress} onAddStoryPress={onAddStoryPress} />
+          ) : null
+        }
         ListFooterComponent={() =>
           isFetchingNextPage ? (
             <View style={styles.footerLoader}>

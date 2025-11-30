@@ -90,6 +90,8 @@ export function VisionCamera({
   onError,
   maxVideoDuration = 60,
   style,
+  bottomInset = 0, // TabBar için alt boşluk - Kamera modu
+  previewBottomInset, // Preview modu için ayrı offset (undefined ise bottomInset kullanılır)
   // Face Effects Props - Default aktif
   enableFaceEffects = true,
   showFaceEffectSelector = true,
@@ -779,6 +781,7 @@ export function VisionCamera({
         media={previewMedia}
         onConfirm={handlePreviewConfirm}
         onRetake={handlePreviewRetake}
+        bottomInset={previewBottomInset ?? bottomInset}
       />
     );
   }
@@ -932,6 +935,7 @@ export function VisionCamera({
           currentMode={currentMode}
           onModeChange={handleModeChange}
           onFlipCamera={toggleCameraPosition}
+          bottomInset={bottomInset}
         />
       )}
 

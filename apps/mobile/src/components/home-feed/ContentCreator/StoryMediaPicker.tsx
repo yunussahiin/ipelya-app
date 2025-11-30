@@ -1,45 +1,74 @@
 /**
- * MediaPicker Component
- * Adım 1: Fotoğraf/Video seçimi
+ * StoryMediaPicker Component
+ *
+ * Instagram tarzı hikaye medya seçici
+ * - Üstte header: X butonu, "Hikayeye ekle" başlık, ayarlar
+ * - Albüm seçici dropdown
+ * - Galeri grid (ilk item kamera butonu)
+ * - Tek medya seçimi
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, StyleSheet, Pressable, Text, FlatList, Dimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
-import * as ImagePicker from "expo-image-picker";
-import { Camera, ChevronRight, Check, Clock, Video, Heart, Folder } from "lucide-react-native";
+import {
+  X,
+  Camera,
+  ChevronDown,
+  Clock,
+  Video,
+  Heart,
+  Folder,
+  Check,
+  Layers
+} from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/theme/ThemeProvider";
-import type { MediaAsset } from "./types";
-import { PostHeader } from "./PostHeader";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const GRID_SIZE = SCREEN_WIDTH / 4;
+const GRID_COLUMNS = 3;
+const GRID_SIZE = SCREEN_WIDTH / GRID_COLUMNS;
 
-interface MediaPickerProps {
+interface StoryMediaPickerProps {
   onClose: () => void;
-  onNext: (assets: MediaAsset[]) => void;
-  maxSelection?: number;
+  onCameraPress: () => void;
+  onMediaSelect: (media: {
+    uri: string;
+    type: "photo" | "video";
+    width: number;
+    height: number;
+    duration?: number;
+  }) => void;
+}
+
+interface MediaAsset {
+  id: string;
+  uri: string;
+  mediaType: "photo" | "video";
+  width: number;
+  height: number;
+  duration?: number;
 }
 
 // Sabit albüm kategorileri
 const ALBUM_CATEGORIES = [
-  { id: "recents", name: "Yakındakiler", icon: Clock },
+  { id: "recents", name: "Son Kaydedilenler", icon: Clock },
   { id: "videos", name: "Videolar", icon: Video },
   { id: "favorites", name: "Favoriler", icon: Heart }
 ];
 
-export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerProps) {
+export function StoryMediaPicker({ onClose, onCameraPress, onMediaSelect }: StoryMediaPickerProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const albumSheetRef = useRef<BottomSheetModal>(null);
 
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
-  const [selectedAssets, setSelectedAssets] = useState<MediaAsset[]>([]);
   const [previewAsset, setPreviewAsset] = useState<MediaAsset | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
-  const [currentAlbum, setCurrentAlbum] = useState<string>("Son Kaydedilenler");
+  const [currentAlbum, setCurrentAlbum] = useState("Son Kaydedilenler");
   const [albums, setAlbums] = useState<MediaLibrary.Album[]>([]);
 
   // Load media from gallery
@@ -65,47 +94,11 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
         }));
 
         setMediaAssets(assets);
-        if (assets.length > 0) {
-          setPreviewAsset(assets[0]);
-          setSelectedAssets([assets[0]]);
-        }
       }
     })();
   }, []);
 
-  // Toggle asset selection - her zaman çoklu seçim aktif
-  const toggleAssetSelection = useCallback(
-    (asset: MediaAsset) => {
-      Haptics.selectionAsync();
-
-      setSelectedAssets((prev) => {
-        const isSelected = prev.some((a) => a.id === asset.id);
-        if (isSelected) {
-          // Seçili ise kaldır (en az 1 seçili kalmalı)
-          const newSelection = prev.filter((a) => a.id !== asset.id);
-          if (newSelection.length === 0) {
-            return prev; // En az 1 seçili kalmalı
-          }
-          return newSelection;
-        } else {
-          // Seçili değilse ekle (max kontrolü)
-          if (prev.length >= maxSelection) return prev;
-          return [...prev, asset];
-        }
-      });
-      setPreviewAsset(asset);
-    },
-    [maxSelection]
-  );
-
-  // Handle next
-  const handleNext = () => {
-    if (selectedAssets.length > 0) {
-      onNext(selectedAssets);
-    }
-  };
-
-  // Load albums on mount (includeSmartAlbums for Favorites etc.)
+  // Load albums
   useEffect(() => {
     (async () => {
       if (hasPermission) {
@@ -116,6 +109,33 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
       }
     })();
   }, [hasPermission]);
+
+  // İlk medyayı önizleme olarak ayarla
+  useEffect(() => {
+    if (mediaAssets.length > 0 && !previewAsset) {
+      setPreviewAsset(mediaAssets[0]);
+    }
+  }, [mediaAssets, previewAsset]);
+
+  // Handle media selection - sadece önizleme güncelle
+  const handleMediaPress = useCallback((asset: MediaAsset) => {
+    Haptics.selectionAsync();
+    setPreviewAsset(asset);
+  }, []);
+
+  // İleri butonuna tıklandığında
+  const handleNext = useCallback(() => {
+    if (previewAsset) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onMediaSelect({
+        uri: previewAsset.uri,
+        type: previewAsset.mediaType,
+        width: previewAsset.width,
+        height: previewAsset.height,
+        duration: previewAsset.duration
+      });
+    }
+  }, [previewAsset, onMediaSelect]);
 
   // Show album picker
   const handleAlbumPress = () => {
@@ -135,9 +155,8 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
       mediaType = ["video"];
       albumName = "Videolar";
     } else if (categoryId === "recents") {
-      albumName = "Yakındakiler";
+      albumName = "Son Kaydedilenler";
     } else if (categoryId === "favorites") {
-      // Favoriler için smart album bul
       const favAlbum = albums.find(
         (a) => a.title === "Favorites" || a.title === "Favourites" || a.title === "Favoriler"
       );
@@ -166,10 +185,6 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
 
     setMediaAssets(assets);
     setCurrentAlbum(albumName);
-    if (assets.length > 0) {
-      setPreviewAsset(assets[0]);
-      setSelectedAssets([assets[0]]);
-    }
   };
 
   // Select specific album
@@ -178,40 +193,6 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
     albumSheetRef.current?.dismiss();
     loadAlbumMedia(album);
     setCurrentAlbum(album.title);
-  };
-
-  // Backdrop render
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-    ),
-    []
-  );
-
-  // Open camera
-  const handleCameraPress = async () => {
-    Haptics.selectionAsync();
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      quality: 1
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      const newAsset: MediaAsset = {
-        id: `camera_${Date.now()}`,
-        uri: asset.uri,
-        mediaType: asset.type === "video" ? "video" : "photo",
-        width: asset.width,
-        height: asset.height,
-        duration: asset.duration || undefined
-      };
-      setSelectedAssets((prev) => {
-        if (prev.length >= maxSelection) return prev;
-        return [...prev, newAsset];
-      });
-      setPreviewAsset(newAsset);
-    }
   };
 
   // Load media from specific album
@@ -234,11 +215,6 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
       }));
 
       setMediaAssets(assets);
-
-      if (assets.length > 0) {
-        setPreviewAsset(assets[0]);
-        setSelectedAssets([assets[0]]);
-      }
     } catch (error) {
       console.error("Load album error:", error);
     }
@@ -252,31 +228,44 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Backdrop render
+  const renderBackdrop = useCallback(
+    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
+      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
+    ),
+    []
+  );
+
   // Render grid item
-  const renderGridItem = ({ item }: { item: MediaAsset }) => {
-    const selectionIndex = selectedAssets.findIndex((a) => a.id === item.id);
-    const isSelected = selectionIndex !== -1;
+  const renderGridItem = ({ item }: { item: MediaAsset | { id: string; type: "camera" } }) => {
+    // Kamera butonu
+    if ("type" in item && item.type === "camera") {
+      return (
+        <Pressable
+          style={[styles.cameraButton, { backgroundColor: colors.surfaceAlt }]}
+          onPress={onCameraPress}
+        >
+          <Camera size={32} color={colors.textPrimary} />
+        </Pressable>
+      );
+    }
+
+    const asset = item as MediaAsset;
+    const isSelected = previewAsset?.id === asset.id;
 
     return (
-      <Pressable style={styles.gridItem} onPress={() => toggleAssetSelection(item)}>
-        <Image source={{ uri: item.uri }} style={styles.gridImage} contentFit="cover" />
+      <Pressable style={styles.gridItem} onPress={() => handleMediaPress(asset)}>
+        <Image source={{ uri: asset.uri }} style={styles.gridImage} contentFit="cover" />
 
         {/* Video duration */}
-        {item.mediaType === "video" && item.duration && (
+        {asset.mediaType === "video" && asset.duration && (
           <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{formatDuration(item.duration)}</Text>
+            <Text style={styles.durationText}>{formatDuration(asset.duration)}</Text>
           </View>
         )}
 
-        {/* Selection indicator - her zaman göster */}
-        <View
-          style={[
-            styles.selectionIndicator,
-            isSelected && { backgroundColor: colors.accent, borderColor: colors.accent }
-          ]}
-        >
-          {isSelected && <Text style={styles.selectionNumber}>{selectionIndex + 1}</Text>}
-        </View>
+        {/* Selection overlay */}
+        {isSelected && <View style={[styles.selectedOverlay, { borderColor: colors.accent }]} />}
       </Pressable>
     );
   };
@@ -284,7 +273,13 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
   if (!hasPermission) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <PostHeader title="Yeni gönderi" onClose={onClose} />
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <Pressable style={styles.headerButton} onPress={onClose}>
+            <X size={28} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Hikayeye ekle</Text>
+          <View style={styles.headerButton} />
+        </View>
         <View style={styles.permissionContainer}>
           <Text style={[styles.permissionText, { color: colors.textPrimary }]}>
             Galeri erişimi gerekli
@@ -296,62 +291,44 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PostHeader
-        title="Yeni gönderi"
-        onClose={onClose}
-        rightAction={{
-          label: "İleri",
-          onPress: handleNext,
-          disabled: selectedAssets.length === 0
-        }}
-      />
-
-      {/* Preview */}
-      <View style={styles.previewContainer}>
-        {previewAsset && (
-          <Image
-            source={{ uri: previewAsset.uri }}
-            style={styles.previewImage}
-            contentFit="cover"
-          />
-        )}
-      </View>
-
-      {/* Album selector */}
-      <View style={[styles.albumRow, { borderBottomColor: colors.border }]}>
-        <Pressable style={styles.albumSelector} onPress={handleAlbumPress}>
-          <Text style={[styles.albumText, { color: colors.textPrimary }]}>{currentAlbum}</Text>
-          <ChevronRight size={20} color={colors.textPrimary} />
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.headerButton} onPress={onClose}>
+          <X size={28} color={colors.textPrimary} />
         </Pressable>
-
-        {/* Seçim sayısı göstergesi */}
-        {selectedAssets.length > 1 && (
-          <View style={[styles.selectionCount, { backgroundColor: colors.accent }]}>
-            <Text style={styles.selectionCountText}>
-              {selectedAssets.length}/{maxSelection}
-            </Text>
-          </View>
-        )}
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Hikayeye ekle</Text>
+        <Pressable style={styles.headerButton} onPress={handleNext} disabled={!previewAsset}>
+          <Text
+            style={[
+              styles.nextButtonText,
+              { color: previewAsset ? colors.accent : colors.textMuted }
+            ]}
+          >
+            İleri
+          </Text>
+        </Pressable>
       </View>
 
-      {/* Media Grid with Camera as first item */}
+      {/* Album Selector */}
+      <Pressable
+        style={[styles.albumSelector, { borderBottomColor: colors.border }]}
+        onPress={handleAlbumPress}
+      >
+        <Text style={[styles.albumText, { color: colors.textPrimary }]}>{currentAlbum}</Text>
+        <ChevronDown size={20} color={colors.textPrimary} />
+
+        {/* Multi-select toggle */}
+        <Pressable style={[styles.multiSelectButton, { backgroundColor: colors.surfaceAlt }]}>
+          <Layers size={18} color={colors.textMuted} />
+        </Pressable>
+      </Pressable>
+
+      {/* Media Grid */}
       <FlatList
-        data={[{ id: "camera", type: "camera" } as const, ...mediaAssets]}
-        renderItem={({ item }) => {
-          if (item.id === "camera") {
-            return (
-              <Pressable
-                style={[styles.cameraButton, { backgroundColor: colors.surfaceAlt }]}
-                onPress={handleCameraPress}
-              >
-                <Camera size={28} color={colors.textMuted} />
-              </Pressable>
-            );
-          }
-          return renderGridItem({ item: item as MediaAsset });
-        }}
+        data={[{ id: "camera", type: "camera" as const }, ...mediaAssets]}
+        renderItem={renderGridItem}
         keyExtractor={(item) => item.id}
-        numColumns={4}
+        numColumns={GRID_COLUMNS}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.gridContent}
       />
@@ -390,7 +367,7 @@ export function MediaPicker({ onClose, onNext, maxSelection = 10 }: MediaPickerP
             );
           })}
 
-          {/* Tüm Albümler - sadece içeriği olanlar */}
+          {/* Tüm Albümler */}
           {albums.filter((a) => a.assetCount > 0).length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Albümler</Text>
@@ -426,6 +403,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingBottom: 12
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600"
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: "600"
+  },
   permissionContainer: {
     flex: 1,
     alignItems: "center",
@@ -434,57 +432,38 @@ const styles = StyleSheet.create({
   permissionText: {
     fontSize: 16
   },
-  previewContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
-    backgroundColor: "#000"
-  },
-  previewImage: {
-    width: "100%",
-    height: "100%"
-  },
-  albumRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5
-  },
   albumSelector: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    gap: 6
   },
   albumText: {
     fontSize: 16,
     fontWeight: "600"
   },
-  selectionCount: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
+  multiSelectButton: {
+    marginLeft: "auto",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8
-  },
-  selectionCountText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "700"
+    justifyContent: "center"
   },
   gridContent: {
     paddingBottom: 100
   },
   cameraButton: {
     width: GRID_SIZE,
-    height: GRID_SIZE,
+    height: GRID_SIZE * 1.5,
     alignItems: "center",
     justifyContent: "center"
   },
   gridItem: {
     width: GRID_SIZE,
-    height: GRID_SIZE,
+    height: GRID_SIZE * 1.5,
     padding: 1
   },
   gridImage: {
@@ -504,23 +483,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 11,
     fontWeight: "500"
-  },
-  selectionIndicator: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.8)",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  selectionNumber: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "700"
   },
   selectedOverlay: {
     ...StyleSheet.absoluteFillObject,

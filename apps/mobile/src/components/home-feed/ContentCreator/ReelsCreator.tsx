@@ -153,6 +153,8 @@ export function ReelsCreator({ onComplete, onClose }: ReelsCreatorProps) {
         onCapture={handleCameraCapture}
         onClose={() => setShowCamera(false)}
         maxVideoDuration={90} // Reels için 90 saniye
+        bottomInset={70}
+        previewBottomInset={65}
       />
     );
   }

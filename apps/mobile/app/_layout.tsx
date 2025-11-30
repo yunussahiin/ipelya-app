@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { useDeviceToken } from "@/hooks/useDeviceToken";
 import { useNotificationListener } from "@/hooks/useNotificationListener";
+import { useLoadProfile } from "@/hooks/useLoadProfile";
 import { useGlobalMessageRealtime } from "@/hooks/messaging";
 import { createSessionFromUrl } from "@/services/oauth.service";
 
@@ -30,6 +31,9 @@ function AppStack() {
   // Initialize push notifications
   const deviceToken = useDeviceToken();
   useNotificationListener();
+
+  // Load user profile (avatar, displayName, etc.)
+  useLoadProfile();
 
   // Global message realtime (sohbet listesinde yeni mesaj bildirimi için)
   useGlobalMessageRealtime();

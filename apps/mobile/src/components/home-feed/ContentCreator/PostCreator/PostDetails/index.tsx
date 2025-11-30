@@ -72,12 +72,19 @@ export function PostDetails({ selectedAssets, onBack, onPublish }: PostDetailsPr
   const uniqueTaggedUsersCount = new Set(tagPositions.map((p) => p.user.id)).size;
 
   const handlePublish = () => {
+    log("PUBLISH_START", {
+      caption: caption.trim().substring(0, 50),
+      hasPoll: !!getPollData(),
+      assetsCount: selectedAssets.length,
+      taggedUsersCount: uniqueTaggedUsersCount
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPublish({
       caption: caption.trim(),
       poll: getPollData(),
       settings
     });
+    log("PUBLISH_CALLBACK_CALLED");
   };
 
   return (

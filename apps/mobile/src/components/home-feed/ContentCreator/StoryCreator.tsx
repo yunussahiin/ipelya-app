@@ -1,92 +1,136 @@
 /**
  * StoryCreator Component
  *
- * Hikaye oluşturma - Kamera ile fotoğraf/video çekimi
- * Instagram hikaye tarzı
+ * Hikaye oluşturma - Instagram tarzı
+ * - Önce galeri grid gösterilir (üstte önizleme)
+ * - İleri butonuna tıklayınca preview ekranı açılır
+ * - Kamera butonuna tıklayınca kamera açılır
+ * - Preview ekranında düzenleme ve paylaşım seçenekleri
  */
 
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, Pressable, Text } from "react-native";
-import { X, Type, Sparkles, Layout, ChevronDown } from "lucide-react-native";
+import { View, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { VisionCamera, CapturedMedia } from "@/components/camera";
+import { StoryMediaPicker } from "./StoryMediaPicker";
+import { StoryPreview } from "./StoryPreview";
 import type { CreatedContent } from "./index";
 
 interface StoryCreatorProps {
   onComplete: (content: CreatedContent) => void;
   onClose: () => void;
+  onPreviewModeChange?: (isPreview: boolean) => void;
 }
 
-type StoryMode = "normal" | "create" | "boomerang" | "layout";
+interface SelectedMedia {
+  uri: string;
+  type: "photo" | "video";
+  width: number;
+  height: number;
+  duration?: number;
+}
 
-export function StoryCreator({ onComplete, onClose }: StoryCreatorProps) {
-  const [storyMode, setStoryMode] = useState<StoryMode>("normal");
+type StoryCreatorStep = "picker" | "camera" | "preview";
 
-  // Handle media capture from camera
+export function StoryCreator({ onComplete, onClose, onPreviewModeChange }: StoryCreatorProps) {
+  const [step, setStep] = useState<StoryCreatorStep>("picker");
+  const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
+
+  // Galeriden medya seçildiğinde - preview ekranına geç
+  const handleMediaSelect = useCallback(
+    (media: SelectedMedia) => {
+      Haptics.selectionAsync();
+      setSelectedMedia(media);
+      setStep("preview");
+      onPreviewModeChange?.(true);
+    },
+    [onPreviewModeChange]
+  );
+
+  // Kamera butonuna tıklandığında
+  const handleCameraPress = useCallback(() => {
+    Haptics.selectionAsync();
+    setStep("camera");
+  }, []);
+
+  // Kameradan medya çekildiğinde - preview ekranına geç
   const handleCapture = useCallback(
     (media: CapturedMedia) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSelectedMedia({
+        uri: media.path,
+        type: media.type,
+        width: media.width,
+        height: media.height,
+        duration: media.duration
+      });
+      setStep("preview");
+      onPreviewModeChange?.(true);
+    },
+    [onPreviewModeChange]
+  );
 
-      // Auto-complete for now (later: add editing screen)
+  // Kameradan geri dönüş
+  const handleCameraClose = useCallback(() => {
+    setStep("picker");
+  }, []);
+
+  // Preview'dan geri dönüş
+  const handlePreviewBack = useCallback(() => {
+    setStep("picker");
+    setSelectedMedia(null);
+    onPreviewModeChange?.(false);
+  }, [onPreviewModeChange]);
+
+  // Hikaye paylaşıldığında
+  const handleShare = useCallback(
+    (caption?: string) => {
+      if (!selectedMedia) return;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onComplete({
         type: "story",
+        caption,
         media: [
           {
-            type: media.type,
-            path: media.path,
-            width: media.width,
-            height: media.height,
-            duration: media.duration
+            type: selectedMedia.type,
+            path: selectedMedia.uri,
+            width: selectedMedia.width,
+            height: selectedMedia.height,
+            duration: selectedMedia.duration
           }
         ]
       });
     },
-    [onComplete]
+    [selectedMedia, onComplete]
   );
-
-  // Story mode options
-  const storyModes: { mode: StoryMode; label: string; icon: React.ReactNode }[] = [
-    { mode: "create", label: "Oluştur", icon: <Type size={20} color="#FFF" /> },
-    { mode: "boomerang", label: "Boomerang", icon: <Sparkles size={20} color="#FFF" /> },
-    { mode: "layout", label: "Yerleşim", icon: <Layout size={20} color="#FFF" /> }
-  ];
 
   return (
     <View style={styles.container}>
-      {/* Camera View - Face Effects default aktif */}
-      <VisionCamera
-        mode="photo"
-        enableAudio={true}
-        showControls={true}
-        onCapture={handleCapture}
-        onClose={onClose}
-        maxVideoDuration={15}
-      />
+      {step === "picker" && (
+        <StoryMediaPicker
+          onClose={onClose}
+          onCameraPress={handleCameraPress}
+          onMediaSelect={handleMediaSelect}
+        />
+      )}
 
-      {/* Story Mode Options - Right Side */}
-      <View style={styles.modeOptions}>
-        {storyModes.map(({ mode, label, icon }) => (
-          <Pressable
-            key={mode}
-            style={styles.modeOption}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setStoryMode(mode);
-            }}
-          >
-            <Text style={styles.modeLabel}>{label}</Text>
-            {icon}
-          </Pressable>
-        ))}
-        <Pressable style={styles.modeOption}>
-          <ChevronDown size={20} color="#FFF" />
-        </Pressable>
-      </View>
+      {step === "camera" && (
+        <VisionCamera
+          mode="photo"
+          enableAudio={true}
+          showControls={true}
+          onCapture={handleCapture}
+          onClose={handleCameraClose}
+          maxVideoDuration={15}
+          bottomInset={70}
+          previewBottomInset={65}
+        />
+      )}
 
-      {/* Close Button - Top Left */}
-      <Pressable style={styles.closeButton} onPress={onClose}>
-        <X size={28} color="#FFF" />
-      </Pressable>
+      {step === "preview" && selectedMedia && (
+        <StoryPreview media={selectedMedia} onBack={handlePreviewBack} onShare={handleShare} />
+      )}
     </View>
   );
 }
@@ -95,37 +139,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000"
-  },
-  closeButton: {
-    position: "absolute",
-    top: 60,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100
-  },
-  modeOptions: {
-    position: "absolute",
-    right: 16,
-    top: "35%",
-    gap: 24,
-    alignItems: "flex-end"
-  },
-  modeOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  modeLabel: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "500",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2
   }
 });

@@ -74,6 +74,7 @@ export function ContentCreator({
 }: ContentCreatorProps) {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<CreatorTab>(initialTab);
+  const [hideTabBar, setHideTabBar] = useState(false);
 
   // Swipe animation
   const translateX = useSharedValue(0);
@@ -135,7 +136,13 @@ export function ContentCreator({
       case "mini":
         return <MiniPostCreator onComplete={handleContentCreated} onClose={onClose} />;
       case "story":
-        return <StoryCreator onComplete={handleContentCreated} onClose={onClose} />;
+        return (
+          <StoryCreator
+            onComplete={handleContentCreated}
+            onClose={onClose}
+            onPreviewModeChange={setHideTabBar}
+          />
+        );
       case "reels":
         return <ReelsCreator onComplete={handleContentCreated} onClose={onClose} />;
       default:
@@ -159,13 +166,15 @@ export function ContentCreator({
             <Animated.View style={[styles.content, animatedStyle]}>{renderCreator()}</Animated.View>
           </GestureDetector>
 
-          {/* Tab Bar */}
-          <CreatorTabBar
-            tabs={TABS}
-            labels={TAB_LABELS}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
+          {/* Tab Bar - Preview modunda gizle */}
+          {!hideTabBar && (
+            <CreatorTabBar
+              tabs={TABS}
+              labels={TAB_LABELS}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+            />
+          )}
         </View>
       </BottomSheetModalProvider>
     </Modal>

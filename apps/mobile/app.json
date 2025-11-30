@@ -66,7 +66,14 @@
           "microphonePermissionText": "Video kaydı için mikrofon erişimi gerekli"
         }
       ],
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "18.0"
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},

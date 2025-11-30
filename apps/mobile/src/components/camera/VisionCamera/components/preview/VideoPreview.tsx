@@ -45,6 +45,8 @@ interface VideoPreviewProps {
   uri: string;
   /** Video süresi (saniye) */
   duration?: number;
+  /** Alt boşluk (TabBar için) */
+  bottomInset?: number;
 }
 
 /**
@@ -96,7 +98,7 @@ function formatDuration(seconds: number): string {
  * VideoPreview Component
  */
 export const VideoPreview = forwardRef<VideoPreviewRef, VideoPreviewProps>(function VideoPreview(
-  { uri, duration: initialDuration },
+  { uri, duration: initialDuration, bottomInset = 0 },
   ref
 ) {
   const videoRef = useRef<Video>(null);
@@ -216,7 +218,7 @@ export const VideoPreview = forwardRef<VideoPreviewRef, VideoPreviewProps>(funct
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
-          style={styles.bottomControls}
+          style={[styles.bottomControls, { paddingBottom: bottomInset }]}
         >
           {/* Progress bar */}
           <View style={styles.progressContainer}>

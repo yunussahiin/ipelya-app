@@ -98,14 +98,18 @@ export interface CapturedMedia {
  * VisionCamera ana component props
  */
 export interface VisionCameraProps {
-  /** Başlangıç modu (varsayılan: photo) */
+  /** Kamera modu: fotoğraf veya video */
   mode?: CameraMode;
-  /** Başlangıç kamera pozisyonu (varsayılan: back) */
+  /** Başlangıç kamera pozisyonu */
   initialPosition?: CameraPosition;
-  /** Ses kaydı aktif mi (varsayılan: true) */
+  /** Ses kaydı aktif mi */
   enableAudio?: boolean;
-  /** Kontroller gösterilsin mi (varsayılan: true) */
+  /** Kontrolleri göster */
   showControls?: boolean;
+  /** Alt kontrollerin bottom offset'i - Kamera modu (TabBar için) */
+  bottomInset?: number;
+  /** Alt kontrollerin bottom offset'i - Preview modu (varsayılan: bottomInset ile aynı) */
+  previewBottomInset?: number;
   /** Medya yakalandığında çağrılır */
   onCapture?: (media: CapturedMedia) => void;
   /** Kapatma butonuna basıldığında çağrılır */

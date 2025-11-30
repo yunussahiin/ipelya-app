@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -81,11 +82,26 @@ export async function uploadMedia(
   accessToken: string
 ): Promise<UploadResult> {
   try {
-    // Normalize URI - remove duplicate file:// prefix
+    // Normalize URI - handle different URI schemes
     let normalizedUri = uri;
-    if (uri.startsWith('file://file://')) {
+    
+    // Handle Photos Library URI (ph://) - iOS
+    if (uri.startsWith('ph://')) {
+      console.log('[MediaUpload] Converting ph:// URI to file://');
+      const assetId = uri.replace('ph://', '').split('/')[0];
+      const asset = await MediaLibrary.getAssetInfoAsync(assetId);
+      if (!asset.localUri) {
+        throw new Error('Could not get local URI for photo library asset');
+      }
+      normalizedUri = asset.localUri;
+      console.log('[MediaUpload] Converted to:', normalizedUri);
+    }
+    // Handle duplicate file:// prefix
+    else if (uri.startsWith('file://file://')) {
       normalizedUri = uri.replace('file://file://', 'file://');
-    } else if (uri.startsWith('file://') === false && uri.startsWith('/')) {
+    }
+    // Handle missing file:// prefix
+    else if (!uri.startsWith('file://') && uri.startsWith('/')) {
       normalizedUri = `file://${uri}`;
     }
     
