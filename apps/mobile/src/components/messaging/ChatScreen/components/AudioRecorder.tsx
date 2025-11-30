@@ -9,7 +9,13 @@
 
 import { memo, useState, useRef, useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from "react-native";
-import { Audio } from "expo-av";
+import {
+  useAudioRecorder,
+  useAudioPlayer,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync
+} from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import type { ThemeColors } from "@/theme/ThemeProvider";
@@ -27,10 +33,13 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
   const [duration, setDuration] = useState(0);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [permissionResponse, requestPermission] = Audio.usePermissions();
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // expo-audio recorder
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  // expo-audio player for preview
+  const player = useAudioPlayer(recordedUri ? { uri: recordedUri } : null);
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -67,27 +76,23 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
   const startRecording = useCallback(async () => {
     try {
       // Check permission
-      if (permissionResponse?.status !== "granted") {
-        const result = await requestPermission();
-        if (result.status !== "granted") {
-          console.log("[AudioRecorder] Permission denied");
-          return;
-        }
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        console.log("[AudioRecorder] Permission denied");
+        return;
       }
 
       // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true
       });
 
       // Start recording
       console.log("[AudioRecorder] Starting recording...");
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-      recordingRef.current = recording;
       setState("recording");
       setDuration(0);
       setRecordedUri(null);
@@ -102,13 +107,11 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
     } catch (error) {
       console.error("[AudioRecorder] Failed to start recording:", error);
     }
-  }, [permissionResponse, requestPermission]);
+  }, [recorder]);
 
   // Stop recording - go to preview
   const stopRecording = useCallback(async () => {
     try {
-      if (!recordingRef.current) return;
-
       // Stop timer
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -117,13 +120,12 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
 
       console.log("[AudioRecorder] Stopping recording...");
 
-      await recordingRef.current.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false
+      await recorder.stop();
+      await setAudioModeAsync({
+        allowsRecording: false
       });
 
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      const uri = recorder.uri;
 
       if (!uri || duration < 1) {
         console.log("[AudioRecorder] Recording too short");
@@ -139,15 +141,13 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
       console.error("[AudioRecorder] Failed to stop recording:", error);
       setState("idle");
     }
-  }, [duration]);
+  }, [duration, recorder]);
 
   // Send recording
   const sendRecording = useCallback(async () => {
     // Stop playback if playing
-    if (soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
+    if (player) {
+      player.pause();
     }
 
     if (recordedUri && duration > 0) {
@@ -155,69 +155,43 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onRecordingComplete(recordedUri, duration);
     }
-  }, [recordedUri, duration, onRecordingComplete]);
+  }, [recordedUri, duration, onRecordingComplete, player]);
 
   // Play/Pause preview
-  const togglePlayback = useCallback(async () => {
-    if (!recordedUri) return;
+  const togglePlayback = useCallback(() => {
+    if (!recordedUri || !player) return;
 
     try {
-      if (isPlaying && soundRef.current) {
-        await soundRef.current.pauseAsync();
+      if (isPlaying) {
+        player.pause();
         setIsPlaying(false);
-        return;
-      }
-
-      if (soundRef.current) {
-        await soundRef.current.playAsync();
+      } else {
+        player.play();
         setIsPlaying(true);
-        return;
       }
-
-      // Load and play
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true
-      });
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: recordedUri },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setIsPlaying(false);
-          }
-        }
-      );
-
-      soundRef.current = sound;
-      setIsPlaying(true);
     } catch (error) {
       console.error("[AudioRecorder] Playback error:", error);
     }
-  }, [recordedUri, isPlaying]);
+  }, [recordedUri, isPlaying, player]);
 
   // Cancel recording
   const cancelRecording = useCallback(async () => {
     // Stop playback
-    if (soundRef.current) {
+    if (player) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        player.pause();
       } catch {}
-      soundRef.current = null;
     }
 
     // Stop if recording
-    if (recordingRef.current) {
+    if (recorder.isRecording) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
       try {
-        await recordingRef.current.stopAndUnloadAsync();
+        await recorder.stop();
       } catch {}
-      recordingRef.current = null;
     }
 
     setState("idle");
@@ -225,7 +199,7 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
     setRecordedUri(null);
     setIsPlaying(false);
     onCancel();
-  }, [onCancel]);
+  }, [onCancel, player, recorder]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -233,14 +207,11 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync();
-      }
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
+      if (recorder.isRecording) {
+        recorder.stop();
       }
     };
-  }, []);
+  }, [recorder]);
 
   // Auto-start recording on mount
   useEffect(() => {

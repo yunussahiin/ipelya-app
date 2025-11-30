@@ -14,7 +14,7 @@
  * - onPlay: Play callback
  * - onLike: Like callback
  *
- * Not: expo-av gerekli (audio playback için)
+ * Not: expo-audio gerekli (audio playback için)
  */
 
 import React, { useState } from "react";

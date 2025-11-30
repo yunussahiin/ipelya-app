@@ -39,6 +39,7 @@ export function StoryCreator({ onComplete, onClose, onPreviewModeChange }: Story
   // Galeriden medya seçildiğinde - preview ekranına geç
   const handleMediaSelect = useCallback(
     (media: SelectedMedia) => {
+      console.log("📸 Media selected:", { type: media.type, uri: media.uri.substring(0, 50) });
       Haptics.selectionAsync();
       setSelectedMedia(media);
       setStep("preview");

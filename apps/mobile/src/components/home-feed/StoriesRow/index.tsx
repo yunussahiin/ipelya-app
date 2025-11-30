@@ -41,23 +41,22 @@ export function StoriesRow({ onStoryPress, onAddStoryPress, onRefresh }: Stories
     onAddStoryPress?.();
   }, [onAddStoryPress]);
 
-  // Loading state
-  if (isLoading) {
-    return <StoriesRowSkeleton />;
-  }
-
+  // Data processing (hook'lardan sonra)
   const users: StoryUser[] = data?.users || [];
-
-  // Kendi story'miz varsa ayır (profile.id kullan)
   const ownStories = users.find((u: StoryUser) => u.user_id === profile?.id);
   const otherUsers = users.filter((u: StoryUser) => u.user_id !== profile?.id);
 
-  // Kendi hikayemize tıklayınca görüntüle
+  // Kendi hikayemize tıklayınca görüntüle (TÜM HOOK'LAR BURADA OLMALI)
   const handleOwnStoryPress = useCallback(() => {
     if (ownStories) {
       handleStoryPress(ownStories);
     }
   }, [ownStories, handleStoryPress]);
+
+  // Loading state - hook'lardan SONRA return
+  if (isLoading) {
+    return <StoriesRowSkeleton />;
+  }
 
   return (
     <View style={[styles.container, { borderBottomColor: colors.border }]}>

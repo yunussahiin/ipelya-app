@@ -124,11 +124,17 @@ export function StoryMediaPicker({ onClose, onCameraPress, onMediaSelect }: Stor
   }, []);
 
   // İleri butonuna tıklandığında
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (previewAsset) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // expo-video için orijinal asset.uri kullan (ph:// formatı destekleniyor)
+      // localUri kullanma - permission hatası veriyor
+      const finalUri = previewAsset.uri;
+      console.log("📹 Media URI:", finalUri);
+
       onMediaSelect({
-        uri: previewAsset.uri,
+        uri: finalUri,
         type: previewAsset.mediaType,
         width: previewAsset.width,
         height: previewAsset.height,

@@ -7,19 +7,19 @@
  * - Altta açıklama girişi ve paylaşım seçenekleri
  */
 
-import React, { useState, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  Text,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform
-} from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, Pressable, Text, TextInput, Keyboard, Platform } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing
+} from "react-native-reanimated";
+
+const AnimatedView = Animated.View;
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Video, ResizeMode } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
 import {
   X,
   Smile,
@@ -52,9 +52,47 @@ export function StoryPreview({ media, onBack, onShare }: StoryPreviewProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const profile = useProfileStore((s) => s.profile);
-  const videoRef = useRef<Video>(null);
 
   const [caption, setCaption] = useState("");
+
+  // Video player (expo-video)
+  const player = useVideoPlayer(media.type === "video" ? media.uri : null, (player) => {
+    player.loop = true;
+    player.play();
+  });
+
+  // Klavye yüksekliği için animated value
+  const keyboardOffset = useSharedValue(0);
+
+  // Klavye event listener'ları
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(showEvent, (e) => {
+      keyboardOffset.value = withTiming(e.endCoordinates.height, {
+        duration: 250,
+        easing: Easing.out(Easing.ease)
+      });
+    });
+
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      keyboardOffset.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.in(Easing.ease)
+      });
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  // Bottom section animated style
+  const bottomAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -keyboardOffset.value }]
+  }));
 
   // Paylaş butonuna tıklandığında
   const handleShare = () => {
@@ -73,23 +111,17 @@ export function StoryPreview({ media, onBack, onShare }: StoryPreviewProps) {
   ];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.container}>
       {/* Full screen media preview */}
       <View style={styles.mediaContainer}>
         {media.type === "photo" ? (
           <Image source={{ uri: media.uri }} style={styles.mediaImage} contentFit="cover" />
         ) : (
-          <Video
-            ref={videoRef}
-            source={{ uri: media.uri }}
+          <VideoView
+            player={player}
             style={styles.mediaVideo}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            isLooping
-            isMuted={false}
+            contentFit="cover"
+            nativeControls={false}
           />
         )}
 
@@ -121,8 +153,10 @@ export function StoryPreview({ media, onBack, onShare }: StoryPreviewProps) {
         </View>
       </View>
 
-      {/* Bottom section */}
-      <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 16 }]}>
+      {/* Bottom section - klavye açılınca yukarı kayar */}
+      <AnimatedView
+        style={[styles.bottomSection, { paddingBottom: insets.bottom + 16 }, bottomAnimatedStyle]}
+      >
         {/* Caption input */}
         <TextInput
           style={styles.captionInput}
@@ -163,8 +197,8 @@ export function StoryPreview({ media, onBack, onShare }: StoryPreviewProps) {
             <ArrowRight size={24} color="#000" />
           </Pressable>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </AnimatedView>
+    </View>
   );
 }
 

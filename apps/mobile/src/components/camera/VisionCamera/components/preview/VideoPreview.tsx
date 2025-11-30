@@ -2,7 +2,7 @@
  * VideoPreview
  *
  * Video önizleme component'i
- * - expo-av ile video playback
+ * - expo-video ile video playback
  * - Play/Pause kontrolü
  * - Video bilgisi gösterimi
  *
@@ -23,9 +23,11 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
-  Animated as RNAnimated
+  Animated as RNAnimated,
+  Platform
 } from "react-native";
-import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEventListener } from "expo";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Play, Pause, RotateCcw } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -101,8 +103,6 @@ export const VideoPreview = forwardRef<VideoPreviewRef, VideoPreviewProps>(funct
   { uri, duration: initialDuration, bottomInset = 0 },
   ref
 ) {
-  const videoRef = useRef<Video>(null);
-
   // State
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,44 +110,50 @@ export const VideoPreview = forwardRef<VideoPreviewRef, VideoPreviewProps>(funct
   const [duration, setDuration] = useState(initialDuration || 0);
   const [showControls, setShowControls] = useState(true);
 
-  // Playback status handler
-  const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (status.isLoaded) {
+  const normalizedUri = uri.startsWith("file://") ? uri : `file://${uri}`;
+
+  // Video player (expo-video)
+  const player = useVideoPlayer(normalizedUri, (p) => {
+    p.loop = true;
+    p.play();
+  });
+
+  // Status change listener
+  useEventListener(player, "statusChange", ({ status }) => {
+    if (status === "readyToPlay") {
       setIsLoading(false);
-      setIsPlaying(status.isPlaying);
-      setPosition(status.positionMillis / 1000);
-
-      if (status.durationMillis) {
-        setDuration(status.durationMillis / 1000);
-      }
-
-      // Video bittiğinde başa sar
-      if (status.didJustFinish) {
-        videoRef.current?.replayAsync();
+      if (player.duration > 0) {
+        setDuration(player.duration);
       }
     }
-  }, []);
+  });
+
+  // Playing change listener
+  useEventListener(player, "playingChange", ({ isPlaying: playing }) => {
+    setIsPlaying(playing);
+  });
+
+  // Time update listener
+  useEventListener(player, "timeUpdate", ({ currentTime }) => {
+    setPosition(currentTime);
+  });
 
   // Toggle play/pause
-  const togglePlayPause = useCallback(async () => {
-    if (!videoRef.current) return;
-
+  const togglePlayPause = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (isPlaying) {
-      await videoRef.current.pauseAsync();
+      player.pause();
     } else {
-      await videoRef.current.playAsync();
+      player.play();
     }
-  }, [isPlaying]);
+  }, [isPlaying, player]);
 
   // Replay video
-  const handleReplay = useCallback(async () => {
-    if (!videoRef.current) return;
-
+  const handleReplay = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await videoRef.current.replayAsync();
-  }, []);
+    player.replay();
+  }, [player]);
 
   // Toggle controls visibility
   const handleToggleControls = useCallback(() => {
@@ -172,20 +178,16 @@ export const VideoPreview = forwardRef<VideoPreviewRef, VideoPreviewProps>(funct
     getPlaybackStatus
   }));
 
-  const normalizedUri = uri.startsWith("file://") ? uri : `file://${uri}`;
-
   return (
     <View style={styles.container}>
       {/* Video Player */}
       <Pressable style={styles.videoContainer} onPress={handleToggleControls}>
-        <Video
-          ref={videoRef}
-          source={{ uri: normalizedUri }}
+        <VideoView
+          player={player}
           style={styles.video}
-          resizeMode={ResizeMode.CONTAIN}
-          shouldPlay
-          isLooping
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          contentFit="contain"
+          nativeControls={false}
+          surfaceType={Platform.OS === "android" ? "textureView" : undefined}
         />
 
         {/* Loading overlay */}

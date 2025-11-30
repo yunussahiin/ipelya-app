@@ -76,6 +76,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-maps",
     "expo-video",
     [
+      "expo-audio",
+      {
+        microphonePermission: "Ses kaydı için mikrofon erişimi gereklidir."
+      }
+    ],
+    [
       "react-native-vision-camera",
       {
         cameraPermissionText: "İçerik oluşturmak için kamera erişimi gereklidir.",
@@ -95,8 +101,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "expo-build-properties",
       {
         ios: {
-          // Local dev (Xcode 26 beta): 26.0, EAS Build (production): 15.1
-          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "15.1"
+          // VisionCameraFaceDetector (MLKit) requires iOS 16+
+          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "16.0"
         }
       }
     ]

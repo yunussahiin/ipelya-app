@@ -1,36 +1,22 @@
 /**
  * StoryViewer Component
- *
  * Instagram tarzı tam ekran hikaye görüntüleme
- * - Progress bar (üstte)
- * - Kullanıcı bilgisi (avatar, username, zaman)
- * - Tam ekran medya (image/video)
- * - Swipe left/right: Sonraki/önceki hikaye
- * - Tap left/right: Sonraki/önceki hikaye
- * - Long press: Duraklat
- * - Reactions (altta)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, StyleSheet, Pressable, Text, Modal, Dimensions, StatusBar } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, Text, StyleSheet, Modal, Dimensions, StatusBar, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
-import { X, Send, Heart, MoreHorizontal } from "lucide-react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEventListener } from "expo";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  runOnJS,
-  Easing
-} from "react-native-reanimated";
+import { useSharedValue, withTiming, runOnJS, Easing } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
-import { useTheme } from "@/theme/ThemeProvider";
-import type { Story, StoryUser } from "../StoriesRow/types";
+import type { StoryUser } from "../StoriesRow/types";
+import { StoryProgressBar, StoryHeader, StoryActions } from "./components";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const STORY_DURATION = 5000; // 5 saniye (image için)
 
 interface StoryViewerProps {
@@ -50,9 +36,7 @@ export function StoryViewer({
   onClose,
   onStoryViewed
 }: StoryViewerProps) {
-  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const videoRef = useRef<Video>(null);
 
   const [currentUserIndex, setCurrentUserIndex] = useState(initialUserIndex);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(initialStoryIndex);
@@ -61,6 +45,24 @@ export function StoryViewer({
   const currentUser = users[currentUserIndex];
   const currentStory = currentUser?.stories?.[currentStoryIndex];
   const totalStories = currentUser?.stories?.length || 0;
+  const isVideo = currentStory?.media_type === "video";
+
+  // Video player (expo-video) - sadece video için
+  const player = useVideoPlayer(
+    isVideo && currentStory?.media_url ? currentStory.media_url : null,
+    (p) => {
+      p.loop = false;
+      p.muted = false;
+      if (!isPaused) {
+        p.play();
+      }
+    }
+  );
+
+  // Video bittiğinde sonraki hikayeye geç
+  useEventListener(player, "playToEnd", () => {
+    goToNextStory();
+  });
 
   // Progress animation
   const progress = useSharedValue(0);
@@ -144,11 +146,17 @@ export function StoryViewer({
   const handleLongPressStart = useCallback(() => {
     setIsPaused(true);
     progress.value = progress.value; // Animasyonu durdur
-  }, []);
+    if (isVideo && player) {
+      player.pause();
+    }
+  }, [isVideo, player]);
 
   const handleLongPressEnd = useCallback(() => {
     setIsPaused(false);
-  }, []);
+    if (isVideo && player) {
+      player.play();
+    }
+  }, [isVideo, player]);
 
   // Gesture handlers
   const tapGesture = Gesture.Tap().onEnd((event) => {
@@ -165,11 +173,6 @@ export function StoryViewer({
     });
 
   const composedGesture = Gesture.Race(longPressGesture, tapGesture);
-
-  // Progress bar animated style
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`
-  }));
 
   // Zaman formatla
   const formatTime = (dateString: string) => {
@@ -209,19 +212,13 @@ export function StoryViewer({
                 transition={200}
               />
             ) : (
-              <Video
-                ref={videoRef}
-                source={{ uri: currentStory.media_url }}
+              <VideoView
+                player={player}
                 style={styles.media}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay={!isPaused}
-                isLooping={false}
-                isMuted={false}
-                onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
-                  if (status.isLoaded && status.didJustFinish) {
-                    goToNextStory();
-                  }
-                }}
+                contentFit="cover"
+                nativeControls={false}
+                // Android: overlapping video issue workaround
+                surfaceType={Platform.OS === "android" ? "textureView" : undefined}
               />
             )}
 
@@ -240,47 +237,21 @@ export function StoryViewer({
         </GestureDetector>
 
         {/* Progress bars */}
-        <View style={[styles.progressContainer, { paddingTop: insets.top + 8 }]}>
-          {currentUser.stories.map((_, index) => (
-            <View key={index} style={styles.progressBarBg}>
-              {index < currentStoryIndex ? (
-                // Tamamlanmış
-                <View style={[styles.progressBarFill, { width: "100%" }]} />
-              ) : index === currentStoryIndex ? (
-                // Aktif
-                <Animated.View style={[styles.progressBarFill, progressStyle]} />
-              ) : null}
-            </View>
-          ))}
-        </View>
+        <StoryProgressBar
+          totalStories={totalStories}
+          currentIndex={currentStoryIndex}
+          progress={progress}
+          paddingTop={insets.top + 8}
+        />
 
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Pressable style={styles.userInfo} onPress={() => {}}>
-            {currentUser.avatar_url ? (
-              <Image
-                source={{ uri: currentUser.avatar_url }}
-                style={styles.avatar}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: colors.surface }]} />
-            )}
-            <View style={styles.userTextContainer}>
-              <Text style={styles.username}>{currentUser.username}</Text>
-              <Text style={styles.time}>{formatTime(currentStory.created_at)}</Text>
-            </View>
-          </Pressable>
-
-          <View style={styles.headerActions}>
-            <Pressable style={styles.headerButton}>
-              <MoreHorizontal size={24} color="#FFF" />
-            </Pressable>
-            <Pressable style={styles.headerButton} onPress={onClose}>
-              <X size={28} color="#FFF" />
-            </Pressable>
-          </View>
-        </View>
+        <StoryHeader
+          avatarUrl={currentUser.avatar_url}
+          username={currentUser.username}
+          timeAgo={formatTime(currentStory.created_at)}
+          paddingTop={insets.top + 20}
+          onClose={onClose}
+        />
 
         {/* Caption */}
         {currentStory.caption && (
@@ -290,17 +261,7 @@ export function StoryViewer({
         )}
 
         {/* Bottom actions */}
-        <View style={[styles.bottomActions, { paddingBottom: insets.bottom + 16 }]}>
-          <Pressable style={styles.replyButton}>
-            <Text style={styles.replyText}>Mesaj gönder...</Text>
-          </Pressable>
-          <Pressable style={styles.actionButton}>
-            <Heart size={28} color="#FFF" />
-          </Pressable>
-          <Pressable style={styles.actionButton}>
-            <Send size={26} color="#FFF" />
-          </Pressable>
-        </View>
+        <StoryActions paddingBottom={insets.bottom + 16} />
 
         {/* Paused indicator */}
         {isPaused && (
@@ -339,74 +300,6 @@ const styles = StyleSheet.create({
     right: 0,
     height: 200
   },
-  progressContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    gap: 4,
-    zIndex: 10
-  },
-  progressBarBg: {
-    flex: 1,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    borderRadius: 1,
-    overflow: "hidden"
-  },
-  progressBarFill: {
-    height: "100%",
-    backgroundColor: "#FFF",
-    borderRadius: 1
-  },
-  header: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    zIndex: 10
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18
-  },
-  userTextContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  username: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  time: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 12
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center"
-  },
   captionContainer: {
     position: "absolute",
     bottom: 0,
@@ -418,36 +311,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 15,
     lineHeight: 20
-  },
-  bottomActions: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    gap: 12,
-    zIndex: 10
-  },
-  replyButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-    justifyContent: "center",
-    paddingHorizontal: 16
-  },
-  replyText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 14
-  },
-  actionButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center"
   },
   pausedOverlay: {
     ...StyleSheet.absoluteFillObject,

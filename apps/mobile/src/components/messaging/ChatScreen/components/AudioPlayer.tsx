@@ -7,9 +7,9 @@
  * - Süre göstergesi
  */
 
-import { memo, useState, useRef, useCallback, useEffect } from "react";
+import { memo, useRef, useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from "react-native";
-import { Audio, AVPlaybackStatus } from "expo-av";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import type { ThemeColors } from "@/theme/ThemeProvider";
 
@@ -26,14 +26,17 @@ function AudioPlayerComponent({
   colors,
   isOwnMessage = false
 }: AudioPlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [position, setPosition] = useState(0);
-  // initialDuration saniye cinsinden geliyor, milisaniyeye çevir
-  const [duration, setDuration] = useState((initialDuration || 0) * 1000);
-
-  const soundRef = useRef<Audio.Sound | null>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+
+  // expo-audio player
+  const player = useAudioPlayer({ uri });
+  const status = useAudioPlayerStatus(player);
+
+  // Derived state
+  const isPlaying = status.playing;
+  const isLoading = status.isBuffering || !status.isLoaded;
+  const position = status.currentTime * 1000; // saniye -> milisaniye
+  const duration = (status.duration || initialDuration || 0) * 1000; // saniye -> milisaniye
 
   // Format time
   const formatTime = (millis: number) => {
@@ -54,76 +57,29 @@ function AudioPlayerComponent({
     }
   }, [position, duration, progressAnim]);
 
-  // Playback status update
-  const onPlaybackStatusUpdate = useCallback(
-    (status: AVPlaybackStatus) => {
-      if (!status.isLoaded) return;
+  // Reset progress when finished
+  useEffect(() => {
+    if (status.didJustFinish) {
+      progressAnim.setValue(0);
+    }
+  }, [status.didJustFinish, progressAnim]);
 
-      setPosition(status.positionMillis);
-      setDuration(status.durationMillis || 0);
-      setIsPlaying(status.isPlaying);
-
-      if (status.didJustFinish) {
-        setIsPlaying(false);
-        setPosition(0);
-        progressAnim.setValue(0);
-      }
-    },
-    [progressAnim]
-  );
-
-  // Load and play
-  const handlePlay = useCallback(async () => {
+  // Play/Pause handler
+  const handlePlay = useCallback(() => {
     try {
-      if (soundRef.current) {
-        // Already loaded, toggle play/pause
-        const status = await soundRef.current.getStatusAsync();
-        if (status.isLoaded) {
-          if (status.isPlaying) {
-            await soundRef.current.pauseAsync();
-          } else {
-            // Eğer ses bittiyse başa sar
-            if (status.didJustFinish || status.positionMillis >= (status.durationMillis || 0)) {
-              await soundRef.current.setPositionAsync(0);
-            }
-            await soundRef.current.playAsync();
-          }
+      if (isPlaying) {
+        player.pause();
+      } else {
+        // Eğer ses bittiyse başa sar
+        if (status.didJustFinish) {
+          player.seekTo(0);
         }
-        return;
+        player.play();
       }
-
-      // Load sound
-      setIsLoading(true);
-      console.log("[AudioPlayer] Loading:", uri);
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true
-      });
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true },
-        onPlaybackStatusUpdate
-      );
-
-      soundRef.current = sound;
-      setIsLoading(false);
-      console.log("[AudioPlayer] Playing");
     } catch (error) {
       console.error("[AudioPlayer] Error:", error);
-      setIsLoading(false);
     }
-  }, [uri, onPlaybackStatusUpdate]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
+  }, [isPlaying, player, status.didJustFinish]);
 
   const textColor = isOwnMessage ? "#fff" : colors.textPrimary;
   const secondaryColor = isOwnMessage ? "rgba(255,255,255,0.7)" : colors.textMuted;

@@ -4,13 +4,13 @@
  * Amaç: Ses kaydedici component
  * Tarih: 2025-11-26
  *
- * NOT: expo-av requires development build, disabled for Expo Go
+ * NOT: expo-audio requires development build, disabled for Expo Go
  */
 
 import { useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
-// expo-av requires development build, disabled for Expo Go
-// import { Audio } from "expo-av";
+// expo-audio requires development build, disabled for Expo Go
+// import { useAudioRecorder, RecordingPresets } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,7 +31,7 @@ interface VoiceRecorderProps {
 /**
  * VoiceRecorder - Ses kaydedici
  *
- * NOT: expo-av requires development build.
+ * NOT: expo-audio requires development build.
  * Bu component Expo Go'da çalışmaz.
  */
 export function VoiceRecorder({ onCancel }: VoiceRecorderProps) {

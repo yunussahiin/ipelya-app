@@ -3,7 +3,7 @@
  *
  * Fotoğraf ve video önizleme ekranı
  * - Fotoğraf: Skia Canvas + Filtreler + Ayarlar
- * - Video: expo-av ile playback
+ * - Video: expo-video ile playback
  * - Onay/Tekrar çek butonları
  *
  * v2 - Component bazlı mimari
