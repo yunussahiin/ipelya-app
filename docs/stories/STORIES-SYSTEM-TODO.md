@@ -489,58 +489,70 @@ CREATE POLICY "story_highlight_items_delete_policy" ON story_highlight_items
 - [x] Tek medya seçimi (hikaye için)
 - [x] Kamera butonuna tıklayınca VisionCamera açılır
 
-### 3.3 StoryViewer (Tam Ekran)
+### 3.3 StoryViewer (Tam Ekran) ✅
 **Dosya:** `/components/home-feed/StoryViewer/index.tsx`
 
-- [ ] Tam ekran modal
-- [ ] Swipe left/right: Sonraki/önceki hikaye
-- [ ] Tap left/right: Sonraki/önceki hikaye
-- [ ] Long press: Duraklat
-- [ ] Progress bar (üstte)
-- [ ] User info (avatar, username, time)
-- [ ] Close button
-- [ ] Reply input (DM gönder)
-- [ ] Reaction picker
-- [ ] Video için auto-play
+- [x] Tam ekran modal
+- [x] Swipe left/right: Sonraki/önceki hikaye
+- [x] Tap left/right: Sonraki/önceki hikaye
+- [x] Long press: Duraklat
+- [x] Progress bar (üstte)
+- [x] User info (avatar, username, time)
+- [x] Close button
+- [x] Video için auto-play (expo-video)
+- [x] Kendi story'den başkasının story'sine geçerken kendi story'yi atlama
+- [x] Reaction picker (başkasının story'si için)
+- [x] Insights sheet (kendi story'miz için - görüntüleyenler, tepkiler)
+- [ ] Reply input (DM gönder) - sonra eklenecek
 
-### 3.4 StoryProgressBar
-**Dosya:** `/components/home-feed/StoryViewer/StoryProgressBar.tsx`
+### 3.4 StoryProgressBar ✅
+**Dosya:** `/components/home-feed/StoryViewer/components/StoryProgressBar.tsx`
 
-- [ ] Segment'li progress bar
-- [ ] Her hikaye için bir segment
-- [ ] Aktif segment animasyonlu dolum
-- [ ] Tamamlanan segmentler dolu
+- [x] Segment'li progress bar
+- [x] Her hikaye için bir segment
+- [x] Aktif segment animasyonlu dolum (Reanimated)
+- [x] Tamamlanan segmentler dolu
 
-### 3.5 StoryReactionPicker
-**Dosya:** `/components/home-feed/StoryViewer/StoryReactionPicker.tsx`
+### 3.5 StoryReactionPicker ✅
+**Dosya:** `/components/home-feed/StoryViewer/components/StoryReactionPicker.tsx`
 
-- [ ] Emoji seçici (❤️ 😂 😮 😢 😡 🔥)
-- [ ] Haptic feedback
-- [ ] Animasyonlu seçim
+- [x] Emoji seçici (❤️ 😂 😮 😢 😡 🔥)
+- [x] Haptic feedback
+- [x] Animasyonlu seçim (Reanimated bounce)
+- [x] Seçili tepki gösterimi
 
-### 3.6 StoryCreator Güncellemesi
+### 3.5.1 StoryInsightsSheet ✅
+**Dosya:** `/components/home-feed/StoryViewer/components/StoryInsightsSheet.tsx`
+
+- [x] Bottom sheet modal
+- [x] Görüntülenme ve tepki istatistikleri
+- [x] Tepki verenlerin listesi
+- [x] Görüntüleyenlerin listesi
+- [ ] API entegrasyonu (get-story-viewers)
+
+### 3.6 StoryCreator Güncellemesi ✅
 **Dosya:** `/components/home-feed/ContentCreator/StoryCreator.tsx`
 
 - [x] VisionCamera entegrasyonu
 - [x] Fotoğraf çekimi
 - [x] Video çekimi (15 saniye max)
 - [x] Filtre ve efekt desteği
-- [ ] Story API'ye kaydetme
-- [ ] Başarılı kayıt sonrası modal kapatma
+- [x] Story API'ye kaydetme
+- [x] Başarılı kayıt sonrası modal kapatma
 
-**Status:** [ ] Pending
+**Status:** [x] ✅ Completed
 
 ---
 
 ## 🪝 Phase 4: Hooks & State
 
-### 4.1 useStories Hook
+### 4.1 useStories Hook ✅
 **Dosya:** `/hooks/home-feed/useStories.ts`
 
-- [ ] Takip edilen kullanıcıların hikayelerini fetch
-- [ ] React Query ile caching
-- [ ] Infinite scroll (opsiyonel)
-- [ ] Refetch on focus
+- [x] Takip edilen kullanıcıların hikayelerini fetch
+- [x] React Query ile caching
+- [x] Refetch on focus
+- [ ] Infinite scroll (opsiyonel - gerekirse eklenecek)
 
 ### 4.2 useStoryViewer Hook
 **Dosya:** `/hooks/home-feed/useStoryViewer.ts`
@@ -551,13 +563,13 @@ CREATE POLICY "story_highlight_items_delete_policy" ON story_highlight_items
 - [ ] Auto-advance timer
 - [ ] Pause/resume
 
-### 4.3 useCreateStory Hook
-**Dosya:** `/hooks/home-feed/useCreateStory.ts`
+### 4.3 useCreateStory Hook ✅
+**Dosya:** `/hooks/stories/useCreateStory.ts`
 
-- [ ] Media upload
-- [ ] Story oluşturma API çağrısı
-- [ ] Loading/error state
-- [ ] Cache invalidation
+- [x] Media upload (stories bucket)
+- [x] Story oluşturma API çağrısı (create-story edge function)
+- [x] Loading/error state
+- [x] Cache invalidation
 
 **Status:** [ ] Pending
 
@@ -769,14 +781,14 @@ Bildirimler tarafına ek düşünebileceğin ayarlar:
 
 ## 📊 İlerleme Özeti
 
-| Phase   | Açıklama          | Durum     |
-| ------- | ----------------- | --------- |
-| Phase 1 | Database Schema   | ⏳ Pending |
-| Phase 2 | Edge Functions    | ⏳ Pending |
-| Phase 3 | Mobile Components | ⏳ Pending |
-| Phase 4 | Hooks & State     | ⏳ Pending |
-| Phase 5 | Notifications     | ⏳ Pending |
-| Phase 6 | Testing           | ⏳ Pending |
+| Phase   | Açıklama          | Durum                           |
+| ------- | ----------------- | ------------------------------- |
+| Phase 1 | Database Schema   | ✅ Completed                     |
+| Phase 2 | Edge Functions    | ✅ 6/7 (Cron pending)            |
+| Phase 3 | Mobile Components | 🟡 85% (Reaction picker pending) |
+| Phase 4 | Hooks & State     | ✅ 2/3 Completed                 |
+| Phase 5 | Notifications     | ⏳ Pending                       |
+| Phase 6 | Testing           | ⏳ Pending                       |
 
 ---
 

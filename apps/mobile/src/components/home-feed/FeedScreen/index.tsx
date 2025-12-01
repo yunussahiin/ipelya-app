@@ -31,7 +31,9 @@ import { TabBar } from "../TabBar";
 import { ContentCreator, CreatedContent } from "../ContentCreator";
 import { useCreatePost } from "../../../hooks/home-feed/useCreatePost";
 import { useCreateStory } from "../../../hooks/stories/useCreateStory";
-import { StoryViewer } from "../StoryViewer";
+import { useViewStory } from "../../../hooks/stories/useViewStory";
+// V2: Instagram tarzı animasyonlu story viewer
+import { StoryViewerV2 } from "../StoryViewerV2";
 import { useStories } from "../../../hooks/home-feed/useStories";
 import type { StoryUser } from "../StoriesRow/types";
 
@@ -51,6 +53,7 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
   );
   const { mutateAsync: createPost } = useCreatePost();
   const { mutateAsync: createStory } = useCreateStory();
+  const { mutate: viewStory } = useViewStory();
 
   // Stories data
   const { data: storiesData } = useStories({ includeOwn: true, profileType: "real" });
@@ -60,6 +63,7 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [storyViewerUserIndex, setStoryViewerUserIndex] = useState(0);
   const [storyViewerStoryIndex, setStoryViewerStoryIndex] = useState(0);
+  const [storyViewerKey, setStoryViewerKey] = useState(0); // Zorla remount için
 
   // Hikaye ekle butonuna tıklandığında
   const handleAddStoryPress = () => {
@@ -71,11 +75,30 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
   const handleStoryPress = (user: { user_id: string; username: string }, storyIndex?: number) => {
     // Kullanıcının index'ini bul
     const userIndex = storyUsers.findIndex((u) => u.user_id === user.user_id);
-    if (userIndex === -1) return;
 
-    setStoryViewerUserIndex(userIndex);
-    setStoryViewerStoryIndex(storyIndex || 0);
-    setShowStoryViewer(true);
+    console.log("📖 [FeedScreen] Story pressed:", {
+      clickedUser: user.username,
+      clickedUserId: user.user_id,
+      foundIndex: userIndex,
+      storyIndex: storyIndex || 0,
+      allUsers: storyUsers.map((u, i) => `${i}: ${u.username} (${u.user_id.slice(0, 8)})`)
+    });
+
+    if (userIndex === -1) {
+      console.log("📖 [FeedScreen] User not found in storyUsers!");
+      return;
+    }
+
+    // Önce kapat, sonra yeni değerlerle aç (zorla remount)
+    setShowStoryViewer(false);
+
+    // Bir sonraki tick'te aç
+    setTimeout(() => {
+      setStoryViewerUserIndex(userIndex);
+      setStoryViewerStoryIndex(storyIndex || 0);
+      setStoryViewerKey((k) => k + 1);
+      setShowStoryViewer(true);
+    }, 0);
   };
 
   return (
@@ -109,18 +132,21 @@ export default function FeedScreen({ initialTab = "feed" }: FeedScreenProps) {
         <Plus size={24} color={colors.buttonPrimaryText} />
       </Pressable>
 
-      {/* Story Viewer */}
-      <StoryViewer
-        visible={showStoryViewer}
-        users={storyUsers}
-        initialUserIndex={storyViewerUserIndex}
-        initialStoryIndex={storyViewerStoryIndex}
-        onClose={() => setShowStoryViewer(false)}
-        onStoryViewed={(storyId) => {
-          console.log("📖 Story viewed:", storyId);
-          // TODO: view-story API çağrısı
-        }}
-      />
+      {/* Story Viewer V2 - Instagram tarzı animasyonlu */}
+      {showStoryViewer && (
+        <StoryViewerV2
+          key={storyViewerKey}
+          visible
+          users={storyUsers}
+          initialUserIndex={storyViewerUserIndex}
+          initialStoryIndex={storyViewerStoryIndex}
+          onClose={() => setShowStoryViewer(false)}
+          onStoryViewed={(storyId: string) => {
+            console.log("📖 Story viewed:", storyId);
+            viewStory({ storyId });
+          }}
+        />
+      )}
 
       {/* Content Creator */}
       <ContentCreator

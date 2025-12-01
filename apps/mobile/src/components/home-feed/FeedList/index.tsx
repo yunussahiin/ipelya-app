@@ -45,6 +45,7 @@ import { ErrorFeedState } from "../ErrorFeedState";
 import { StoriesRow } from "../StoriesRow";
 import { useFeed } from "../../../hooks/home-feed/useFeed";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useProfileStore } from "@/store/profile.store";
 
 interface FeedListProps {
   tab: "feed" | "trending" | "following";
@@ -54,6 +55,7 @@ interface FeedListProps {
 
 export function FeedList({ tab, onAddStoryPress, onStoryPress }: FeedListProps) {
   const { colors } = useTheme();
+  const profile = useProfileStore((s) => s.profile);
   const [showNewPostsButton, setShowNewPostsButton] = useState(false);
   const [buttonAnim] = useState(new Animated.Value(0));
 
@@ -192,7 +194,25 @@ export function FeedList({ tab, onAddStoryPress, onStoryPress }: FeedListProps) 
         renderItem={({ item }) => <MemoizedFeedItem item={item} />}
         ListHeaderComponent={
           tab === "feed" ? (
-            <StoriesRow onStoryPress={onStoryPress} onAddStoryPress={onAddStoryPress} />
+            <View>
+              <StoriesRow onStoryPress={onStoryPress} onAddStoryPress={onAddStoryPress} />
+              {/* Debug: Aktif hesap bilgisi */}
+              <View
+                style={{
+                  backgroundColor: colors.accent,
+                  padding: 8,
+                  marginHorizontal: 16,
+                  marginTop: 8,
+                  borderRadius: 8
+                }}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 12, textAlign: "center", fontWeight: "600" }}
+                >
+                  🔑 Aktif Hesap: {profile?.displayName || "?"} ({profile?.id?.slice(0, 8)}...)
+                </Text>
+              </View>
+            </View>
           ) : null
         }
         ListFooterComponent={() =>
