@@ -20,10 +20,35 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { PayoutStatusBadge, CoinDisplay, formatTL } from "@/components/ops/finance";
 
 // ─────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────
+
+interface PayoutCounts {
+  all: number;
+  pending: number;
+  in_review: number;
+  approved: number;
+  paid: number;
+  rejected: number;
+}
+
+interface TodaySummary {
+  pending: { count: number; amount: number };
+  approved: { count: number; amount: number };
+  paid: { count: number; amount: number };
+}
+
+// ─────────────────────────────────────────────────────────
 // Data Fetching
 // ─────────────────────────────────────────────────────────
 
-async function getPayoutRequests() {
+async function getPayoutRequests(): Promise<{
+  requests: any[];
+  counts: PayoutCounts;
+  warnings: string[];
+  todaySummary: TodaySummary;
+  currentRate: number;
+}> {
   const supabase = await createServerSupabaseClient();
 
   const { data: requests, error } = await supabase
@@ -45,7 +70,17 @@ async function getPayoutRequests() {
 
   if (error) {
     console.error("[Payout Requests] Error:", error);
-    return { requests: [], counts: {}, warnings: [] };
+    return {
+      requests: [],
+      counts: { all: 0, pending: 0, in_review: 0, approved: 0, paid: 0, rejected: 0 },
+      warnings: [],
+      todaySummary: {
+        pending: { count: 0, amount: 0 },
+        approved: { count: 0, amount: 0 },
+        paid: { count: 0, amount: 0 }
+      },
+      currentRate: 0.5
+    };
   }
 
   // Creator profilleri
