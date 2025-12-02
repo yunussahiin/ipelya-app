@@ -4,39 +4,61 @@
  */
 
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from "react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { Trash2 } from "lucide-react-native";
 
-interface TierCardProps {
+// Tier objesi tipi - hem snake_case hem camelCase destekler
+interface Tier {
   id: string;
   name: string;
-  description?: string;
-  coinPriceMonthly: number;
-  coinPriceYearly?: number;
-  benefits: string[];
+  description?: string | null;
+  // snake_case (DB'den direkt)
+  coin_price_monthly?: number;
+  coin_price_yearly?: number | null;
+  // camelCase (hook'tan)
+  coinPriceMonthly?: number;
+  coinPriceYearly?: number | null;
+  benefits?: string[] | null;
+  subscriber_count?: number | { count: number }[];
   subscriberCount?: number;
+}
+
+interface TierCardProps {
+  tier: Tier;
+  isOwner?: boolean;
   isSubscribed?: boolean;
   onSubscribe?: () => void;
   onEdit?: () => void;
-  isCreatorView?: boolean;
+  onDelete?: () => void;
   isLoading?: boolean;
 }
 
 export function TierCard({
-  id,
-  name,
-  description,
-  coinPriceMonthly,
-  coinPriceYearly,
-  benefits,
-  subscriberCount = 0,
+  tier,
+  isOwner = false,
   isSubscribed = false,
   onSubscribe,
   onEdit,
-  isCreatorView = false,
+  onDelete,
   isLoading = false
 }: TierCardProps) {
+  // Tier'dan değerleri çıkar (hem snake_case hem camelCase destekle)
+  const name = tier.name;
+  const description = tier.description;
+  const coinPriceMonthly = tier.coin_price_monthly ?? tier.coinPriceMonthly ?? 0;
+  const coinPriceYearly = tier.coin_price_yearly ?? tier.coinPriceYearly;
+  const benefits = tier.benefits || [];
+
+  // subscriber_count farklı formatlarda gelebilir
+  const subscriberCount =
+    tier.subscriberCount ??
+    (typeof tier.subscriber_count === "number"
+      ? tier.subscriber_count
+      : Array.isArray(tier.subscriber_count) && tier.subscriber_count.length > 0
+        ? tier.subscriber_count[0].count
+        : 0);
   const { colors } = useTheme();
 
   return (
@@ -54,10 +76,15 @@ export function TierCard({
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={[styles.name, { color: colors.textPrimary }]}>{name}</Text>
-          {isCreatorView && (
-            <TouchableOpacity onPress={onEdit} style={styles.editButton}>
-              <Ionicons name="pencil" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
+          {isOwner && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity onPress={onEdit} style={styles.editButton}>
+                <Ionicons name="pencil" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+                <Trash2 size={18} color={colors.warning} />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
         {description && (
@@ -92,11 +119,11 @@ export function TierCard({
       )}
 
       {/* Footer */}
-      {isCreatorView ? (
+      {isOwner ? (
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           <View style={styles.subscriberInfo}>
             <Ionicons name="people" size={16} color={colors.textSecondary} />
-            <Text style={[styles.subscriberCount, { color: colors.textSecondary }]}>
+            <Text style={[styles.subscriberCountText, { color: colors.textSecondary }]}>
               {subscriberCount} abone
             </Text>
           </View>
@@ -139,9 +166,18 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 20,
-    fontWeight: "700"
+    fontWeight: "700",
+    flex: 1
+  },
+  actionButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
   },
   editButton: {
+    padding: 4
+  },
+  deleteButton: {
     padding: 4
   },
   description: {
@@ -189,7 +225,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6
   },
-  subscriberCount: {
+  subscriberCountText: {
     fontSize: 14
   },
   subscribeButton: {

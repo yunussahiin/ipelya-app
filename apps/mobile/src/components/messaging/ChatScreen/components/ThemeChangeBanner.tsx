@@ -1,22 +1,20 @@
 /**
  * ThemeChangeBanner
  *
- * Amaç: Tema değişiklik bildirimi - Alt kısımda gösterilir
+ * Amaç: Tema değişiklik bildirimi - Mesaj listesi içinde gösterilir
  * Tarih: 2025-12-02
  */
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  runOnJS
-} from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
 import { getThemeInfo, type ChatThemeId } from "@/theme/chatThemes";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const BANNER_SEEN_KEY = "theme_banner_seen_";
+const BANNER_EXPIRY_MS = 5 * 60 * 1000; // 5 dakika
 
 interface ThemeChangeItem {
   id: string;
@@ -27,130 +25,140 @@ interface ThemeChangeItem {
 }
 
 interface ThemeChangeBannerProps {
+  conversationId: string;
   changes: ThemeChangeItem[];
   onDismiss: (id: string) => void;
   onDismissAll: () => void;
-  onChangeTheme: () => void;
 }
 
 function ThemeChangeBannerComponent({
+  conversationId,
   changes,
   onDismiss,
-  onDismissAll,
-  onChangeTheme
+  onDismissAll
 }: ThemeChangeBannerProps) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const translateY = useSharedValue(100);
-  const opacity = useSharedValue(0);
+  const router = useRouter();
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
+  const height = useSharedValue(1);
 
+  // Banner'ı daha önce görmüş mü kontrol et
   useEffect(() => {
-    if (changes.length > 0) {
-      // Göster
-      translateY.value = withTiming(0, { duration: 300 });
-      opacity.value = withTiming(1, { duration: 300 });
+    const checkSeen = async () => {
+      if (changes.length === 0) return;
 
-      // 8 saniye sonra otomatik gizle
-      const timer = setTimeout(() => {
-        hideAndDismissAll();
-      }, 8000);
+      const lastChange = changes[changes.length - 1];
+      const key = `${BANNER_SEEN_KEY}${conversationId}_${lastChange.id}`;
+      const seenAt = await AsyncStorage.getItem(key);
 
-      return () => clearTimeout(timer);
-    } else {
-      // Gizle
-      translateY.value = withTiming(100, { duration: 300 });
-      opacity.value = withTiming(0, { duration: 300 });
-    }
-  }, [changes.length]);
+      if (seenAt) {
+        const seenTime = parseInt(seenAt, 10);
+        // 5 dakika geçmişse gizle
+        if (Date.now() - seenTime > BANNER_EXPIRY_MS) {
+          setIsVisible(false);
+          onDismissAll();
+        }
+      } else {
+        // İlk kez görüyor, kaydet
+        await AsyncStorage.setItem(key, Date.now().toString());
 
-  const hideAndDismissAll = () => {
-    translateY.value = withTiming(100, { duration: 300 });
-    opacity.value = withTiming(0, { duration: 300 }, () => {
-      runOnJS(onDismissAll)();
-    });
-  };
+        // 5 dakika sonra otomatik gizle
+        const timer = setTimeout(() => {
+          setIsVisible(false);
+          onDismissAll();
+        }, BANNER_EXPIRY_MS);
+
+        return () => clearTimeout(timer);
+      }
+    };
+
+    checkSeen();
+  }, [changes, conversationId, onDismissAll]);
+
+  const toggleExpand = useCallback(() => {
+    setIsExpanded((prev) => !prev);
+    height.value = withTiming(isExpanded ? 0 : 1, { duration: 200 });
+  }, [isExpanded, height]);
+
+  const handleChangeTheme = useCallback(() => {
+    // Detay sayfasına git (oradan sheet açılacak)
+    router.push(`/(messages)/${conversationId}/details`);
+  }, [router, conversationId]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value
+    opacity: height.value,
+    maxHeight: height.value * 200
   }));
 
-  if (changes.length === 0) return null;
-
-  // Son değişiklik
-  const latestChange = changes[changes.length - 1];
-  const themeInfo = getThemeInfo(latestChange.themeId);
+  if (changes.length === 0 || !isVisible) return null;
 
   return (
-    <Animated.View style={[styles.container, { paddingBottom: insets.bottom + 16 }, animatedStyle]}>
-      <View style={[styles.banner, { backgroundColor: colors.surface }]}>
-        {/* Birden fazla değişiklik varsa */}
-        {changes.length > 1 && (
-          <Pressable style={styles.hideAllButton} onPress={hideAndDismissAll}>
-            <Text style={[styles.hideAllText, { color: colors.textMuted }]}>
-              {changes.length} güncellemeyi gizle
-            </Text>
-          </Pressable>
-        )}
+    <View style={[styles.container, { backgroundColor: "rgba(0,0,0,0.3)" }]}>
+      {/* Gizle/Göster butonu */}
+      {changes.length > 0 && (
+        <Pressable style={styles.toggleButton} onPress={toggleExpand}>
+          <Text style={[styles.toggleText, { color: colors.textMuted }]}>
+            {isExpanded
+              ? `${changes.length} güncellemeyi gizle`
+              : `${changes.length} güncellemeyi göster`}
+          </Text>
+        </Pressable>
+      )}
 
-        {/* Değişiklik mesajları */}
+      {/* Değişiklik mesajları */}
+      <Animated.View style={[styles.changesContainer, animatedStyle]}>
         {changes.map((change) => {
           const info = getThemeInfo(change.themeId);
           return (
             <View key={change.id} style={styles.changeItem}>
-              <Text style={[styles.changeText, { color: colors.textPrimary }]}>
+              <Text style={[styles.changeText, { color: colors.textSecondary }]}>
                 {change.isOwnChange
                   ? `Temayı ${info.name} olarak değiştirdin.`
-                  : `${change.changedBy} temayı ${info.name} olarak değiştirdi.`}
+                  : `${change.changedBy} temayı ${info.name} olarak değiştirdi.`}{" "}
+                <Text
+                  style={[styles.changeAction, { color: colors.accent }]}
+                  onPress={handleChangeTheme}
+                >
+                  Temayı Değiştir
+                </Text>
               </Text>
-              <Pressable onPress={onChangeTheme}>
-                <Text style={[styles.changeAction, { color: colors.accent }]}>Temayı Değiştir</Text>
-              </Pressable>
             </View>
           );
         })}
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    overflow: "hidden"
   },
-  banner: {
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16
-  },
-  hideAllButton: {
+  toggleButton: {
     alignItems: "center",
-    paddingVertical: 8,
-    marginBottom: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "rgba(255,255,255,0.1)"
+    paddingVertical: 10
   },
-  hideAllText: {
-    fontSize: 13,
+  toggleText: {
+    fontSize: 12,
     fontWeight: "500"
   },
+  changesContainer: {
+    overflow: "hidden"
+  },
   changeItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    paddingHorizontal: 12,
     paddingVertical: 6
   },
   changeText: {
-    fontSize: 14,
-    flex: 1,
-    marginRight: 12
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 17
   },
   changeAction: {
-    fontSize: 14,
     fontWeight: "600"
   }
 });

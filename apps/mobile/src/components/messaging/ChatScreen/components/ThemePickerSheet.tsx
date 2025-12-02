@@ -10,14 +10,13 @@ import { View, Text, StyleSheet, Pressable, Dimensions } from "react-native";
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image } from "expo-image";
 import { useTheme } from "@/theme/ThemeProvider";
 import { THEME_LIST, getChatTheme, type ChatTheme, type ChatThemeId } from "@/theme/chatThemes";
 import { ChatBackground } from "./ChatBackground";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 3;
-const CARD_HEIGHT = CARD_WIDTH * 1.5;
+const CARD_HEIGHT = CARD_WIDTH * 1.4;
 
 export interface ThemePickerSheetRef {
   open: () => void;
@@ -33,44 +32,56 @@ interface ThemePickerSheetProps {
 function ThemeCard({
   theme,
   isSelected,
-  onPress
+  onPress,
+  isIpelya = false,
+  appColors,
+  textColor
 }: {
   theme: ChatTheme;
   isSelected: boolean;
   onPress: () => void;
+  isIpelya?: boolean;
+  appColors?: { accent: string; background: string; surface: string };
+  textColor?: string;
 }) {
   const hasGradient = theme.colors.backgroundGradient && theme.colors.backgroundGradient.length > 0;
+
+  // İpelya teması için app renklerini kullan
+  const bgColor = isIpelya && appColors ? appColors.background : theme.colors.background;
+  const gradientColors =
+    isIpelya && appColors
+      ? [appColors.background, appColors.surface, appColors.background]
+      : theme.colors.backgroundGradient;
+  const accentColor = isIpelya && appColors ? appColors.accent : theme.colors.accent;
 
   return (
     <Pressable style={styles.themeCard} onPress={onPress}>
       <View
-        style={[
-          styles.cardPreview,
-          isSelected && { borderColor: theme.colors.accent, borderWidth: 2 }
-        ]}
+        style={[styles.cardPreview, isSelected && { borderColor: accentColor, borderWidth: 2 }]}
       >
-        {hasGradient ? (
+        {hasGradient || isIpelya ? (
           <LinearGradient
-            colors={theme.colors.backgroundGradient as [string, string, ...string[]]}
+            colors={(gradientColors || [bgColor, bgColor]) as [string, string, ...string[]]}
             style={styles.cardBg}
           />
         ) : (
-          <View style={[styles.cardBg, { backgroundColor: theme.colors.background }]} />
+          <View style={[styles.cardBg, { backgroundColor: bgColor }]} />
         )}
 
-        {/* Partikül emoji */}
-        {theme.particles && (
-          <View style={styles.particlePreview}>
-            <Text style={styles.particleEmoji}>{theme.particles.emoji}</Text>
-          </View>
+        {/* İpelya için accent rengi göster (sol üst) */}
+        {isIpelya && appColors && (
+          <View style={[styles.accentDot, { backgroundColor: appColors.accent }]} />
         )}
 
-        {/* Tema emoji */}
+        {/* Partikül emoji (sağ üst) */}
+        {theme.particles && <Text style={styles.particleEmoji}>{theme.particles.emoji}</Text>}
+
+        {/* Tema emoji (sol alt) */}
         <View style={styles.themeEmojiContainer}>
           <Text style={styles.themeEmoji}>{theme.emoji}</Text>
         </View>
       </View>
-      <Text style={styles.themeName} numberOfLines={1}>
+      <Text style={[styles.themeName, textColor && { color: textColor }]} numberOfLines={1}>
         {theme.name}
       </Text>
     </Pressable>
@@ -204,12 +215,23 @@ const ThemePickerSheetComponent = forwardRef<ThemePickerSheetRef, ThemePickerShe
     const [previewTheme, setPreviewTheme] = useState<ChatTheme | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Snap points: 50% ve 80%
-    const snapPoints = useMemo(() => ["50%", "80%"], []);
+    // Safe area'yı geçmeyecek şekilde max height hesapla
+    const maxHeight = SCREEN_HEIGHT - insets.top - 20;
+    const snapPoints = useMemo(() => [maxHeight * 0.6, maxHeight], [maxHeight]);
+
+    // App renkleri (İpelya teması için)
+    const appColors = useMemo(
+      () => ({
+        accent: colors.accent,
+        background: colors.background,
+        surface: colors.surface
+      }),
+      [colors]
+    );
 
     // Ref methods
     useImperativeHandle(ref, () => ({
-      open: () => setSheetIndex(0),
+      open: () => setSheetIndex(1), // Direkt büyük açılsın
       close: () => {
         setSheetIndex(-1);
         setPreviewTheme(null);
@@ -285,6 +307,7 @@ const ThemePickerSheetComponent = forwardRef<ThemePickerSheetRef, ThemePickerShe
         backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.textMuted, width: 40 }}
+        topInset={insets.top}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -301,6 +324,9 @@ const ThemePickerSheetComponent = forwardRef<ThemePickerSheetRef, ThemePickerShe
               theme={theme}
               isSelected={currentTheme === theme.id}
               onPress={() => handleThemePress(theme)}
+              isIpelya={theme.id === "ipelya"}
+              appColors={appColors}
+              textColor={colors.textPrimary}
             />
           ))}
         </BottomSheetScrollView>
@@ -346,31 +372,38 @@ const styles = StyleSheet.create({
   cardBg: {
     ...StyleSheet.absoluteFillObject
   },
-  particlePreview: {
+  particleEmoji: {
     position: "absolute",
     top: 8,
-    right: 8
+    right: 8,
+    fontSize: 16
   },
-  particleEmoji: {
-    fontSize: 20
+  accentDot: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)"
   },
   themeEmojiContainer: {
     position: "absolute",
     bottom: 8,
     left: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center"
   },
   themeEmoji: {
-    fontSize: 16
+    fontSize: 14
   },
   themeName: {
-    color: "#fff",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     marginTop: 6,
     textAlign: "center"

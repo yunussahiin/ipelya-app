@@ -1,6 +1,14 @@
 /**
  * TierEditor Component
  * Creator tier oluşturma ve düzenleme formu
+ *
+ * Akış:
+ * 1. Tier şablonu seç (Bronze/Silver/Gold/Diamond/VIP)
+ * 2. Fiyatları belirle (önerilen fiyatlar gösterilir)
+ * 3. Avantajları düzenle (varsayılan avantajlar seçili gelir)
+ *
+ * @see useTierTemplates - Şablon ve avantaj verileri için
+ * @see tier-editor/ - Alt bileşenler için
  */
 
 import React, { useState, useEffect } from "react";
@@ -9,16 +17,24 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Modal,
   KeyboardAvoidingView,
   Platform
 } from "react-native";
-import { useTheme } from "@/theme/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/theme/ThemeProvider";
 import { CreatorTier, CreateTierParams } from "@/hooks/useCreatorTiers";
-import { SUGGESTED_TIER_TEMPLATES } from "@/services/iap/products";
+import { useTierTemplates, TierTemplate } from "@/hooks/useTierTemplates";
+import { TierBenefitId } from "@/services/iap/products";
+import {
+  TierTemplateCard,
+  BenefitChip,
+  BenefitSelectionSheet,
+  SelectedTierInfo,
+  PriceInput,
+  TierEditorSkeleton
+} from "./tier-editor";
 
 interface TierEditorProps {
   visible: boolean;
@@ -36,72 +52,80 @@ export function TierEditor({
   isLoading = false
 }: TierEditorProps) {
   const { colors } = useTheme();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const { templates, benefits, groupedBenefits, isLoading: templatesLoading } = useTierTemplates();
+
+  // Form state
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [priceMonthly, setPriceMonthly] = useState("");
   const [priceYearly, setPriceYearly] = useState("");
-  const [benefits, setBenefits] = useState<string[]>([""]);
+  const [selectedBenefitIds, setSelectedBenefitIds] = useState<TierBenefitId[]>([]);
+  const [benefitSheetVisible, setBenefitSheetVisible] = useState(false);
 
   const isEditing = !!existingTier;
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
+  // Form reset/populate
   useEffect(() => {
-    if (existingTier) {
-      setName(existingTier.name);
-      setDescription(existingTier.description || "");
+    if (existingTier && templates.length > 0) {
+      const matchingTemplate = templates.find((t) => t.name === existingTier.name);
+      if (matchingTemplate) {
+        setSelectedTemplateId(matchingTemplate.id);
+      }
       setPriceMonthly(existingTier.coinPriceMonthly.toString());
       setPriceYearly(existingTier.coinPriceYearly?.toString() || "");
-      setBenefits(existingTier.benefits.length > 0 ? existingTier.benefits : [""]);
-    } else {
+      const benefitIds = existingTier.benefits
+        .map((b) => benefits.find((tb) => tb.name === b || tb.id === b)?.id)
+        .filter((id): id is TierBenefitId => !!id);
+      setSelectedBenefitIds(benefitIds);
+    } else if (!existingTier) {
       resetForm();
     }
-  }, [existingTier, visible]);
+  }, [existingTier, visible, templates, benefits]);
 
   const resetForm = () => {
-    setName("");
-    setDescription("");
+    setSelectedTemplateId(null);
     setPriceMonthly("");
     setPriceYearly("");
-    setBenefits([""]);
+    setSelectedBenefitIds([]);
   };
 
+  // Template seçildiğinde
+  const handleSelectTemplate = (template: TierTemplate) => {
+    setSelectedTemplateId(template.id);
+    setPriceMonthly(template.suggested_coin_price_monthly.toString());
+    setPriceYearly(template.suggested_coin_price_yearly?.toString() || "");
+    setSelectedBenefitIds(template.default_benefit_ids as TierBenefitId[]);
+  };
+
+  // Avantaj toggle
+  const toggleBenefit = (benefitId: TierBenefitId) => {
+    setSelectedBenefitIds((prev) =>
+      prev.includes(benefitId) ? prev.filter((id) => id !== benefitId) : [...prev, benefitId]
+    );
+  };
+
+  // Kaydet
   const handleSave = async () => {
+    if (!selectedTemplate) return;
+
     const monthlyPrice = parseInt(priceMonthly, 10);
-    if (!name.trim() || isNaN(monthlyPrice) || monthlyPrice < 10) {
-      return;
-    }
+    if (isNaN(monthlyPrice) || monthlyPrice < 10) return;
 
     const yearlyPrice = priceYearly ? parseInt(priceYearly, 10) : undefined;
+    const benefitNames = selectedBenefitIds
+      .map((id) => benefits.find((b) => b.id === id)?.name)
+      .filter(Boolean) as string[];
 
     await onSave({
-      name: name.trim(),
-      description: description.trim() || undefined,
+      name: selectedTemplate.name,
+      description: selectedTemplate.description || undefined,
       coinPriceMonthly: monthlyPrice,
       coinPriceYearly: yearlyPrice,
-      benefits: benefits.filter((b) => b.trim())
+      benefits: benefitNames
     });
   };
 
-  const addBenefit = () => {
-    setBenefits([...benefits, ""]);
-  };
-
-  const updateBenefit = (index: number, value: string) => {
-    const newBenefits = [...benefits];
-    newBenefits[index] = value;
-    setBenefits(newBenefits);
-  };
-
-  const removeBenefit = (index: number) => {
-    if (benefits.length > 1) {
-      setBenefits(benefits.filter((_, i) => i !== index));
-    }
-  };
-
-  const applyTemplate = (template: (typeof SUGGESTED_TIER_TEMPLATES)[number]) => {
-    setName(template.name);
-    setPriceMonthly(template.coinPrice.toString());
-    setBenefits([...template.benefits]);
-  };
+  const canSave = selectedTemplateId && priceMonthly && !isLoading;
 
   return (
     <Modal
@@ -116,197 +140,133 @@ export function TierEditor({
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.textPrimary }]}>
             {isEditing ? "Tier Düzenle" : "Yeni Tier Oluştur"}
           </Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={isLoading || !name.trim() || !priceMonthly}
-            style={styles.saveButton}
-          >
-            <Text
-              style={[
-                styles.saveText,
-                {
-                  color: name.trim() && priceMonthly ? colors.accent : colors.textMuted
-                }
-              ]}
-            >
+          <TouchableOpacity onPress={handleSave} disabled={!canSave} style={styles.headerButton}>
+            <Text style={[styles.saveText, { color: canSave ? colors.accent : colors.textMuted }]}>
               {isLoading ? "Kaydediliyor..." : "Kaydet"}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Templates (only for new tiers) */}
-          {!isEditing && (
+        {/* Content */}
+        {templatesLoading ? (
+          <TierEditorSkeleton colors={colors} />
+        ) : (
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Tier Seçimi */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                Hızlı Şablonlar
+                {isEditing ? "Tier Türü" : "Tier Seç"}
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.templates}>
-                  {SUGGESTED_TIER_TEMPLATES.map((template, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.templateCard,
-                        { backgroundColor: colors.surface, borderColor: colors.border }
-                      ]}
-                      onPress={() => applyTemplate(template)}
-                    >
-                      <Text style={[styles.templateName, { color: colors.textPrimary }]}>
-                        {template.name}
-                      </Text>
-                      <Text style={[styles.templatePrice, { color: colors.textSecondary }]}>
-                        🪙 {template.coinPrice}/ay
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              <Text style={[styles.sectionHint, { color: colors.textSecondary }]}>
+                Abonelik seviyesini seçin, fiyatları kendiniz belirleyebilirsiniz
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.templatesRow}
+              >
+                {templates.map((template) => (
+                  <TierTemplateCard
+                    key={template.id}
+                    template={template}
+                    isSelected={selectedTemplateId === template.id}
+                    onSelect={handleSelectTemplate}
+                  />
+                ))}
               </ScrollView>
             </View>
-          )}
 
-          {/* Name */}
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Tier Adı *</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  color: colors.textPrimary
-                }
-              ]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Örn: Gold, Premium, VIP"
-              placeholderTextColor={colors.textMuted}
-              maxLength={30}
-            />
-          </View>
+            {/* Seçili Tier Bilgisi */}
+            {selectedTemplate && <SelectedTierInfo template={selectedTemplate} colors={colors} />}
 
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Açıklama</Text>
-            <TextInput
-              style={[
-                styles.input,
-                styles.textArea,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  color: colors.textPrimary
-                }
-              ]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Tier açıklaması..."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              maxLength={200}
-            />
-          </View>
-
-          {/* Price */}
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Aylık Fiyat (Coin) *</Text>
-            <View style={styles.priceInputContainer}>
-              <Text style={styles.coinIcon}>🪙</Text>
-              <TextInput
-                style={[
-                  styles.priceInput,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    color: colors.textPrimary
-                  }
-                ]}
-                value={priceMonthly}
-                onChangeText={setPriceMonthly}
-                placeholder="50"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="number-pad"
-              />
-              <Text style={[styles.priceLabel, { color: colors.textSecondary }]}>/ay</Text>
-            </View>
-            <Text style={[styles.hint, { color: colors.textMuted }]}>
-              Minimum: 10 coin, Maksimum: 10.000 coin
-            </Text>
-          </View>
-
-          {/* Yearly Price */}
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>
-              Yıllık Fiyat (Opsiyonel)
-            </Text>
-            <View style={styles.priceInputContainer}>
-              <Text style={styles.coinIcon}>🪙</Text>
-              <TextInput
-                style={[
-                  styles.priceInput,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    color: colors.textPrimary
-                  }
-                ]}
-                value={priceYearly}
-                onChangeText={setPriceYearly}
-                placeholder={priceMonthly ? `${parseInt(priceMonthly, 10) * 10} (önerilen)` : ""}
-                placeholderTextColor={colors.textMuted}
-                keyboardType="number-pad"
-              />
-              <Text style={[styles.priceLabel, { color: colors.textSecondary }]}>/yıl</Text>
-            </View>
-          </View>
-
-          {/* Benefits */}
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Avantajlar</Text>
-            {benefits.map((benefit, index) => (
-              <View key={index} style={styles.benefitRow}>
-                <TextInput
-                  style={[
-                    styles.benefitInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      color: colors.textPrimary
-                    }
-                  ]}
-                  value={benefit}
-                  onChangeText={(value) => updateBenefit(index, value)}
-                  placeholder="Avantaj ekle..."
-                  placeholderTextColor={colors.textMuted}
-                  maxLength={50}
+            {/* Fiyatlandırma */}
+            {selectedTemplate && (
+              <>
+                <PriceInput
+                  label="Aylık Fiyat (Coin) *"
+                  value={priceMonthly}
+                  onChangeText={setPriceMonthly}
+                  placeholder={selectedTemplate.suggested_coin_price_monthly.toString()}
+                  hint={`Önerilen: ${selectedTemplate.suggested_coin_price_monthly} coin • Min: 10, Max: 10.000`}
+                  period="/ay"
+                  colors={colors}
                 />
-                {benefits.length > 1 && (
-                  <TouchableOpacity
-                    onPress={() => removeBenefit(index)}
-                    style={styles.removeButton}
-                  >
-                    <Ionicons name="close-circle" size={24} color={colors.warning} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-            <TouchableOpacity
-              onPress={addBenefit}
-              style={[styles.addButton, { borderColor: colors.accent }]}
-            >
-              <Ionicons name="add" size={20} color={colors.accent} />
-              <Text style={[styles.addButtonText, { color: colors.accent }]}>Avantaj Ekle</Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.bottomPadding} />
-        </ScrollView>
+                <PriceInput
+                  label="Yıllık Fiyat (Opsiyonel)"
+                  value={priceYearly}
+                  onChangeText={setPriceYearly}
+                  placeholder={
+                    selectedTemplate.suggested_coin_price_yearly?.toString() ||
+                    `${parseInt(priceMonthly || "0", 10) * 10}`
+                  }
+                  hint={`Önerilen: ${selectedTemplate.suggested_coin_price_yearly || parseInt(priceMonthly || "0", 10) * 10} coin (yıllık indirim)`}
+                  period="/yıl"
+                  colors={colors}
+                />
+              </>
+            )}
+
+            {/* Avantajlar */}
+            {selectedTemplate && (
+              <View style={styles.section}>
+                <View style={styles.benefitsHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                    Avantajlar
+                  </Text>
+                  <Text style={[styles.benefitCount, { color: colors.textSecondary }]}>
+                    {selectedBenefitIds.length} seçili
+                  </Text>
+                </View>
+
+                {/* Seçili avantajlar */}
+                {selectedBenefitIds.length > 0 && (
+                  <View style={styles.selectedBenefits}>
+                    {selectedBenefitIds.map((benefitId) => {
+                      const benefit = benefits.find((b) => b.id === benefitId);
+                      if (!benefit) return null;
+                      return (
+                        <BenefitChip
+                          key={benefitId}
+                          benefit={benefit}
+                          onRemove={() => toggleBenefit(benefitId)}
+                          colors={colors}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Avantaj seçme butonu */}
+                <TouchableOpacity
+                  onPress={() => setBenefitSheetVisible(true)}
+                  style={[styles.addButton, { borderColor: colors.accent }]}
+                >
+                  <Ionicons name="add" size={20} color={colors.accent} />
+                  <Text style={[styles.addButtonText, { color: colors.accent }]}>Avantaj Seç</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
+
+        {/* Benefit Selection Sheet */}
+        <BenefitSelectionSheet
+          visible={benefitSheetVisible}
+          onClose={() => setBenefitSheetVisible(false)}
+          groupedBenefits={groupedBenefits}
+          selectedBenefitIds={selectedBenefitIds}
+          onToggleBenefit={toggleBenefit}
+          colors={colors}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -324,15 +284,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1
   },
-  closeButton: {
+  headerButton: {
     padding: 4
   },
   title: {
     fontSize: 18,
     fontWeight: "600"
-  },
-  saveButton: {
-    padding: 4
   },
   saveText: {
     fontSize: 16,
@@ -348,80 +305,30 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12
-  },
-  templates: {
-    flexDirection: "row",
-    gap: 12
-  },
-  templateCard: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    minWidth: 100,
-    alignItems: "center"
-  },
-  templateName: {
-    fontSize: 14,
-    fontWeight: "600",
     marginBottom: 4
   },
-  templatePrice: {
-    fontSize: 12
+  sectionHint: {
+    fontSize: 13,
+    marginBottom: 12
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
+  templatesRow: {
+    gap: 12,
+    paddingRight: 16
+  },
+  benefitsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 8
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16
+  benefitCount: {
+    fontSize: 13
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: "top"
-  },
-  priceInputContainer: {
+  selectedBenefits: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  coinIcon: {
-    fontSize: 24
-  },
-  priceInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 18,
-    fontWeight: "600"
-  },
-  priceLabel: {
-    fontSize: 16
-  },
-  hint: {
-    fontSize: 12,
-    marginTop: 6
-  },
-  benefitRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: 8,
-    marginBottom: 8
-  },
-  benefitInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15
-  },
-  removeButton: {
-    padding: 4
+    marginBottom: 12
   },
   addButton: {
     flexDirection: "row",
@@ -436,8 +343,5 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 14,
     fontWeight: "600"
-  },
-  bottomPadding: {
-    height: 40
   }
 });

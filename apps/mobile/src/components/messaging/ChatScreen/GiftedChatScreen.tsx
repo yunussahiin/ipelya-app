@@ -7,7 +7,7 @@
  * Gifted Chat kullanarak mesaj listesi, input alanı ve realtime desteği.
  */
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import {
   StyleSheet,
   Platform,
@@ -99,6 +99,11 @@ export function GiftedChatScreen() {
     conversationId || "",
     user?.id
   );
+
+  // Debug: Log theme changes
+  useEffect(() => {
+    console.log("[GiftedChatScreen] Theme changes:", themeChanges.length, themeChanges);
+  }, [themeChanges]);
 
   // Typing indicator - karşı tarafın yazıp yazmadığı
   const typingUserIds = useTypingIndicator(conversationId || "");
@@ -508,39 +513,59 @@ export function GiftedChatScreen() {
     );
   }, [replyToMessage, colors]);
 
-  // Custom footer for typing indicator (theme uyumlu)
+  // Custom footer for typing indicator + theme banner
   const renderFooter = useCallback(() => {
-    if (!isOtherTyping) return null;
+    const hasThemeChanges = themeChanges.length > 0;
+    if (!isOtherTyping && !hasThemeChanges) return null;
 
     return (
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          flexDirection: "row",
-          alignItems: "center"
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: colors.surface,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 16,
-            flexDirection: "row",
-            alignItems: "center"
-          }}
-        >
-          <Text style={{ color: colors.textMuted, fontSize: 13, marginRight: 4 }}>Yazıyor</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>...</Text>
-        </View>
+      <View>
+        {/* Theme Change Banner */}
+        <ThemeChangeBanner
+          conversationId={conversationId || ""}
+          changes={themeChanges.map((c) => ({
+            id: c.id,
+            themeId: c.themeId,
+            changedBy: c.changedByName,
+            isOwnChange: c.isOwnChange,
+            timestamp: c.timestamp
+          }))}
+          onDismiss={dismissChange}
+          onDismissAll={dismissAllChanges}
+        />
+
+        {/* Typing indicator */}
+        {isOtherTyping && (
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              flexDirection: "row",
+              alignItems: "center"
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 16,
+                flexDirection: "row",
+                alignItems: "center"
+              }}
+            >
+              <Text style={{ color: colors.textMuted, fontSize: 13, marginRight: 4 }}>Yazıyor</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>...</Text>
+            </View>
+          </View>
+        )}
       </View>
     );
-  }, [isOtherTyping, colors]);
+  }, [isOtherTyping, colors, themeChanges, conversationId, dismissChange, dismissAllChanges]);
 
   // Loading state
   if (isLoading) {
-    return <ChatLoading conversationId={conversationId || ""} colors={colors} />;
+    return <ChatLoading conversationId={conversationId || ""} chatTheme={chatTheme} />;
   }
 
   return (
@@ -692,22 +717,6 @@ export function GiftedChatScreen() {
           />
         </View>
       )}
-
-      {/* Theme Change Banner */}
-      <ThemeChangeBanner
-        changes={themeChanges.map((c) => ({
-          id: c.id,
-          themeId: c.themeId,
-          changedBy: c.changedByName,
-          isOwnChange: c.isOwnChange,
-          timestamp: c.timestamp
-        }))}
-        onDismiss={dismissChange}
-        onDismissAll={dismissAllChanges}
-        onChangeTheme={() => {
-          // TODO: Open theme picker from details page
-        }}
-      />
     </View>
   );
 }

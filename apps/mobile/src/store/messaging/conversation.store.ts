@@ -89,6 +89,7 @@ export const useConversationStore = create<ConversationState>()(
        * Sohbeti günceller
        */
       updateConversation: (id, updates) => {
+        console.log("[ConversationStore] updateConversation:", id, updates);
         set((state) => {
           const conversations = state.conversations.map((c) =>
             c.id === id ? { ...c, ...updates } : c

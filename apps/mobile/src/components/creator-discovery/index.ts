@@ -11,6 +11,7 @@ export { TrendingCreatorsRow } from "./TrendingCreatorsRow";
 export { RisingStarsGrid } from "./RisingStarsGrid";
 export { CategoryChips } from "./CategoryChips";
 export { ForYouSection } from "./ForYouSection";
+export { PopularChannelsRow } from "./PopularChannelsRow";
 
 // Skeletons
 export { DiscoverySkeleton } from "./skeletons";

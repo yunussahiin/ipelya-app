@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   IconCamera,
   IconCoin,
+  IconCrown,
   IconDashboard,
   IconFileAi,
   IconFileText,
@@ -179,6 +180,25 @@ const data = {
         {
           title: "Raporlar",
           url: "/ops/economy/reports"
+        }
+      ]
+    },
+    {
+      title: "Tier Yönetimi",
+      url: "/ops/tier-management",
+      icon: IconCrown,
+      items: [
+        {
+          title: "Genel Bakış",
+          url: "/ops/tier-management"
+        },
+        {
+          title: "Avantajlar",
+          url: "/ops/tier-management/benefits"
+        },
+        {
+          title: "Şablonlar",
+          url: "/ops/tier-management/templates"
         }
       ]
     },

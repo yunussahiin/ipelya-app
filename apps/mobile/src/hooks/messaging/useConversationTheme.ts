@@ -79,9 +79,14 @@ export function useUpdateConversationTheme() {
 export function useThemeChangeListener(conversationId: string, currentUserId?: string) {
   const [themeChanges, setThemeChanges] = useState<ThemeChangeEvent[]>([]);
   const updateConversation = useConversationStore((s) => s.updateConversation);
+  const conversation = useConversationStore((s) => 
+    s.conversations.find((c) => c.id === conversationId)
+  );
 
   useEffect(() => {
     if (!conversationId) return;
+
+    console.log("[useThemeChangeListener] Subscribing to theme changes for:", conversationId);
 
     // Conversations tablosundaki tema değişikliklerini dinle
     const channel = supabase
@@ -95,24 +100,45 @@ export function useThemeChangeListener(conversationId: string, currentUserId?: s
           filter: `id=eq.${conversationId}`
         },
         async (payload) => {
+          console.log("[useThemeChangeListener] Received update:", payload);
+
           const newTheme = payload.new.theme as ChatThemeId;
           const changedBy = payload.new.theme_changed_by as string;
 
+          // Tema değişmemişse işlem yapma
+          if (!newTheme) {
+            console.log("[useThemeChangeListener] No theme in payload, skipping");
+            return;
+          }
+
           // Kendi değişikliğimiz mi?
           const isOwnChange = changedBy === currentUserId;
+          console.log("[useThemeChangeListener] Theme change:", { newTheme, changedBy, isOwnChange });
 
           // Store'u güncelle
           updateConversation(conversationId, { theme: newTheme as any });
 
           // Değiştiren kullanıcının adını al
           let changedByName = "Birisi";
-          if (!isOwnChange && changedBy) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("display_name")
-              .eq("user_id", changedBy)
-              .single();
-            changedByName = profile?.display_name || "Birisi";
+          if (changedBy) {
+            // Önce conversation'daki other_participant'tan almayı dene
+            if (conversation?.other_participant?.user_id === changedBy) {
+              changedByName = conversation.other_participant.display_name || 
+                              conversation.other_participant.username || 
+                              "Birisi";
+              console.log("[useThemeChangeListener] Got name from conversation:", changedByName);
+            } else {
+              // Yoksa profiles tablosundan al
+              console.log("[useThemeChangeListener] Fetching profile for:", changedBy);
+              const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("display_name, username")
+                .eq("user_id", changedBy)
+                .single();
+              
+              console.log("[useThemeChangeListener] Profile result:", { profile, profileError });
+              changedByName = profile?.display_name || profile?.username || "Birisi";
+            }
           }
 
           // Değişiklik event'i ekle
@@ -125,12 +151,16 @@ export function useThemeChangeListener(conversationId: string, currentUserId?: s
             timestamp: Date.now()
           };
 
+          console.log("[useThemeChangeListener] Adding theme change event:", event);
           setThemeChanges((prev) => [...prev, event]);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[useThemeChangeListener] Subscription status:", status);
+      });
 
     return () => {
+      console.log("[useThemeChangeListener] Unsubscribing from:", conversationId);
       supabase.removeChannel(channel);
     };
   }, [conversationId, currentUserId, updateConversation]);

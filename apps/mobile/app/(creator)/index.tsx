@@ -11,11 +11,13 @@ import {
   RisingStarsGrid,
   CategoryChips,
   ForYouSection,
+  PopularChannelsRow,
   DiscoverySkeleton,
   MOCK_CREATORS,
   MOCK_HERO_SLIDES,
   type CreatorCategory
 } from "@/components/creator-discovery";
+import { useBroadcastChannels } from "@/hooks/messaging";
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
@@ -25,9 +27,11 @@ export default function CreatorDiscoveryScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const [isLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CreatorCategory>("all");
+
+  // Broadcast kanallarını çek (store'a yazar)
+  const { isLoading } = useBroadcastChannels();
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -109,6 +113,9 @@ export default function CreatorDiscoveryScreen() {
           title="Trend Olanlar"
           onSeeAll={() => console.log("See all trending")}
         />
+
+        {/* Popular Channels - Store'dan otomatik çeker */}
+        <PopularChannelsRow title="Popüler Kanallar" onSeeAll={() => router.push("/broadcast")} />
 
         {/* Rising Stars Grid */}
         <RisingStarsGrid
