@@ -11,6 +11,8 @@ export { useKYCVerification } from './useKYCVerification';
 export { useCreatorRealtime } from './useCreatorRealtime';
 export { useCreatorNotifications } from './useCreatorNotifications';
 export { useKYCSelfieDetection, getValidationColor } from './useKYCSelfieDetection';
+export { useIDCardOCR, validateTCNumber } from './useIDCardOCR';
+export { useDocumentNormalizer } from './useDocumentNormalizer';
 
 // Types re-export
 export type { 
@@ -40,13 +42,14 @@ export type {
   AutoPayoutSettings 
 } from './useAutoPayoutSettings';
 
-export type {
-  KYCLevel,
-  KYCStatus,
+export type { 
+  KYCLevel, 
+  KYCStatus, 
   KYCProfile,
   KYCFormData,
   KYCDocumentPaths,
-  KYCStep
+  KYCStep,
+  OCRData
 } from './useKYCVerification';
 
 export type {
@@ -58,3 +61,15 @@ export type {
   SelfieValidationStatus,
   SelfieValidationResult
 } from './useKYCSelfieDetection';
+
+export type {
+  IDCardData,
+  OCRResult,
+  OCRValidation
+} from './useIDCardOCR';
+
+export type {
+  Point,
+  DocumentDetectionResult,
+  NormalizationResult
+} from './useDocumentNormalizer';

@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     // Durum sayıları
     const { data: allRequests } = await adminSupabase
       .from("payout_requests")
-      .select("status");
+      .select("status, created_at");
 
     const counts = {
       all: allRequests?.length || 0,

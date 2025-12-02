@@ -34,6 +34,13 @@ export interface KYCFormData {
   idNumber?: string;
 }
 
+export interface OCRData {
+  tcNumber?: string;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+}
+
 export interface KYCDocumentPaths {
   idFrontPath: string | null;
   idBackPath: string | null;
@@ -62,6 +69,9 @@ export function useKYCVerification() {
     selfiePath: null
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // OCR data (kimlik okuma sonuçları)
+  const [ocrData, setOcrDataState] = useState<OCRData | null>(null);
 
   const loadStatus = useCallback(async () => {
     setIsLoading(true);
@@ -196,8 +206,54 @@ export function useKYCVerification() {
     setCurrentStep('form');
     setFormData({ firstName: '', lastName: '', birthDate: '', idNumber: '' });
     setDocumentPaths({ idFrontPath: null, idBackPath: null, selfiePath: null });
+    setOcrDataState(null);
     setError(null);
   };
+
+  /**
+   * OCR verilerini kaydet ve form'u otomatik doldur
+   */
+  const setOCRData = useCallback((data: OCRData) => {
+    setOcrDataState(data);
+    
+    // Form'u OCR verileriyle güncelle (sadece boş alanları)
+    setFormData(prev => ({
+      firstName: prev.firstName || data.firstName || '',
+      lastName: prev.lastName || data.lastName || '',
+      birthDate: prev.birthDate || data.birthDate || '',
+      idNumber: prev.idNumber || data.tcNumber || ''
+    }));
+  }, []);
+
+  /**
+   * OCR ile form verileri eşleşiyor mu kontrol et
+   */
+  const validateOCRMatch = useCallback((): { matches: boolean; mismatches: string[] } => {
+    if (!ocrData) return { matches: true, mismatches: [] };
+
+    const mismatches: string[] = [];
+    const normalize = (str?: string) => str?.toLowerCase().trim() || '';
+
+    if (ocrData.firstName && formData.firstName && 
+        normalize(ocrData.firstName) !== normalize(formData.firstName)) {
+      mismatches.push('Ad');
+    }
+
+    if (ocrData.lastName && formData.lastName && 
+        normalize(ocrData.lastName) !== normalize(formData.lastName)) {
+      mismatches.push('Soyad');
+    }
+
+    if (ocrData.tcNumber && formData.idNumber && 
+        ocrData.tcNumber !== formData.idNumber) {
+      mismatches.push('TC Kimlik No');
+    }
+
+    return {
+      matches: mismatches.length === 0,
+      mismatches
+    };
+  }, [ocrData, formData]);
 
   const canSubmit = !!(
     formData.firstName &&
@@ -219,9 +275,13 @@ export function useKYCVerification() {
     documentPaths,
     uploadProgress,
     canSubmit,
+    // OCR
+    ocrData,
     // Actions
     setFormData,
     setDocumentPhoto,
+    setOCRData,
+    validateOCRMatch,
     submitApplication,
     goToStep,
     nextStep,
