@@ -2,20 +2,22 @@
  * ChatLoading
  *
  * Loading state component for Chat Screen with skeleton bubbles
+ * Seçili sohbet temasına göre renkler kullanır
  */
 
 import { memo, useEffect, useRef, useMemo } from "react";
 import { View, StyleSheet, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { ThemeColors } from "@/theme/ThemeProvider";
+import type { ChatTheme } from "@/theme/chatThemes";
 import { ChatHeader } from "./ChatHeader";
+import { ChatBackground } from "./ChatBackground";
 
 interface ChatLoadingProps {
   conversationId: string;
-  colors: ThemeColors;
+  chatTheme: ChatTheme;
 }
 
-function ChatLoadingComponent({ conversationId, colors }: ChatLoadingProps) {
+function ChatLoadingComponent({ conversationId, chatTheme }: ChatLoadingProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -57,42 +59,49 @@ function ChatLoadingComponent({ conversationId, colors }: ChatLoadingProps) {
     []
   );
 
+  const { colors } = chatTheme;
+
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["top"]}
-    >
-      <ChatHeader conversationId={conversationId} />
-      <View style={styles.skeletonContainer}>
-        {skeletonItems.map((item, index) => (
-          <View
-            key={index}
-            style={[styles.skeletonRow, item.isRight ? styles.rowRight : styles.rowLeft]}
-          >
-            <Animated.View
-              style={[
-                styles.skeletonBubble,
-                {
-                  backgroundColor: item.isRight ? colors.accent : colors.surface,
-                  width: item.width,
-                  opacity: item.isRight
-                    ? opacity
-                    : animatedValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.4, 0.7]
-                      })
-                }
-              ]}
-            />
-          </View>
-        ))}
-      </View>
-    </SafeAreaView>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Tema arka planı */}
+      <ChatBackground theme={chatTheme} />
+
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <ChatHeader conversationId={conversationId} />
+        <View style={styles.skeletonContainer}>
+          {skeletonItems.map((item, index) => (
+            <View
+              key={index}
+              style={[styles.skeletonRow, item.isRight ? styles.rowRight : styles.rowLeft]}
+            >
+              <Animated.View
+                style={[
+                  styles.skeletonBubble,
+                  {
+                    backgroundColor: item.isRight ? colors.ownBubble : colors.otherBubble,
+                    width: item.width,
+                    opacity: item.isRight
+                      ? opacity
+                      : animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.4, 0.7]
+                        })
+                  }
+                ]}
+              />
+            </View>
+          ))}
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1
+  },
+  safeArea: {
     flex: 1
   },
   skeletonContainer: {

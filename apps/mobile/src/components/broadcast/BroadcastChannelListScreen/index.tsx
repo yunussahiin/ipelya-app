@@ -7,7 +7,7 @@
  * Creator'ın kendi kanalları ve üye olunan kanalları gösterir.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { View, StyleSheet, RefreshControl, SectionList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -28,6 +28,7 @@ import type { BroadcastChannel } from "@ipelya/types";
 export function BroadcastChannelListScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Kanallar
   const {
@@ -47,6 +48,23 @@ export function BroadcastChannelListScreen() {
   const isLoading = isLoadingMy || isLoadingJoined;
   const isRefetching = isRefetchingMy || isRefetchingJoined;
 
+  // Arama filtresi
+  const filteredMyChannels = useMemo(() => {
+    if (!searchQuery) return myChannels || [];
+    return (myChannels || []).filter((ch) =>
+      ch.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [myChannels, searchQuery]);
+
+  // Takip ettiklerimden kendi kanallarını çıkar
+  const myChannelIds = useMemo(() => new Set((myChannels || []).map((c) => c.id)), [myChannels]);
+
+  const filteredJoinedChannels = useMemo(() => {
+    const joined = (joinedChannels || []).filter((ch) => !myChannelIds.has(ch.id));
+    if (!searchQuery) return joined;
+    return joined.filter((ch) => ch.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [joinedChannels, searchQuery, myChannelIds]);
+
   // Refresh
   const handleRefresh = useCallback(() => {
     refetchMy();
@@ -57,22 +75,44 @@ export function BroadcastChannelListScreen() {
   const handleChannelPress = useCallback(
     (channel: BroadcastChannel) => {
       useBroadcastStore.getState().setActiveChannel(channel.id);
-      router.push(`/broadcast/${channel.id}`);
+      router.push(`/(broadcast)/${channel.id}`);
     },
     [router]
   );
+
+  // Popüler kanallar - unique kanallar (kendi kanalları dahil)
+  const popularChannels = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: BroadcastChannel[] = [];
+    [...filteredMyChannels, ...filteredJoinedChannels].forEach((ch) => {
+      if (!seen.has(ch.id)) {
+        seen.add(ch.id);
+        unique.push(ch);
+      }
+    });
+    return unique.slice(0, 5);
+  }, [filteredMyChannels, filteredJoinedChannels]);
 
   // Section data
   const sections = [
     {
       title: "Kanallarım",
-      data: myChannels || [],
-      isMine: true
+      data: filteredMyChannels,
+      isMine: true,
+      count: myChannels?.length || 0
     },
     {
       title: "Takip Ettiklerim",
-      data: joinedChannels || [],
-      isMine: false
+      data: filteredJoinedChannels,
+      isMine: false,
+      count: filteredJoinedChannels.length
+    },
+    {
+      title: "Popüler Kanallar",
+      data: popularChannels,
+      isMine: false,
+      isPopular: true,
+      count: popularChannels.length
     }
   ].filter((section) => section.data.length > 0);
 
@@ -83,7 +123,7 @@ export function BroadcastChannelListScreen() {
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={["top"]}
       >
-        <BroadcastListHeader />
+        <BroadcastListHeader onSearch={setSearchQuery} />
         <BroadcastListSkeleton />
       </SafeAreaView>
     );
@@ -96,7 +136,7 @@ export function BroadcastChannelListScreen() {
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={["top"]}
       >
-        <BroadcastListHeader />
+        <BroadcastListHeader onSearch={setSearchQuery} />
         <EmptyBroadcastList />
       </SafeAreaView>
     );
@@ -107,7 +147,7 @@ export function BroadcastChannelListScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={["top"]}
     >
-      <BroadcastListHeader />
+      <BroadcastListHeader onSearch={setSearchQuery} />
 
       <SectionList
         sections={sections}
@@ -119,7 +159,9 @@ export function BroadcastChannelListScreen() {
             onPress={() => handleChannelPress(item)}
           />
         )}
-        renderSectionHeader={({ section }) => <SectionHeader title={section.title} />}
+        renderSectionHeader={({ section }) => (
+          <SectionHeader title={section.title} count={section.count} />
+        )}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl

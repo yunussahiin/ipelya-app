@@ -21,6 +21,7 @@ import {
   StoryHighlights,
   MutualFollowers,
   SubscriptionSheet,
+  BroadcastChannels,
   type Profile,
   type ProfileStatsType,
   type FollowStatus,
@@ -95,13 +96,20 @@ export default function ProfileScreen() {
         data: { user }
       } = await supabase.auth.getUser();
 
-      // Load profile by username
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("username", username)
-        .eq("type", "real")
-        .single();
+      // Load profile by username OR user_id (UUID format check)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        username
+      );
+
+      let query = supabase.from("profiles").select("*").eq("type", "real");
+
+      if (isUUID) {
+        query = query.eq("user_id", username);
+      } else {
+        query = query.eq("username", username);
+      }
+
+      const { data: profileData, error: profileError } = await query.single();
 
       if (profileError) throw profileError;
 
@@ -577,6 +585,15 @@ export default function ProfileScreen() {
             highlights={highlights}
             isOwnProfile={viewMode === "own"}
             onHighlightPress={handleHighlightPress}
+          />
+        )}
+
+        {/* Broadcast Channels - Creator'ın yayın kanalları */}
+        {profile && (
+          <BroadcastChannels
+            userId={profile.user_id}
+            isCreator={profile.is_creator || profile.role === "creator"}
+            isOwnProfile={viewMode === "own"}
           />
         )}
 

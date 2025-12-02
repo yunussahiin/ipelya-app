@@ -2,23 +2,78 @@
  * BroadcastChannelHeader
  *
  * Amaç: Yayın kanalı header
- * Tarih: 2025-11-26
+ * Tarih: 2025-12-02 (V3 güncelleme)
+ *
+ * Özellikler:
+ * - Kanal adına tıklayınca settings'e git
+ * - Bildirim toggle butonu
+ * - Üç nokta menüsü kaldırıldı
  */
 
+import { useState, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { Bell, BellOff, BarChart3, Clock, Settings } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useToast } from "@/components/ui";
 import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "@/lib/supabaseClient";
 import type { BroadcastChannel } from "@ipelya/types";
 
 interface BroadcastChannelHeaderProps {
   channel?: BroadcastChannel;
+  isCreator?: boolean;
+  onOpenScheduled?: () => void;
+  onOpenAnalytics?: () => void;
 }
 
-export function BroadcastChannelHeader({ channel }: BroadcastChannelHeaderProps) {
+export function BroadcastChannelHeader({
+  channel,
+  isCreator = false,
+  onOpenScheduled,
+  onOpenAnalytics
+}: BroadcastChannelHeaderProps) {
   const { colors } = useTheme();
   const router = useRouter();
+  const { showToast } = useToast();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
+
+  // Bildirim toggle
+  const toggleNotifications = useCallback(async () => {
+    if (isToggling || !channel?.id) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsToggling(true);
+
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const newValue = !notificationsEnabled;
+
+      // Üyelik kaydını güncelle
+      await supabase
+        .from("broadcast_channel_members")
+        .update({ notifications_enabled: newValue })
+        .eq("channel_id", channel.id)
+        .eq("user_id", user.id);
+
+      setNotificationsEnabled(newValue);
+      showToast({
+        type: "info",
+        message: newValue ? "Bildirimler açıldı" : "Bildirimler kapatıldı"
+      });
+    } catch (error) {
+      console.error("Toggle notifications error:", error);
+    } finally {
+      setIsToggling(false);
+    }
+  }, [channel?.id, notificationsEnabled, isToggling, showToast]);
 
   const accessIcon = {
     public: "globe-outline",
@@ -32,9 +87,10 @@ export function BroadcastChannelHeader({ channel }: BroadcastChannelHeaderProps)
         <Ionicons name="chevron-back" size={28} color={colors.textPrimary} />
       </Pressable>
 
+      {/* Kanal bilgisi - tıklayınca settings'e git */}
       <Pressable
         style={styles.channelInfo}
-        onPress={() => router.push(`/broadcast/${channel?.id}/settings`)}
+        onPress={() => router.push(`/(broadcast)/${channel?.id}/settings`)}
       >
         <Image
           source={{ uri: channel?.avatar_url || undefined }}
@@ -55,12 +111,61 @@ export function BroadcastChannelHeader({ channel }: BroadcastChannelHeaderProps)
         </View>
       </Pressable>
 
-      <Pressable
-        style={styles.menuButton}
-        onPress={() => router.push(`/broadcast/${channel?.id}/settings`)}
-      >
-        <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
-      </Pressable>
+      {/* Creator kısayol butonları */}
+      {isCreator && (
+        <View style={styles.creatorActions}>
+          {/* Analytics */}
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              console.log("📊 [Header] Analytics button pressed");
+              onOpenAnalytics?.();
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <BarChart3 size={20} color={colors.textPrimary} />
+          </Pressable>
+
+          {/* Zamanlanmış Mesajlar */}
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              console.log("⏰ [Header] Scheduled button pressed");
+              onOpenScheduled?.();
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Clock size={20} color={colors.accent} />
+          </Pressable>
+
+          {/* Ayarlar */}
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              console.log("⚙️ [Header] Settings button pressed");
+              router.push(`/(broadcast)/${channel?.id}/settings`);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Settings size={20} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+      )}
+
+      {/* Bildirim butonu - sadece üyeler için */}
+      {!isCreator && (
+        <Pressable
+          style={styles.notificationButton}
+          onPress={toggleNotifications}
+          disabled={isToggling}
+        >
+          {notificationsEnabled ? (
+            <Bell size={22} color={colors.textPrimary} />
+          ) : (
+            <BellOff size={22} color={colors.textMuted} />
+          )}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -104,7 +209,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2
   },
-  menuButton: {
+  notificationButton: {
+    padding: 8
+  },
+  creatorActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  actionButton: {
     padding: 8
   }
 });

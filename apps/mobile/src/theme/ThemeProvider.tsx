@@ -36,6 +36,7 @@ type ThemeContextValue = {
   scheme: ThemeScheme;
   colors: ThemeColors;
   accent: ThemeAccent;
+  isDark: boolean;
   toggleScheme: () => void;
   setScheme: (scheme: ThemeScheme) => void;
   setAccent: (accent: ThemeAccent) => void;
@@ -150,6 +151,7 @@ const ThemeContext = createContext<ThemeContextValue>({
   scheme: "dark",
   colors: palettes.dark,
   accent: "magenta",
+  isDark: true,
   toggleScheme: () => {},
   setScheme: () => {},
   setAccent: () => {}
@@ -219,6 +221,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         navIndicatorAndroid: accentPalette.navIndicatorAndroid
       },
       accent: safeAccent,
+      isDark: resolved === "dark",
       toggleScheme,
       setScheme,
       setAccent

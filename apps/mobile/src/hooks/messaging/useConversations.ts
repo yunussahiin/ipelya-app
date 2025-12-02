@@ -68,6 +68,19 @@ export function useConversations(archived = false) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Sohbetler yüklenemedi");
 
+      // DEBUG: Son mesaj bilgilerini logla
+      console.log("[useConversations] Fetched conversations:", result.data?.length);
+      result.data?.forEach((conv: any) => {
+        const lm = conv.last_message_preview;
+        console.log(`[useConversations] Conv: ${conv.other_participant?.display_name || conv.name}`, {
+          last_message_content: lm?.content?.substring(0, 30),
+          content_type: lm?.content_type,
+          sender_id: lm?.sender_id,
+          is_mine: lm?.is_mine,
+          current_user_id: conv.current_user_id
+        });
+      });
+
       return { data: result.data, nextCursor: result.nextCursor };
     },
     initialPageParam: undefined as string | undefined,

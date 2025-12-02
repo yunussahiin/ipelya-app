@@ -500,22 +500,36 @@ export async function addBroadcastReaction(
   messageId: string,
   emoji: string
 ): Promise<BroadcastReaction> {
+  console.log("📡 [addBroadcastReaction] API call:", { messageId, emoji });
+  
+  // Client'tan çağrıldığında session'dan user al
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Kullanıcı oturumu bulunamadı");
+    data: { session },
+  } = await supabase.auth.getSession();
+  
+  if (!session?.user) {
+    console.error("❌ [addBroadcastReaction] No session");
+    throw new Error("Kullanıcı oturumu bulunamadı");
+  }
+
+  console.log("👤 [addBroadcastReaction] User:", session.user.id);
 
   const { data, error } = await supabase
     .from("broadcast_reactions")
     .insert({
       message_id: messageId,
-      user_id: user.id,
+      user_id: session.user.id,
       emoji,
     })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("❌ [addBroadcastReaction] DB Error:", error);
+    throw error;
+  }
+  
+  console.log("✅ [addBroadcastReaction] Reaction saved:", data);
   return data;
 }
 
@@ -527,15 +541,16 @@ export async function removeBroadcastReaction(
   emoji: string
 ): Promise<void> {
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Kullanıcı oturumu bulunamadı");
+    data: { session },
+  } = await supabase.auth.getSession();
+  
+  if (!session?.user) throw new Error("Kullanıcı oturumu bulunamadı");
 
   const { error } = await supabase
     .from("broadcast_reactions")
     .delete()
     .eq("message_id", messageId)
-    .eq("user_id", user.id)
+    .eq("user_id", session.user.id)
     .eq("emoji", emoji);
 
   if (error) throw error;

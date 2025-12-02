@@ -16,8 +16,9 @@
  * <FeedItem item={feedItem} index={0} />
  */
 
-import React, { memo } from "react";
+import React, { memo, useCallback } from "react";
 import { View } from "react-native";
+import { useRouter } from "expo-router";
 import type { FeedItem as FeedItemType } from "@ipelya/types";
 import { PostCard } from "../PostCard";
 import { MiniPostCard } from "../MiniPostCard";
@@ -31,6 +32,8 @@ interface FeedItemProps {
 }
 
 export function FeedItem({ item }: FeedItemProps) {
+  const router = useRouter();
+
   // Current user ID for ownership checks
   const { sessionToken } = useAuthStore();
   const currentUserId = sessionToken
@@ -45,6 +48,14 @@ export function FeedItem({ item }: FeedItemProps) {
     postId
   });
 
+  // Profil sayfasına git
+  const handleUserPress = useCallback(() => {
+    const userId = item.content?.user?.id || item.content?.user_id;
+    if (userId) {
+      router.push(`/profile/${userId}`);
+    }
+  }, [item.content?.user?.id, item.content?.user_id, router]);
+
   // Content type'a göre component seç
   switch (item.content_type) {
     case "post":
@@ -55,6 +66,7 @@ export function FeedItem({ item }: FeedItemProps) {
             onLike={() => handleLike(item.content?.is_liked || false)}
             onComment={handleComment}
             onShare={handleShare}
+            onUserPress={handleUserPress}
           />
         </View>
       );
@@ -67,6 +79,7 @@ export function FeedItem({ item }: FeedItemProps) {
             onLike={() => handleLike(item.content?.is_liked || false)}
             onComment={handleComment}
             onShare={handleShare}
+            onUserPress={handleUserPress}
           />
         </View>
       );

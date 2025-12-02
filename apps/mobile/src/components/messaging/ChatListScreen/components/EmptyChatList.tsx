@@ -8,16 +8,22 @@
 import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 
-export function EmptyChatList() {
+interface EmptyChatListProps {
+  message?: string;
+  subtitle?: string;
+}
+
+export function EmptyChatList({
+  message = "Henüz sohbet yok",
+  subtitle = "Yeni bir sohbet başlatmak için sağ üstteki butona tıkla"
+}: EmptyChatListProps) {
   const { colors } = useTheme();
 
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>💬</Text>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>Henüz sohbet yok</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        Yeni bir sohbet başlatmak için sağ üstteki butona tıkla
-      </Text>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>{message}</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
     </View>
   );
 }
@@ -27,8 +33,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 32,
-    paddingTop: 100
+    paddingHorizontal: 20,
+    paddingTop: 0
   },
   emoji: {
     fontSize: 64,

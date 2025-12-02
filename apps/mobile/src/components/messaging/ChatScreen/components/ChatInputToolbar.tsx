@@ -20,6 +20,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import type { ThemeColors } from "@/theme/ThemeProvider";
+import type { ChatTheme } from "@/theme/chatThemes";
 
 // =============================================
 // INPUT TOOLBAR
@@ -28,14 +29,17 @@ import type { ThemeColors } from "@/theme/ThemeProvider";
 interface ChatInputToolbarProps {
   props: InputToolbarProps<IMessage>;
   colors: ThemeColors;
+  chatTheme?: ChatTheme;
 }
 
-function ChatInputToolbarComponent({ props, colors }: ChatInputToolbarProps) {
+function ChatInputToolbarComponent({ props, colors, chatTheme }: ChatInputToolbarProps) {
+  const inputBgColor = chatTheme?.colors.inputBackground || colors.background;
+
   return (
     <InputToolbar
       {...props}
       containerStyle={{
-        backgroundColor: colors.background,
+        backgroundColor: inputBgColor,
         borderTopWidth: 0.5,
         borderTopColor: "rgba(255,255,255,0.1)",
         paddingHorizontal: 8,

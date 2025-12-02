@@ -14,6 +14,7 @@ import { MenuView, type MenuAction } from "@react-native-menu/menu";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import type { ThemeColors } from "@/theme/ThemeProvider";
+import type { ChatTheme } from "@/theme/chatThemes";
 import type { IMessageWithReply } from "@/utils/giftedChatHelpers";
 import { ReactionBar } from "./ReactionBar";
 import { VideoThumbnail } from "./VideoThumbnail";
@@ -21,6 +22,7 @@ import { VideoThumbnail } from "./VideoThumbnail";
 interface ChatBubbleProps {
   props: BubbleProps<IMessage>;
   colors: ThemeColors;
+  chatTheme?: ChatTheme;
   currentUserId?: string;
   onReply?: (message: IMessage) => void;
   onEdit?: (message: IMessage) => void;
@@ -34,6 +36,7 @@ interface ChatBubbleProps {
 function ChatBubbleComponent({
   props,
   colors,
+  chatTheme,
   currentUserId,
   onReply,
   onEdit,
@@ -207,6 +210,12 @@ function ChatBubbleComponent({
   const hasAudio = !!message?.audio;
   const hasMedia = hasImage || hasVideo;
 
+  // Theme colors (fallback to default colors)
+  const ownBubbleColor = chatTheme?.colors.ownBubble || colors.accent;
+  const ownTextColor = chatTheme?.colors.ownBubbleText || "#fff";
+  const otherBubbleColor = chatTheme?.colors.otherBubble || colors.surface;
+  const otherTextColor = chatTheme?.colors.otherBubbleText || colors.textPrimary;
+
   const bubbleContent = (
     <Bubble
       {...props}
@@ -215,7 +224,7 @@ function ChatBubbleComponent({
       renderMessageVideo={renderMessageVideo}
       wrapperStyle={{
         left: {
-          backgroundColor: colors.surface,
+          backgroundColor: otherBubbleColor,
           borderRadius: 18,
           borderBottomLeftRadius: 4,
           marginRight: 60,
@@ -227,7 +236,7 @@ function ChatBubbleComponent({
           elevation: 1
         },
         right: {
-          backgroundColor: hasImage ? "transparent" : colors.accent,
+          backgroundColor: hasImage ? "transparent" : ownBubbleColor,
           borderRadius: 18,
           borderBottomRightRadius: 4,
           marginLeft: 60,
@@ -240,8 +249,8 @@ function ChatBubbleComponent({
         }
       }}
       textStyle={{
-        left: { color: colors.textPrimary, fontSize: 15, lineHeight: 20 },
-        right: { color: "#fff", fontSize: 15, lineHeight: 20 }
+        left: { color: otherTextColor, fontSize: 15, lineHeight: 20 },
+        right: { color: ownTextColor, fontSize: 15, lineHeight: 20 }
       }}
       timeTextStyle={{
         left: { color: colors.textMuted, fontSize: 11 },

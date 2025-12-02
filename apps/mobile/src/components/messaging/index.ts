@@ -8,6 +8,7 @@ export { ChatListScreen } from "./ChatListScreen";
 export { ChatScreen } from "./ChatScreen";
 export { NewChatScreen } from "./NewChatScreen";
 export { ChatSettingsScreen } from "./ChatSettingsScreen";
+export { ConversationDetailsScreen } from "./ConversationDetails";
 
 // Components
 export { MessageBubble } from "./components/MessageBubble";

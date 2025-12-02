@@ -41,10 +41,10 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
         <Ionicons name="chevron-back" size={28} color={colors.textPrimary} />
       </Pressable>
 
-      {/* User info */}
+      {/* User info - tıklayınca detay sayfasına git */}
       <Pressable
         style={styles.userInfo}
-        onPress={() => router.push(`/messages/${conversationId}/settings`)}
+        onPress={() => router.push(`/(messages)/${conversationId}/details`)}
       >
         <Image
           source={{ uri: avatarUrl || undefined }}

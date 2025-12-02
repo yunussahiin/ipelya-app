@@ -42,16 +42,20 @@ import "dayjs/locale/tr";
 dayjs.locale("tr");
 
 import { useTheme } from "@/theme/ThemeProvider";
+import { getChatTheme } from "@/theme/chatThemes";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useConversationPresence,
   useTypingIndicator,
   useAddReaction,
-  useRemoveReaction
+  useRemoveReaction,
+  useThemeChangeListener
 } from "@/hooks/messaging";
+import { useConversationStore } from "@/store/messaging";
 import { ChatHeader } from "./components/ChatHeader";
 import { ChatLoading } from "./components/ChatLoading";
 import { ChatBubble } from "./components/ChatBubble";
+import { ChatBackground } from "./components/ChatBackground";
 import {
   ChatInputToolbar,
   ChatComposer,
@@ -61,7 +65,7 @@ import {
   ChatScrollToBottom
 } from "./components/ChatInputToolbar";
 import { ChatDay, ChatTime } from "./components/ChatDateTime";
-import { ImageViewer, VideoThumbnail } from "./components";
+import { ImageViewer, VideoThumbnail, ThemeChangeBanner } from "./components";
 import { AudioRecorder } from "./components/AudioRecorder";
 import { AudioPlayer } from "./components/AudioPlayer";
 import { useChatMessages } from "./hooks/useChatMessages";
@@ -73,10 +77,28 @@ import { uploadMedia, queueMediaProcessing } from "@/services/media-upload.servi
 // =============================================
 
 export function GiftedChatScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const insets = useSafeAreaInsets();
+
+  // Get conversation from store for theme
+  const conversation = useConversationStore((s) =>
+    s.conversations.find((c) => c.id === conversationId)
+  );
+  const chatTheme = getChatTheme(conversation?.theme, isDark, {
+    background: colors.background,
+    surface: colors.surface,
+    accent: colors.accent,
+    textPrimary: colors.textPrimary,
+    textMuted: colors.textMuted
+  });
+
+  // Theme change listener
+  const { themeChanges, dismissChange, dismissAllChanges } = useThemeChangeListener(
+    conversationId || "",
+    user?.id
+  );
 
   // Typing indicator - karşı tarafın yazıp yazmadığı
   const typingUserIds = useTypingIndicator(conversationId || "");
@@ -290,6 +312,7 @@ export function GiftedChatScreen() {
       <ChatBubble
         props={props}
         colors={colors}
+        chatTheme={chatTheme}
         currentUserId={user?.id}
         onReply={handleReply}
         onEdit={handleEdit}
@@ -300,12 +323,23 @@ export function GiftedChatScreen() {
         onRemoveReaction={handleRemoveReaction}
       />
     ),
-    [colors, user?.id, handleReply, handleEdit, handleDelete, handleReact, handleRemoveReaction]
+    [
+      colors,
+      chatTheme,
+      user?.id,
+      handleReply,
+      handleEdit,
+      handleDelete,
+      handleReact,
+      handleRemoveReaction
+    ]
   );
 
   const renderInputToolbar = useCallback(
-    (props: InputToolbarProps<IMessage>) => <ChatInputToolbar props={props} colors={colors} />,
-    [colors]
+    (props: InputToolbarProps<IMessage>) => (
+      <ChatInputToolbar props={props} colors={colors} chatTheme={chatTheme} />
+    ),
+    [colors, chatTheme]
   );
 
   // Typing handler for composer
@@ -510,9 +544,12 @@ export function GiftedChatScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: chatTheme.colors.background }]}>
+      {/* Animated background */}
+      <ChatBackground theme={chatTheme} />
+
       {/* Safe area for header */}
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: colors.background }}>
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: "transparent" }}>
         <ChatHeader conversationId={conversationId || ""} />
       </SafeAreaView>
 
@@ -572,7 +609,7 @@ export function GiftedChatScreen() {
           minInputToolbarHeight={56}
           // Messages container - sabit boyut ile layout flash önleme
           messagesContainerStyle={{
-            backgroundColor: colors.background
+            backgroundColor: "transparent"
           }}
           // Locale - Türkçe
           locale="tr"
@@ -625,7 +662,9 @@ export function GiftedChatScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom safe area spacer */}
-      <View style={{ height: insets.bottom, backgroundColor: colors.background }} />
+      <View
+        style={{ height: insets.bottom, backgroundColor: chatTheme.colors.safeAreaBackground }}
+      />
 
       {/* Media Picker Modal */}
       <MediaPicker
@@ -653,6 +692,22 @@ export function GiftedChatScreen() {
           />
         </View>
       )}
+
+      {/* Theme Change Banner */}
+      <ThemeChangeBanner
+        changes={themeChanges.map((c) => ({
+          id: c.id,
+          themeId: c.themeId,
+          changedBy: c.changedByName,
+          isOwnChange: c.isOwnChange,
+          timestamp: c.timestamp
+        }))}
+        onDismiss={dismissChange}
+        onDismissAll={dismissAllChanges}
+        onChangeTheme={() => {
+          // TODO: Open theme picker from details page
+        }}
+      />
     </View>
   );
 }

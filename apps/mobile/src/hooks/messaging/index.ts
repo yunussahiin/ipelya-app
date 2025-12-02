@@ -34,3 +34,9 @@ export * from "./useMentions";
 
 // Do Not Disturb
 export * from "./useDoNotDisturb";
+
+// Conversation Media
+export * from "./useConversationMedia";
+
+// Conversation Theme
+export * from "./useConversationTheme";

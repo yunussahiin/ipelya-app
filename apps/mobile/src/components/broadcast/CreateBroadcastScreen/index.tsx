@@ -5,13 +5,26 @@
  * Tarih: 2025-11-26
  */
 
-import { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Alert } from "react-native";
+import { useState, useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  Pressable,
+  Alert,
+  ActionSheetIOS,
+  Platform
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useCreateBroadcastChannel } from "@/hooks/messaging";
+import { supabase } from "@/lib/supabaseClient";
 import { Ionicons } from "@expo/vector-icons";
 import type { BroadcastAccessType } from "@ipelya/types";
 
@@ -34,6 +47,7 @@ const DEFAULT_REACTIONS = ["❤️", "🔥", "👏", "😍", "🎉", "💯"];
 export function CreateBroadcastScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -41,42 +55,134 @@ export function CreateBroadcastScreen() {
   const [accessType, setAccessType] = useState<BroadcastAccessType>("public");
   const [selectedReactions, setSelectedReactions] = useState<string[]>(DEFAULT_REACTIONS);
   const [pollsEnabled, setPollsEnabled] = useState(true);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
 
   const { mutate: createChannel, isPending } = useCreateBroadcastChannel();
 
-  // Avatar seç
-  const handlePickAvatar = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
-    }
+  // Profil fotoğrafını al
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("user_id", user.id)
+          .eq("type", "real")
+          .single();
+        if (profile?.avatar_url) {
+          setProfileAvatarUrl(profile.avatar_url);
+        }
+      }
+    };
+    fetchProfile();
   }, []);
 
+  // Avatar seç - ActionSheet ile
+  const handlePickAvatar = useCallback(() => {
+    const options = profileAvatarUrl
+      ? ["Galeriden Seç", "Profil Fotoğrafımı Kullan", "İptal"]
+      : ["Galeriden Seç", "İptal"];
+    const cancelIndex = profileAvatarUrl ? 2 : 1;
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: cancelIndex },
+        async (buttonIndex) => {
+          if (buttonIndex === 0) {
+            // Galeriden seç
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: [ImagePicker.MediaType.IMAGE],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8
+            });
+            if (!result.canceled && result.assets[0]) {
+              setAvatarUri(result.assets[0].uri);
+            }
+          } else if (buttonIndex === 1 && profileAvatarUrl) {
+            // Profil fotoğrafını kullan
+            setAvatarUri(profileAvatarUrl);
+          }
+        }
+      );
+    } else {
+      // Android için Alert kullan
+      Alert.alert("Fotoğraf Seç", "", [
+        {
+          text: "Galeriden Seç",
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: [ImagePicker.MediaType.IMAGE],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8
+            });
+            if (!result.canceled && result.assets[0]) {
+              setAvatarUri(result.assets[0].uri);
+            }
+          }
+        },
+        ...(profileAvatarUrl
+          ? [
+              {
+                text: "Profil Fotoğrafımı Kullan",
+                onPress: () => setAvatarUri(profileAvatarUrl)
+              }
+            ]
+          : []),
+        { text: "İptal", style: "cancel" as const }
+      ]);
+    }
+  }, [profileAvatarUrl]);
+
   // Kanal oluştur
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert("Hata", "Kanal adı gerekli");
       return;
+    }
+
+    // Avatar'ı base64'e çevir (sadece local file ise)
+    let avatarBase64: string | undefined;
+    let avatarUrl: string | undefined;
+
+    if (avatarUri) {
+      if (avatarUri.startsWith("http")) {
+        // Profil fotoğrafı URL'i - direkt kullan
+        avatarUrl = avatarUri;
+      } else {
+        // Local file - base64'e çevir
+        try {
+          const base64 = await FileSystem.readAsStringAsync(avatarUri, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          avatarBase64 = `data:image/jpeg;base64,${base64}`;
+        } catch (e) {
+          console.error("Avatar base64 hatası:", e);
+        }
+      }
     }
 
     createChannel(
       {
         name: name.trim(),
         description: description.trim() || undefined,
-        avatar_url: avatarUri || undefined,
+        avatar_base64: avatarBase64,
+        avatar_url: avatarUrl,
         access_type: accessType,
         allowed_reactions: selectedReactions,
         polls_enabled: pollsEnabled
       },
       {
         onSuccess: (channel) => {
-          router.replace(`/broadcast/${channel.id}`);
+          router.replace(`/(broadcast)/${channel.id}`);
+        },
+        onError: (error) => {
+          console.error("Kanal oluşturma hatası:", error);
+          Alert.alert("Hata", error.message || "Kanal oluşturulamadı");
         }
       }
     );
@@ -101,7 +207,7 @@ export function CreateBroadcastScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
     >
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -109,11 +215,17 @@ export function CreateBroadcastScreen() {
           <Text style={[styles.cancelText, { color: colors.textMuted }]}>İptal</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Yeni Kanal</Text>
-        <Pressable onPress={handleCreate} disabled={isPending}>
+        <Pressable onPress={handleCreate} disabled={isPending || !name.trim()}>
           <Text
-            style={[styles.createText, { color: name.trim() ? colors.accent : colors.textMuted }]}
+            style={[
+              styles.createText,
+              {
+                color: name.trim() && !isPending ? colors.accent : colors.textMuted,
+                opacity: isPending ? 0.5 : 1
+              }
+            ]}
           >
-            Oluştur
+            {isPending ? "Oluşturuluyor..." : "Oluştur"}
           </Text>
         </Pressable>
       </View>

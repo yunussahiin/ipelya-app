@@ -63,6 +63,19 @@ export interface ConversationParticipant {
 }
 
 /**
+ * Sohbet teması
+ */
+export type ChatThemeId =
+  | "ipelya"
+  | "love"
+  | "night"
+  | "nature"
+  | "ocean"
+  | "sunset"
+  | "neon"
+  | "vintage";
+
+/**
  * Sohbet listesi öğesi (UI için optimize edilmiş)
  */
 export interface ConversationListItem {
@@ -73,6 +86,11 @@ export interface ConversationListItem {
   last_message_at: string | null;
   unread_count: number;
   is_muted: boolean;
+  is_pinned?: boolean;
+  // Tema bilgisi
+  theme?: ChatThemeId;
+  theme_changed_by?: string;
+  theme_changed_at?: string;
   // Diğer katılımcı bilgisi (direct için)
   other_participant?: {
     user_id: string;

@@ -56,6 +56,7 @@ export {
   AboutSection,
   SocialLinks,
   SubscriptionSheet,
+  BroadcastChannels,
   type Highlight, 
   type MutualFollower,
   type SocialLink as SocialLinkType

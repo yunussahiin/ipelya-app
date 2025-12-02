@@ -14,6 +14,7 @@ import { useNotificationListener } from "@/hooks/useNotificationListener";
 import { useLoadProfile } from "@/hooks/useLoadProfile";
 import { useGlobalMessageRealtime } from "@/hooks/messaging";
 import { createSessionFromUrl } from "@/services/oauth.service";
+import { ToastProvider } from "@/components/ui";
 
 // React Query client
 const queryClient = new QueryClient({
@@ -103,9 +104,11 @@ export default function Layout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <SafeAreaProvider>
-            <BottomSheetModalProvider>
-              <AppStack />
-            </BottomSheetModalProvider>
+            <ToastProvider>
+              <BottomSheetModalProvider>
+                <AppStack />
+              </BottomSheetModalProvider>
+            </ToastProvider>
           </SafeAreaProvider>
         </ThemeProvider>
       </QueryClientProvider>

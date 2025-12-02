@@ -10,14 +10,25 @@ import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useUnreadTotal } from "@/store/messaging";
 import { Ionicons } from "@expo/vector-icons";
+import { StoriesRow } from "@/components/home-feed/StoriesRow";
 
 interface ChatListHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onNewChat?: () => void;
+  showStories?: boolean;
+  onStoryPress?: (user: any, index: number) => void;
+  onAddStoryPress?: () => void;
 }
 
-export function ChatListHeader({ searchQuery, onSearchChange, onNewChat }: ChatListHeaderProps) {
+export function ChatListHeader({
+  searchQuery,
+  onSearchChange,
+  onNewChat,
+  showStories = true,
+  onStoryPress,
+  onAddStoryPress
+}: ChatListHeaderProps) {
   const { colors } = useTheme();
   const router = useRouter();
   const unreadTotal = useUnreadTotal();
@@ -31,10 +42,13 @@ export function ChatListHeader({ searchQuery, onSearchChange, onNewChat }: ChatL
   };
 
   return (
-    <View style={[styles.container, { borderBottomColor: colors.border }]}>
+    <View style={styles.container}>
       {/* Title row */}
       <View style={styles.titleRow}>
         <View style={styles.titleContainer}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </Pressable>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Mesajlar</Text>
           {unreadTotal > 0 && (
             <View style={[styles.badge, { backgroundColor: colors.accent }]}>
@@ -67,6 +81,9 @@ export function ChatListHeader({ searchQuery, onSearchChange, onNewChat }: ChatL
           </Pressable>
         )}
       </View>
+
+      {/* Stories Row */}
+      {showStories && <StoriesRow onStoryPress={onStoryPress} onAddStoryPress={onAddStoryPress} />}
     </View>
   );
 }
@@ -76,24 +93,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1
+    gap: 12
   },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12
+    alignItems: "center"
   },
   titleContainer: {
     flexDirection: "row",
-    alignItems: "center"
+    alignItems: "center",
+    gap: 8
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: -8
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700"
   },
   badge: {
-    marginLeft: 8,
     minWidth: 22,
     height: 22,
     borderRadius: 11,
@@ -109,7 +132,7 @@ const styles = StyleSheet.create({
   newButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center"
   },
@@ -118,11 +141,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 12
+    borderRadius: 12,
+    gap: 8
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 16
+    fontSize: 15,
+    padding: 0
   }
 });

@@ -7,3 +7,4 @@ export { AboutSection } from "./AboutSection";
 export { SocialLinks } from "./SocialLinks";
 export type { SocialLink } from "./SocialLinks";
 export { SubscriptionSheet } from "./SubscriptionSheet";
+export { BroadcastChannels } from "./BroadcastChannels";
