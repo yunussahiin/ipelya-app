@@ -85,11 +85,13 @@
     "react-native-url-polyfill": "^3.0.0",
     "react-native-vision-camera": "^4.7.3",
     "react-native-vision-camera-face-detector": "^1.9.1",
+    "react-native-vision-camera-ocr-plus": "^1.0.9",
     "react-native-web": "~0.21.2",
     "react-native-worklets": "0.5.1",
     "react-native-worklets-core": "^1.6.2",
     "reanimated-color-picker": "^4.1.1",
     "rn-emoji-keyboard": "^1.7.0",
+    "vision-camera-dynamsoft-document-normalizer": "^4.1.0",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },

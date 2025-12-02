@@ -12,13 +12,18 @@
  * Fallback:
  * - Veritabanına erişilemezse products.ts'deki statik liste kullanılır
  * 
+ * Realtime:
+ * - tier_benefits ve tier_templates tablolarındaki değişiklikler
+ *   otomatik olarak yansır (Supabase Realtime)
+ * 
  * @example
- * const { templates, benefits, groupedBenefits, isLoading } = useTierTemplates();
+ * const { templates, benefits, groupedBenefits, isLoading, refresh } = useTierTemplates();
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { TIER_BENEFITS, SUGGESTED_TIER_TEMPLATES, TierBenefitId } from '@/services/iap/products';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface TierBenefit {
   id: string;
@@ -56,6 +61,7 @@ export function useTierTemplates() {
   const [benefits, setBenefits] = useState<TierBenefit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -107,6 +113,35 @@ export function useTierTemplates() {
 
   useEffect(() => {
     loadData();
+
+    // Realtime subscription - Web Ops'tan yapılan değişiklikleri anında yansıt
+    const channel = supabase
+      .channel('tier-data-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tier_benefits' },
+        () => {
+          console.log('[useTierTemplates] tier_benefits changed, refreshing...');
+          loadData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tier_templates' },
+        () => {
+          console.log('[useTierTemplates] tier_templates changed, refreshing...');
+          loadData();
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
   }, [loadData]);
 
   // Kategoriye göre avantajları grupla

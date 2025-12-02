@@ -1,11 +1,15 @@
 /**
  * useCreatorTiers Hook
  * Creator'lar için tier yönetimi
+ * 
+ * Realtime:
+ * - creator_subscription_tiers tablosundaki değişiklikler otomatik yansır
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface CreatorTier {
   id: string;
@@ -40,6 +44,8 @@ export function useCreatorTiers() {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [myTiers, setMyTiers] = useState<CreatorTier[]>([]);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const userIdRef = useRef<string | null>(null);
 
   // Tier'ları yükle
   const loadMyTiers = useCallback(async () => {
@@ -77,7 +83,43 @@ export function useCreatorTiers() {
   }, []);
 
   useEffect(() => {
-    loadMyTiers();
+    const setup = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      
+      userIdRef.current = session.user.id;
+      
+      // İlk yükleme
+      await loadMyTiers();
+
+      // Realtime subscription - Creator'ın kendi tier'larındaki değişiklikleri dinle
+      const channel = supabase
+        .channel(`creator-tiers-${session.user.id}`)
+        .on(
+          'postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'creator_subscription_tiers',
+            filter: `creator_id=eq.${session.user.id}`
+          },
+          (payload) => {
+            console.log('[useCreatorTiers] Tier changed:', payload.eventType);
+            loadMyTiers();
+          }
+        )
+        .subscribe();
+
+      channelRef.current = channel;
+    };
+
+    setup();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
   }, [loadMyTiers]);
 
   // Yeni tier oluştur

@@ -18,7 +18,9 @@ import {
   IconMask,
   IconNews,
   IconServer,
-  IconMessage
+  IconMessage,
+  IconWallet,
+  IconId
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -180,6 +182,48 @@ const data = {
         {
           title: "Raporlar",
           url: "/ops/economy/reports"
+        }
+      ]
+    },
+    {
+      title: "Finans",
+      url: "/ops/finance",
+      icon: IconWallet,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/ops/finance"
+        },
+        {
+          title: "Kur Yönetimi",
+          url: "/ops/finance/coin-rates"
+        },
+        {
+          title: "Creator Bakiyeleri",
+          url: "/ops/finance/creator-balances"
+        },
+        {
+          title: "Ödeme Yöntemleri",
+          url: "/ops/finance/payment-methods"
+        },
+        {
+          title: "Ödeme Talepleri",
+          url: "/ops/finance/payout-requests"
+        },
+        {
+          title: "Otomatik Ödemeler",
+          url: "/ops/finance/auto-payouts"
+        }
+      ]
+    },
+    {
+      title: "KYC Yönetimi",
+      url: "/ops/kyc",
+      icon: IconId,
+      items: [
+        {
+          title: "Tüm Başvurular",
+          url: "/ops/kyc"
         }
       ]
     },

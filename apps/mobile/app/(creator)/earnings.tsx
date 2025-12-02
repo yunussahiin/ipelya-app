@@ -1,20 +1,29 @@
 /**
  * Creator Earnings Screen
  * Gelir raporu ekranı - Dashboard'dan erişilen iç sayfa
+ * Yeni componentler entegre edildi
  */
 
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import React, { useMemo, useState, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Info } from "lucide-react-native";
+import { ArrowLeft, Info, Wallet } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useCreatorEarnings, type EarningsPeriod } from "@/hooks/useCreatorEarnings";
+import {
+  EarningsSummaryCard,
+  EarningsBreakdown,
+  EarningsTrendChart,
+  TransactionList
+} from "@/components/creator/earnings";
+
+type TransactionFilterType = "all" | "subscription" | "gift" | "payout";
 
 const PERIODS: { key: EarningsPeriod; label: string }[] = [
-  { key: "7d", label: "Hafta" },
-  { key: "30d", label: "Ay" },
-  { key: "90d", label: "3 Ay" },
+  { key: "7d", label: "7G" },
+  { key: "30d", label: "30G" },
+  { key: "90d", label: "90G" },
   { key: "all", label: "Tümü" }
 ];
 
@@ -24,7 +33,15 @@ export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const { data: earningsData, isLoading, period, changePeriod } = useCreatorEarnings();
+  const {
+    data: earningsData,
+    isLoading,
+    period,
+    changePeriod,
+    refreshEarnings
+  } = useCreatorEarnings();
+  const [refreshing, setRefreshing] = useState(false);
+  const [transactionFilter, setTransactionFilter] = useState<TransactionFilterType>("all");
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -34,6 +51,32 @@ export default function EarningsScreen() {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshEarnings();
+    setRefreshing(false);
+  }, [refreshEarnings]);
+
+  // Edge function'dan gelen yeni format verileri
+  const coinRate = earningsData?.coinRate?.rate || 0.5;
+  const totalCoins = earningsData?.earnings?.total || earningsData?.totalCoins || 0;
+  const subscriptionCoins =
+    earningsData?.earnings?.subscriptions || earningsData?.subscriptionCoins || 0;
+  const giftCoins = earningsData?.earnings?.gifts || earningsData?.giftCoins || 0;
+  const transactions = earningsData?.transactions || [];
+  const dailyTrend = earningsData?.dailyTrend || earningsData?.dailyEarnings || [];
+  const tierBreakdown =
+    earningsData?.tierBreakdown ||
+    earningsData?.tiers?.map((t: any) => ({
+      tier_id: t.id,
+      tier_name: t.name,
+      subscriber_count: t.subscriptions?.[0]?.count || t.subscriberCount || 0,
+      total_coins:
+        (t.subscriptions?.[0]?.count || t.subscriberCount || 0) *
+        (t.coin_price_monthly || t.coinPriceMonthly || 0)
+    })) ||
+    [];
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
@@ -42,23 +85,28 @@ export default function EarningsScreen() {
           <ArrowLeft size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Gelir Raporu</Text>
-        <View style={{ width: 40 }} />
+        <Pressable style={styles.walletButton} onPress={() => router.push("/(creator)/revenue")}>
+          <Wallet size={22} color={colors.accent} />
+        </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Total Balance */}
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Toplam Kazanç</Text>
-          <View style={styles.balanceRow}>
-            <Text style={styles.coinIcon}>🪙</Text>
-            <Text style={styles.balanceValue}>
-              {isLoading ? "..." : (earningsData?.earnings?.total || 0).toLocaleString()}
-            </Text>
-          </View>
-          <Text style={styles.balanceSubtext}>
-            ≈ ₺{((earningsData?.earnings?.total || 0) * 0.5).toLocaleString()}
-          </Text>
-        </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+        }
+      >
+        {/* Total Balance Card - Yeni Component */}
+        <EarningsSummaryCard
+          totalCoins={totalCoins}
+          totalTL={totalCoins * coinRate}
+          coinRate={{
+            rate: coinRate,
+            updatedAt: earningsData?.coinRate?.updatedAt || new Date().toISOString()
+          }}
+          isLoading={isLoading}
+        />
 
         {/* Period Selector */}
         <View style={styles.periodSelector}>
@@ -75,40 +123,51 @@ export default function EarningsScreen() {
           ))}
         </View>
 
-        {/* Breakdown */}
-        <View style={styles.breakdownSection}>
-          <Text style={styles.sectionTitle}>Gelir Dağılımı</Text>
+        {/* Earnings Breakdown - Yeni Component */}
+        <EarningsBreakdown
+          subscriptionCoins={subscriptionCoins}
+          giftCoins={giftCoins}
+          tierBreakdown={tierBreakdown}
+          coinRate={coinRate}
+          isLoading={isLoading}
+        />
 
-          <View style={styles.breakdownCard}>
-            <View style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <View style={[styles.breakdownDot, { backgroundColor: colors.accent }]} />
-                <Text style={styles.breakdownLabel}>Abonelikler</Text>
-              </View>
-              <Text style={styles.breakdownValue}>
-                🪙 {(earningsData?.earnings?.subscriptions || 0).toLocaleString()}
-              </Text>
-            </View>
+        {/* Trend Chart - Yeni Component */}
+        <EarningsTrendChart
+          data={dailyTrend.map((d: any) => ({
+            day: d.date || d.day,
+            total_coins: d.total || d.total_coins || 0,
+            subscription_coins: d.subscriptions || d.subscription_coins || 0,
+            gift_coins: d.gifts || d.gift_coins || 0
+          }))}
+          isLoading={isLoading}
+        />
 
-            <View style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <View style={[styles.breakdownDot, { backgroundColor: "#FFD700" }]} />
-                <Text style={styles.breakdownLabel}>Hediyeler</Text>
-              </View>
-              <Text style={styles.breakdownValue}>
-                🪙 {(earningsData?.earnings?.gifts || 0).toLocaleString()}
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* Transaction List - Yeni Component */}
+        <TransactionList
+          transactions={transactions.map((t: any) => ({
+            id: t.id,
+            type: t.type,
+            amount: t.amount,
+            description: t.description,
+            metadata: t.metadata,
+            created_at: t.created_at
+          }))}
+          filter={transactionFilter}
+          onFilterChange={setTransactionFilter}
+          onLoadMore={() => {}}
+          hasMore={earningsData?.hasMoreTransactions || false}
+          isLoadingMore={false}
+          coinRate={coinRate}
+        />
 
         {/* Payout Info */}
         <View style={styles.payoutInfo}>
           <Info size={20} color={colors.textMuted} />
           <View style={styles.payoutTextContainer}>
-            <Text style={styles.payoutTitle}>Ödeme Bilgisi</Text>
+            <Text style={styles.payoutTitle}>Para Çekme</Text>
             <Text style={styles.payoutText}>
-              Kazançlarınız her ayın 1'inde banka hesabınıza aktarılır. Minimum ödeme tutarı 500
+              Kazançlarınızı çekmek için Ödeme Yönetimi sayfasına gidin. Minimum çekim tutarı 500
               coin'dir.
             </Text>
           </View>
@@ -136,6 +195,12 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       borderBottomColor: colors.border
     },
     backButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    walletButton: {
       width: 40,
       height: 40,
       alignItems: "center",
