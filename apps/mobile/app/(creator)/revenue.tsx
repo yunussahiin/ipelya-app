@@ -7,18 +7,20 @@ import React, { useMemo, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, CreditCard } from "lucide-react-native";
+import { ArrowLeft, Plus, CreditCard, ShieldCheck, ChevronRight, Lock } from "lucide-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import {
   PayoutSummaryCard,
   PaymentMethodCard,
+  PaymentMethodStatus,
   AddBankAccountSheet,
   AddCryptoWalletSheet,
   CreatePayoutSheet,
   AutoPayoutSettings,
   PayoutHistoryList
 } from "@/components/creator/payments";
+import type { PaymentMethodStatusType } from "@/components/creator/payments";
 import {
   usePaymentMethods,
   usePayoutRequests,
@@ -76,6 +78,29 @@ export default function CreatorRevenueScreen() {
 
   const coinRate = earningsData?.coinRate?.rate || 0.5;
 
+  // Ödeme yöntemi durumunu hesapla
+  const getPaymentMethodStatus = (): PaymentMethodStatusType => {
+    if (paymentMethods.length === 0) return "none";
+    const pendingMethod = paymentMethods.find((m) => m.status === "pending");
+    if (pendingMethod) return "pending";
+    const rejectedMethod = paymentMethods.find((m) => m.status === "rejected");
+    if (rejectedMethod) return "rejected";
+    const approvedMethod = paymentMethods.find((m) => m.status === "approved");
+    if (approvedMethod) return "approved";
+    return "pending"; // Default
+  };
+
+  const paymentMethodStatus = getPaymentMethodStatus();
+  const primaryMethod = paymentMethods.find((m) => m.isDefault) || paymentMethods[0];
+
+  // KYC tamamlanmış mı?
+  const isKYCApproved = kycProfile?.status === "approved";
+  const isKYCPending = kycProfile?.status === "pending";
+
+  const handleGoToKYC = () => {
+    router.push("/(creator)/kyc");
+  };
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -108,6 +133,21 @@ export default function CreatorRevenueScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
+        {/* Payment Method Status Alert - Sadece KYC onaylı ise ve ödeme yöntemi sorunu varsa */}
+        {isKYCApproved && paymentMethodStatus !== "approved" && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <PaymentMethodStatus
+              status={paymentMethodStatus}
+              methodName={primaryMethod?.displayName}
+              rejectionReason={
+                primaryMethod?.status === "rejected" ? primaryMethod.rejectionReason : undefined
+              }
+              onAddPress={() => setShowAddBank(true)}
+              onViewPress={() => setActiveTab("methods")}
+            />
+          </View>
+        )}
+
         {/* Payout Summary */}
         <PayoutSummaryCard
           withdrawableBalance={withdrawableBalance}
@@ -148,31 +188,83 @@ export default function CreatorRevenueScreen() {
 
         {activeTab === "methods" ? (
           <>
-            {/* Payment Methods */}
+            {/* KYC Uyarısı - KYC tamamlanmamışsa */}
+            {!isKYCApproved && (
+              <View style={styles.section}>
+                <Pressable
+                  style={[styles.kycRequiredCard, { backgroundColor: colors.surface }]}
+                  onPress={handleGoToKYC}
+                >
+                  <View
+                    style={[styles.kycIconContainer, { backgroundColor: `${colors.accent}15` }]}
+                  >
+                    <ShieldCheck size={28} color={colors.accent} />
+                  </View>
+                  <View style={styles.kycContent}>
+                    <Text style={[styles.kycTitle, { color: colors.textPrimary }]}>
+                      {isKYCPending ? "KYC Doğrulama Bekliyor" : "KYC Doğrulama Gerekli"}
+                    </Text>
+                    <Text style={[styles.kycDescription, { color: colors.textSecondary }]}>
+                      {isKYCPending
+                        ? "Kimlik doğrulamanız inceleniyor. Bu işlem 1-3 iş günü sürebilir."
+                        : "Ödeme yöntemi ekleyebilmek için önce kimlik doğrulamasını tamamlayın."}
+                    </Text>
+                  </View>
+                  {!isKYCPending && (
+                    <View style={[styles.kycButton, { backgroundColor: colors.accent }]}>
+                      <Text style={styles.kycButtonText}>Doğrula</Text>
+                      <ChevronRight size={16} color="#fff" />
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            )}
+
+            {/* Payment Methods - KYC yoksa disabled */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
                   Ödeme Yöntemlerim
                 </Text>
-                <View style={styles.addButtons}>
-                  <Pressable
-                    style={[styles.addButton, { backgroundColor: `${colors.accent}20` }]}
-                    onPress={() => setShowAddBank(true)}
-                  >
-                    <Plus size={14} color={colors.accent} />
-                    <Text style={[styles.addButtonText, { color: colors.accent }]}>Banka</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.addButton, { backgroundColor: "#8B5CF620" }]}
-                    onPress={() => setShowAddCrypto(true)}
-                  >
-                    <Plus size={14} color="#8B5CF6" />
-                    <Text style={[styles.addButtonText, { color: "#8B5CF6" }]}>Kripto</Text>
-                  </Pressable>
-                </View>
+                {isKYCApproved && (
+                  <View style={styles.addButtons}>
+                    <Pressable
+                      style={[styles.addButton, { backgroundColor: `${colors.accent}20` }]}
+                      onPress={() => setShowAddBank(true)}
+                    >
+                      <Plus size={14} color={colors.accent} />
+                      <Text style={[styles.addButtonText, { color: colors.accent }]}>Banka</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.addButton, { backgroundColor: "#8B5CF620" }]}
+                      onPress={() => setShowAddCrypto(true)}
+                    >
+                      <Plus size={14} color="#8B5CF6" />
+                      <Text style={[styles.addButtonText, { color: "#8B5CF6" }]}>Kripto</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
 
-              {methodsLoading ? (
+              {/* KYC yoksa kilit mesajı */}
+              {!isKYCApproved ? (
+                <View style={[styles.lockedCard, { backgroundColor: colors.surface }]}>
+                  <View
+                    style={[
+                      styles.lockedIconContainer,
+                      { backgroundColor: `${colors.textMuted}15` }
+                    ]}
+                  >
+                    <Lock size={24} color={colors.textMuted} />
+                  </View>
+                  <Text style={[styles.lockedTitle, { color: colors.textMuted }]}>
+                    Ödeme Yöntemleri Kilitli
+                  </Text>
+                  <Text style={[styles.lockedDescription, { color: colors.textMuted }]}>
+                    Ödeme yöntemi ekleyebilmek için önce KYC doğrulamasını tamamlayın.
+                  </Text>
+                </View>
+              ) : methodsLoading ? (
                 <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
                   <Text style={{ color: colors.textMuted }}>Yükleniyor...</Text>
                 </View>
@@ -195,19 +287,21 @@ export default function CreatorRevenueScreen() {
               )}
             </View>
 
-            {/* Auto Payout Settings */}
-            <AutoPayoutSettings
-              settings={autoPayoutSettings}
-              paymentMethods={approvedMethods.map((m) => ({
-                id: m.id,
-                type: m.type,
-                displayName: m.displayName,
-                isDefault: m.isDefault
-              }))}
-              onToggle={toggleAutoPayout}
-              onUpdate={updateSettings}
-              isSaving={autoSaving}
-            />
+            {/* Auto Payout Settings - KYC yoksa gösterme */}
+            {isKYCApproved && (
+              <AutoPayoutSettings
+                settings={autoPayoutSettings}
+                paymentMethods={approvedMethods.map((m) => ({
+                  id: m.id,
+                  type: m.type,
+                  displayName: m.displayName,
+                  isDefault: m.isDefault
+                }))}
+                onToggle={toggleAutoPayout}
+                onUpdate={updateSettings}
+                isSaving={autoSaving}
+              />
+            )}
           </>
         ) : (
           /* Payout History */
@@ -353,5 +447,69 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
     },
     emptyText: {
       fontSize: 14
+    },
+    // KYC Required Card
+    kycRequiredCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      borderRadius: 16,
+      gap: 12
+    },
+    kycIconContainer: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    kycContent: {
+      flex: 1,
+      gap: 4
+    },
+    kycTitle: {
+      fontSize: 15,
+      fontWeight: "600"
+    },
+    kycDescription: {
+      fontSize: 12,
+      lineHeight: 16
+    },
+    kycButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      gap: 4
+    },
+    kycButtonText: {
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: "600"
+    },
+    // Locked Card (KYC yokken)
+    lockedCard: {
+      padding: 40,
+      borderRadius: 16,
+      alignItems: "center",
+      gap: 12
+    },
+    lockedIconContainer: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4
+    },
+    lockedTitle: {
+      fontSize: 16,
+      fontWeight: "600"
+    },
+    lockedDescription: {
+      fontSize: 13,
+      textAlign: "center",
+      lineHeight: 18
     }
   });

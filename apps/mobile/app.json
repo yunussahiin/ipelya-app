@@ -1,80 +1,47 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "ipelya-app",
     "slug": "ipelya-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "scheme": "ipelya",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ipelya.mobile",
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Profil fotoğrafı seçmek için galeri erişim izni gerekli",
-        "NSCameraUsageDescription": "Profil fotoğrafı çekmek için kamera erişim izni gerekli",
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "config": {}
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "İçerik oluşturmak için kamera erişimi gereklidir.",
+        "NSMicrophoneUsageDescription": "Video kaydetmek için mikrofon erişimi gereklidir.",
+        "NSPhotoLibraryUsageDescription": "Fotoğraf ve video seçmek için galeri erişimi gereklidir."
+      }
     },
     "android": {
       "package": "com.ipelya.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "NOTIFICATIONS",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "ipelya",
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#FF6B35",
-          "defaultChannel": "default",
-          "sounds": ["./assets/notification-sound.wav"],
-          "enableBackgroundRemoteNotifications": true
-        }
-      ],
-      [
-        "expo-video",
-        {
-          "supportsBackgroundPlayback": true,
-          "supportsPictureInPicture": true
-        }
-      ],
-      [
-        "react-native-vision-camera",
-        {
-          "cameraPermissionText": "Fotoğraf ve video çekmek için kamera erişimi gerekli",
-          "enableMicrophonePermission": true,
-          "microphonePermissionText": "Video kaydı için mikrofon erişimi gerekli"
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "deploymentTarget": "18.0"
-          }
-        }
-      ]
-    ],
     "extra": {
       "router": {},
       "eas": {

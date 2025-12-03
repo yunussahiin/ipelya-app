@@ -105,6 +105,14 @@ export default function CreatorLayout() {
           headerShown: false
         }}
       />
+      <Tabs.Screen
+        name="kyc"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" }
+        }}
+      />
     </Tabs>
   );
 }

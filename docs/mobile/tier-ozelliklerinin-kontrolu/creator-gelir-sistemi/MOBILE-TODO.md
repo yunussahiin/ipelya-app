@@ -8,7 +8,7 @@
 
 - [x] **id:** db_setup_tables
   - **description:** Tüm veritabanı tablolarını Supabase MCP ile oluştur
-  - **checked:** false
+  - **checked:** true
   - **comments:** Migration sırasıyla: coin_rates → creator_balances → creator_transactions → payment_methods → payout_requests → payout_status_history → auto_payout_settings → kyc_applications → creator_kyc_profiles
   - **assignee:** mobile-dev
   - **subtasks:**
@@ -186,10 +186,10 @@
   - **subtasks:** bilgi yok
   - **priority:** high
 
-- [ ] **id:** comp_payment_method_status
+- [x] **id:** comp_payment_method_status
   - **description:** PaymentMethodStatus alert kartı
-  - **checked:** false
-  - **comments:** Eklenmemiş/Bekliyor/Onaylı/Reddedildi durumları
+  - **checked:** true
+  - **comments:** Eklenmemiş/Bekliyor/Onaylı/Reddedildi durumları. revenue.tsx ekranına entegre edildi.
   - **assignee:** mobile-dev
   - **subtasks:** bilgi yok
   - **priority:** high
