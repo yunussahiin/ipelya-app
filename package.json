@@ -33,10 +33,10 @@
     "typescript": "^5.4.2"
   },
   "dependencies": {
-    "expo-router": "^6.0.14",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
     "expo": "~54.0.25",
+    "expo-router": "^6.0.14",
+    "react": "19.1.2",
+    "react-dom": "19.1.2",
     "react-native": "0.81.5"
   }
 }

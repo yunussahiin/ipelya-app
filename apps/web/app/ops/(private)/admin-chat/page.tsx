@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { ConversationList, ChatWindow, NewChatDialog } from "./components";
 import { useConversations } from "./hooks";
@@ -116,6 +117,9 @@ export default function AdminChatPage() {
         {/* Mobile Drawer */}
         <Sheet open={isMobileDrawerOpen} onOpenChange={setIsMobileDrawerOpen}>
           <SheetContent side="left" className="w-[320px] p-0 flex flex-col">
+            <VisuallyHidden>
+              <SheetTitle>Sohbetler</SheetTitle>
+            </VisuallyHidden>
             <div className="flex-1 overflow-hidden flex flex-col">
               <ConversationList
                 conversations={conversations}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import {
   ContextMenuItem,
   ContextMenuTrigger
 } from "@/components/ui/context-menu";
-import { Dialog, DialogContent, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -231,22 +230,35 @@ export function MessageBubble({
     toast.success("Mesaj kopyalandı");
   };
 
+  // Handle ESC key to close lightbox
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && lightboxUrl) {
+        setLightboxUrl(null);
+      }
+    };
+
+    if (lightboxUrl) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [lightboxUrl]);
+
   return (
     <>
       {/* Image Lightbox - Dialog */}
-      <Dialog
-        open={!!lightboxUrl && !lightboxUrl.toLowerCase().endsWith(".pdf")}
-        onOpenChange={() => setLightboxUrl(null)}
-      >
-        <DialogOverlay className="backdrop-blur-sm bg-black/60" />
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 border-none overflow-hidden bg-black/95 [&>button]:hidden">
-          <DialogTitle className="sr-only">Resim Önizleme</DialogTitle>
-          <div className="relative w-full h-full">
+      {lightboxUrl && !lightboxUrl.toLowerCase().endsWith(".pdf") && (
+        <div
+          className="fixed inset-0 z-50 backdrop-blur-sm bg-black/40 flex items-center justify-center cursor-pointer group"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <div className="relative w-[90vw] h-[90vh] flex items-center justify-center cursor-default">
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="absolute top-3 right-3 z-20 rounded-full text-white hover:bg-white/20"
+              className="absolute top-4 right-4 z-20 rounded-full bg-background/80 hover:bg-background/90 backdrop-blur-sm border border-border"
               onClick={() => setLightboxUrl(null)}
+              title="Kapat (ESC)"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -255,7 +267,7 @@ export function MessageBubble({
               <img
                 src={lightboxUrl}
                 alt="Full size"
-                className="w-full h-auto max-h-[85vh] object-contain"
+                className="max-w-[80vw] max-h-[80vh] object-contain cursor-default group-hover:cursor-pointer"
               />
             )}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
@@ -269,8 +281,8 @@ export function MessageBubble({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* PDF/Document Viewer - Drawer from bottom */}
       <Drawer
