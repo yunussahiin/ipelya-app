@@ -3,8 +3,9 @@
  * Skia ile fotoğraf işleme
  */
 
-import { Skia, SkImage } from "@shopify/react-native-skia";
-import * as FileSystem from "expo-file-system";
+import { Skia, matchFont, ImageFormat } from "@shopify/react-native-skia";
+import { File, Paths } from "expo-file-system";
+import { Platform } from "react-native";
 
 /**
  * Fotoğrafa tarih damgası ekle
@@ -14,10 +15,11 @@ export async function addTimestampToImage(
   timestamp: Date
 ): Promise<string> {
   try {
-    // Fotoğrafı yükle
-    const imageData = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    console.log("[ImageUtils] Starting timestamp addition for:", imageUri);
+    
+    // Fotoğrafı yükle - yeni File API
+    const sourceFile = new File(imageUri);
+    const imageData = await sourceFile.base64();
     
     const skData = Skia.Data.fromBase64(imageData);
     const image = Skia.Image.MakeImageFromEncoded(skData);
@@ -29,11 +31,12 @@ export async function addTimestampToImage(
 
     const width = image.width();
     const height = image.height();
+    console.log("[ImageUtils] Image dimensions:", width, "x", height);
 
     // Offscreen surface oluştur
-    const surface = Skia.Surface.Make(width, height);
+    const surface = Skia.Surface.MakeOffscreen(width, height);
     if (!surface) {
-      console.warn("[ImageUtils] Failed to create surface, returning original");
+      console.warn("[ImageUtils] Failed to create offscreen surface, returning original");
       return imageUri;
     }
 
@@ -55,67 +58,81 @@ export async function addTimestampToImage(
     const timestampText = `${dateStr} ${timeStr}`;
 
     // Font ve paint ayarları
-    const fontSize = Math.max(24, Math.floor(width / 30));
-    const font = Skia.Font(null, fontSize);
-    const textWidth = font.measureText(timestampText).width;
+    const fontSize = Math.max(32, Math.floor(width / 25));
+    const fontFamily = Platform.select({ ios: "Helvetica", default: "sans-serif" });
+    const fontStyle = {
+      fontFamily,
+      fontSize,
+      fontWeight: "500",
+    } as const;
+    const font = matchFont(fontStyle);
+    if (!font) {
+      console.warn("[ImageUtils] Failed to match font, skipping timestamp");
+      return imageUri;
+    }
+    
+    // TextBlob oluştur
+    const textBlob = Skia.TextBlob.MakeFromText(timestampText, font);
+    if (!textBlob) {
+      console.warn("[ImageUtils] Failed to create text blob, returning original");
+      return imageUri;
+    }
+
+    const measured = font.measureText(timestampText);
+    const textWidth = measured.width;
+    const textHeight = fontSize;
+
+    // Pozisyon - sağ alt köşe
+    const padding = 20;
+    const bgPadding = 12;
+    const x = width - textWidth - padding - bgPadding;
+    const y = height - padding - bgPadding;
 
     // Arka plan için paint
     const bgPaint = Skia.Paint();
     bgPaint.setColor(Skia.Color("rgba(0, 0, 0, 0.7)"));
 
+    // Arka plan dikdörtgeni
+    const bgRect = Skia.XYWHRect(
+      x - bgPadding,
+      y - textHeight - bgPadding,
+      textWidth + bgPadding * 2,
+      textHeight + bgPadding * 2
+    );
+    const rrect = Skia.RRectXY(bgRect, 8, 8);
+    canvas.drawRRect(rrect, bgPaint);
+
     // Metin için paint
     const textPaint = Skia.Paint();
     textPaint.setColor(Skia.Color("white"));
 
-    // Pozisyon - sağ alt köşe
-    const padding = 16;
-    const bgPadding = 8;
-    const x = width - textWidth - padding - bgPadding * 2;
-    const y = height - padding - bgPadding;
+    // TextBlob'u çiz
+    canvas.drawTextBlob(textBlob, x, y, textPaint);
 
-    // Arka plan dikdörtgeni
-    const bgRect = Skia.XYWHRect(
-      x - bgPadding,
-      y - fontSize - bgPadding,
-      textWidth + bgPadding * 2,
-      fontSize + bgPadding * 2
-    );
-    canvas.drawRRect(
-      Skia.RRectXY(bgRect, 8, 8),
-      bgPaint
-    );
-
-    // Metni çiz
-    canvas.drawText(timestampText, x, y, textPaint, font);
-
-    // Surface'ı image'a çevir
+    // Surface'ı flush et ve image'a çevir
+    surface.flush();
     const resultImage = surface.makeImageSnapshot();
     if (!resultImage) {
       console.warn("[ImageUtils] Failed to create snapshot, returning original");
       return imageUri;
     }
 
-    // JPEG olarak encode et
-    const resultData = resultImage.encodeToBytes();
+    // JPEG olarak encode et (quality: 80 - dosya boyutu optimizasyonu)
+    const resultData = resultImage.encodeToBytes(ImageFormat.JPEG, 80);
     if (!resultData) {
       console.warn("[ImageUtils] Failed to encode image, returning original");
       return imageUri;
     }
 
-    // Yeni dosyaya kaydet - Uint8Array'i base64'e çevir
-    const outputUri = `${FileSystem.cacheDirectory}timestamped_${Date.now()}.jpg`;
+    // Yeni dosyaya kaydet - yeni File API
+    const outputFile = new File(Paths.cache, `timestamped_${Date.now()}.jpg`);
+    outputFile.create();
     
-    // Uint8Array'i base64 string'e çevir
-    let binary = "";
+    // Uint8Array olarak yaz
     const bytes = new Uint8Array(resultData);
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64Result = btoa(binary);
+    outputFile.write(bytes);
     
-    await FileSystem.writeAsStringAsync(outputUri, base64Result, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    const outputUri = outputFile.uri;
 
     console.log("[ImageUtils] Timestamp added successfully:", outputUri);
     return outputUri;
@@ -132,9 +149,15 @@ export async function saveBase64ToFile(
   base64: string,
   filename: string
 ): Promise<string> {
-  const outputUri = `${FileSystem.cacheDirectory}${filename}`;
-  await FileSystem.writeAsStringAsync(outputUri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return outputUri;
+  // Base64'ü Uint8Array'e çevir
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  const outputFile = new File(Paths.cache, filename);
+  outputFile.create();
+  outputFile.write(bytes);
+  return outputFile.uri;
 }

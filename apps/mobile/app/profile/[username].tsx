@@ -282,7 +282,7 @@ export default function ProfileScreen() {
   const checkSubscription = async (currentUserId: string, creatorId: string) => {
     try {
       const { data } = await supabase
-        .from("subscriptions")
+        .from("creator_subscriptions")
         .select("id")
         .eq("subscriber_id", currentUserId)
         .eq("creator_id", creatorId)

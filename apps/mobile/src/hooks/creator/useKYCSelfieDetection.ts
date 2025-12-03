@@ -77,12 +77,12 @@ interface UseKYCSelfieDetectionOptions {
 }
 
 const DEFAULT_OPTIONS: Required<UseKYCSelfieDetectionOptions> = {
-  minFaceAreaRatio: 0.15,      // Yüz en az ekranın %15'i
-  maxFaceAreaRatio: 0.6,       // Yüz en fazla ekranın %60'ı
-  maxYawAngle: 15,             // Maksimum 15 derece sağa/sola
-  maxPitchAngle: 15,           // Maksimum 15 derece yukarı/aşağı
-  minEyeOpenProbability: 0.5,  // Göz en az %50 açık
-  centerTolerance: 0.25,       // Merkez toleransı %25
+  minFaceAreaRatio: 0.08,      // Yüz en az ekranın %8'i (daha esnek)
+  maxFaceAreaRatio: 0.85,      // Yüz en fazla ekranın %85'i (daha esnek)
+  maxYawAngle: 20,             // Maksimum 20 derece sağa/sola
+  maxPitchAngle: 20,           // Maksimum 20 derece yukarı/aşağı
+  minEyeOpenProbability: 0.4,  // Göz en az %40 açık
+  centerTolerance: 0.35,       // Merkez toleransı %35 (daha esnek)
 };
 
 export function useKYCSelfieDetection(options: UseKYCSelfieDetectionOptions = {}) {
@@ -127,12 +127,9 @@ export function useKYCSelfieDetection(options: UseKYCSelfieDetectionOptions = {}
     const face = faces[0];
     const { bounds, yawAngle, pitchAngle, leftEyeOpenProbability, rightEyeOpenProbability } = face;
 
-    // Yüz boyutu kontrolü
-    const frameArea = WINDOW_WIDTH * WINDOW_HEIGHT;
-    const faceArea = bounds.width * bounds.height;
-    const faceAreaRatio = faceArea / frameArea;
-
-    if (faceAreaRatio < opts.minFaceAreaRatio) {
+    // Yüz boyutu kontrolü - sadece çok küçük yüzleri reddet
+    // bounds frame koordinatlarında olabilir, bu yüzden sadece minimum kontrol
+    if (bounds.width < 50 || bounds.height < 50) {
       return {
         status: 'face_too_small',
         message: 'Kameraya yaklaşın',
@@ -142,56 +139,26 @@ export function useKYCSelfieDetection(options: UseKYCSelfieDetectionOptions = {}
       };
     }
 
-    if (faceAreaRatio > opts.maxFaceAreaRatio) {
-      return {
-        status: 'face_too_large',
-        message: 'Kameradan uzaklaşın',
-        isValid: false,
-        face,
-        guidance: { distance: 'further' },
-      };
-    }
+    // NOT: "Kameradan uzaklaşın" kontrolü kaldırıldı - kullanıcı deneyimini bozuyordu
 
-    // Merkez kontrolü
-    const faceCenterX = bounds.x + bounds.width / 2;
-    const faceCenterY = bounds.y + bounds.height / 2;
-    const frameCenterX = WINDOW_WIDTH / 2;
-    const frameCenterY = WINDOW_HEIGHT / 2;
+    // Merkez kontrolü kaldırıldı - yüz algılandıysa yeterli
+    // Frame koordinatları ekran koordinatlarından farklı olabiliyor
 
-    const horizontalOffset = (faceCenterX - frameCenterX) / WINDOW_WIDTH;
-    const verticalOffset = (faceCenterY - frameCenterY) / WINDOW_HEIGHT;
-
-    if (Math.abs(horizontalOffset) > opts.centerTolerance || Math.abs(verticalOffset) > opts.centerTolerance) {
-      const horizontal = horizontalOffset > opts.centerTolerance ? 'left' : 
-                        horizontalOffset < -opts.centerTolerance ? 'right' : 'center';
-      const vertical = verticalOffset > opts.centerTolerance ? 'up' : 
-                      verticalOffset < -opts.centerTolerance ? 'down' : 'center';
-
-      return {
-        status: 'face_off_center',
-        message: horizontal !== 'center' 
-          ? `Yüzünüzü ${horizontal === 'left' ? 'sola' : 'sağa'} kaydırın`
-          : `Yüzünüzü ${vertical === 'up' ? 'yukarı' : 'aşağı'} kaydırın`,
-        isValid: false,
-        face,
-        guidance: { horizontal, vertical, distance: 'good' },
-      };
-    }
-
-    // Yüz açısı kontrolü
+    // Yüz açısı kontrolü (yaw - sağa/sola dönme)
     if (Math.abs(yawAngle) > opts.maxYawAngle) {
       return {
         status: 'face_tilted',
-        message: yawAngle > 0 ? 'Yüzünüzü sola çevirin' : 'Yüzünüzü sağa çevirin',
+        message: 'Düz bakın',
         isValid: false,
         face,
       };
     }
 
+    // Yüz açısı kontrolü (pitch - yukarı/aşağı eğilme)
     if (Math.abs(pitchAngle) > opts.maxPitchAngle) {
       return {
         status: 'face_tilted',
-        message: pitchAngle > 0 ? 'Başınızı aşağı eğin' : 'Başınızı yukarı kaldırın',
+        message: 'Düz bakın',
         isValid: false,
         face,
       };
@@ -204,7 +171,7 @@ export function useKYCSelfieDetection(options: UseKYCSelfieDetectionOptions = {}
     if (leftEyeOpen < opts.minEyeOpenProbability || rightEyeOpen < opts.minEyeOpenProbability) {
       return {
         status: 'eyes_closed',
-        message: 'Gözlerinizi açın',
+        message: 'Gözlerinizi açık tutun',
         isValid: false,
         face,
       };
@@ -213,7 +180,7 @@ export function useKYCSelfieDetection(options: UseKYCSelfieDetectionOptions = {}
     // Tüm kontroller geçti
     return {
       status: 'ready',
-      message: 'Harika! Fotoğraf çekilebilir',
+      message: 'Mükemmel! Çekim yapılıyor...',
       isValid: true,
       face,
       guidance: { horizontal: 'center', vertical: 'center', distance: 'good' },

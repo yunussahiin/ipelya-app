@@ -3,13 +3,15 @@
  * KYC durumu ve başlama ekranı
  */
 
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import React, { useMemo, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Shield, CheckCircle, Clock, AlertCircle } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { ArrowLeft } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useKYCVerification } from "@/hooks/creator";
+import { KYCStatusView } from "@/components/creator/kyc/KYCStatusView";
 
 export default function KYCIndexScreen() {
   const { colors } = useTheme();
@@ -17,137 +19,53 @@ export default function KYCIndexScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const { profile, isLoading, reset } = useKYCVerification();
+  const { profile, isLoading, reset, refresh, documentPaths, formData, currentStep } =
+    useKYCVerification();
+
+  // Sayfa focus olduğunda KYC durumunu yenile
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  // Devam eden başvuru var mı?
+  const hasProgress = !!(
+    documentPaths.idFrontPath ||
+    documentPaths.idBackPath ||
+    documentPaths.selfiePath ||
+    formData.firstName ||
+    formData.lastName
+  );
 
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(creator)/revenue");
-    }
+    router.replace("/(creator)/revenue");
   };
 
-  const handleStart = () => {
-    reset();
-    router.push("/(creator)/kyc/form");
+  const handleStart = async () => {
+    // Rejected veya approved durumunda yeni başvuru için reset yap
+    if (profile?.status === "rejected" || profile?.status === "approved") {
+      await reset();
+      console.log("[KYC] Starting fresh application after", profile.status);
+      router.push("/(creator)/kyc/form");
+      return;
+    }
+
+    // Kaldığı adıma yönlendir
+    const stepRoutes: Record<string, string> = {
+      form: "/(creator)/kyc/form",
+      "id-front": "/(creator)/kyc/id-front",
+      "id-back": "/(creator)/kyc/id-back",
+      selfie: "/(creator)/kyc/selfie"
+    };
+    const route = stepRoutes[currentStep] || "/(creator)/kyc/form";
+    console.log("[KYC] Navigating to step:", currentStep, route);
+    router.push(route as any);
   };
 
-  const getStatusContent = () => {
-    if (!profile) return null;
-
-    switch (profile.status) {
-      case "approved":
-        return (
-          <View style={[styles.statusCard, { backgroundColor: "#10B98120" }]}>
-            <CheckCircle size={48} color="#10B981" />
-            <Text style={[styles.statusTitle, { color: "#10B981" }]}>Doğrulandı</Text>
-            <Text style={styles.statusDesc}>
-              Hesabınız {profile.level === "basic" ? "temel" : "tam"} seviyede doğrulanmış.
-            </Text>
-            {profile.verifiedName && (
-              <View style={[styles.infoBox, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Doğrulanan İsim</Text>
-                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-                  {profile.verifiedName}
-                </Text>
-              </View>
-            )}
-            {profile.level === "basic" && profile.monthlyPayoutLimit && (
-              <View style={[styles.infoBox, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-                  Aylık Çekim Limiti
-                </Text>
-                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-                  ₺{profile.monthlyPayoutLimit.toLocaleString("tr-TR")}
-                </Text>
-              </View>
-            )}
-          </View>
-        );
-
-      case "pending":
-        return (
-          <View style={[styles.statusCard, { backgroundColor: "#F59E0B20" }]}>
-            <Clock size={48} color="#F59E0B" />
-            <Text style={[styles.statusTitle, { color: "#F59E0B" }]}>İnceleniyor</Text>
-            <Text style={styles.statusDesc}>
-              Başvurunuz inceleniyor. Genellikle 24 saat içinde sonuçlanır.
-            </Text>
-            {profile.pendingApplication && (
-              <Text style={[styles.dateText, { color: colors.textMuted }]}>
-                Gönderildi:{" "}
-                {new Date(profile.pendingApplication.submittedAt).toLocaleDateString("tr-TR")}
-              </Text>
-            )}
-          </View>
-        );
-
-      case "rejected":
-        return (
-          <View style={[styles.statusCard, { backgroundColor: "#EF444420" }]}>
-            <AlertCircle size={48} color="#EF4444" />
-            <Text style={[styles.statusTitle, { color: "#EF4444" }]}>Reddedildi</Text>
-            <Text style={styles.statusDesc}>
-              Başvurunuz reddedildi. Yeni bir başvuru yapabilirsiniz.
-            </Text>
-            {profile.lastRejection?.reason && (
-              <View style={[styles.rejectBox, { backgroundColor: "#EF444410" }]}>
-                <Text style={styles.rejectText}>{profile.lastRejection.reason}</Text>
-              </View>
-            )}
-            <Pressable
-              style={[styles.button, { backgroundColor: colors.accent }]}
-              onPress={handleStart}
-            >
-              <Text style={styles.buttonText}>Tekrar Başvur</Text>
-            </Pressable>
-          </View>
-        );
-
-      default: // 'none'
-        return (
-          <View style={styles.startCard}>
-            <Shield size={64} color={colors.accent} />
-            <Text style={[styles.startTitle, { color: colors.textPrimary }]}>Kimlik Doğrulama</Text>
-            <Text style={[styles.startDesc, { color: colors.textSecondary }]}>
-              Para çekmek için kimlik doğrulaması yapmanız gerekiyor. Bu işlem sadece bir kez
-              yapılır.
-            </Text>
-
-            <View style={styles.stepsList}>
-              <View style={styles.stepItem}>
-                <View style={[styles.stepNumber, { backgroundColor: `${colors.accent}20` }]}>
-                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>1</Text>
-                </View>
-                <Text style={[styles.stepText, { color: colors.textPrimary }]}>
-                  Kişisel bilgilerinizi girin
-                </Text>
-              </View>
-              <View style={styles.stepItem}>
-                <View style={[styles.stepNumber, { backgroundColor: `${colors.accent}20` }]}>
-                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>2</Text>
-                </View>
-                <Text style={[styles.stepText, { color: colors.textPrimary }]}>
-                  Kimliğinizin fotoğrafını çekin
-                </Text>
-              </View>
-              <View style={styles.stepItem}>
-                <View style={[styles.stepNumber, { backgroundColor: `${colors.accent}20` }]}>
-                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>3</Text>
-                </View>
-                <Text style={[styles.stepText, { color: colors.textPrimary }]}>Selfie çekin</Text>
-              </View>
-            </View>
-
-            <Pressable
-              style={[styles.button, { backgroundColor: colors.accent }]}
-              onPress={handleStart}
-            >
-              <Text style={styles.buttonText}>Doğrulamayı Başlat</Text>
-            </Pressable>
-          </View>
-        );
-    }
+  const handleReset = async () => {
+    await reset();
+    console.log("[KYC] Wizard reset by user");
   };
 
   return (
@@ -156,17 +74,23 @@ export default function KYCIndexScreen() {
         <Pressable style={styles.backButton} onPress={handleBack}>
           <ArrowLeft size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>KYC Doğrulama</Text>
+        <Text style={styles.headerTitle}>Kimlik Doğrulama</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {isLoading ? (
           <View style={styles.loading}>
-            <Text style={{ color: colors.textMuted }}>Yükleniyor...</Text>
+            <ActivityIndicator size="large" color={colors.accent} />
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Yükleniyor...</Text>
           </View>
         ) : (
-          getStatusContent()
+          <KYCStatusView
+            profile={profile}
+            hasProgress={hasProgress}
+            onStart={handleStart}
+            onReset={handleReset}
+          />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -204,104 +128,12 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       paddingBottom: insets.bottom + 20
     },
     loading: {
-      flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 60
-    },
-    statusCard: {
-      padding: 24,
-      borderRadius: 20,
-      alignItems: "center",
+      paddingVertical: 80,
       gap: 12
     },
-    statusTitle: {
-      fontSize: 22,
-      fontWeight: "700"
-    },
-    statusDesc: {
-      fontSize: 14,
-      textAlign: "center",
-      color: "#666",
-      lineHeight: 20
-    },
-    dateText: {
-      fontSize: 12,
-      marginTop: 8
-    },
-    infoBox: {
-      width: "100%",
-      padding: 12,
-      borderRadius: 10,
-      marginTop: 8
-    },
-    infoLabel: {
-      fontSize: 12,
-      marginBottom: 4
-    },
-    infoValue: {
-      fontSize: 15,
-      fontWeight: "600"
-    },
-    rejectBox: {
-      width: "100%",
-      padding: 12,
-      borderRadius: 10
-    },
-    rejectText: {
-      color: "#EF4444",
-      fontSize: 13
-    },
-    startCard: {
-      alignItems: "center",
-      gap: 16
-    },
-    startTitle: {
-      fontSize: 24,
-      fontWeight: "700",
-      marginTop: 8
-    },
-    startDesc: {
-      fontSize: 15,
-      textAlign: "center",
-      lineHeight: 22,
-      paddingHorizontal: 20
-    },
-    stepsList: {
-      width: "100%",
-      marginTop: 20,
-      gap: 12
-    },
-    stepItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12
-    },
-    stepNumber: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center"
-    },
-    stepNumberText: {
-      fontSize: 14,
-      fontWeight: "600"
-    },
-    stepText: {
-      fontSize: 15,
-      flex: 1
-    },
-    button: {
-      width: "100%",
-      paddingVertical: 16,
-      borderRadius: 14,
-      alignItems: "center",
-      marginTop: 24
-    },
-    buttonText: {
-      color: "#fff",
-      fontSize: 16,
-      fontWeight: "600"
+    loadingText: {
+      fontSize: 14
     }
   });

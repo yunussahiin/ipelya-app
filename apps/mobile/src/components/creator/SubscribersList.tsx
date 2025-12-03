@@ -53,7 +53,7 @@ export function SubscribersList({ tierId, onSubscriberPress }: SubscribersListPr
         .select(
           `
           *,
-          tier:creator_subscription_tiers(name)
+          tier:creator_subscription_tiers!left(name)
         `
         )
         .eq("creator_id", userId)

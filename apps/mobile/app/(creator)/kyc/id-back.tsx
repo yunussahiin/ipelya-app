@@ -3,7 +3,7 @@
  * Kimlik arka yüz fotoğraf çekimi - MRZ okuma
  */
 
-import React, { useMemo, useState, useCallback, useRef } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,12 +19,18 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, RefreshCw, ArrowRight, Camera as CameraIcon, Zap } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useKYCVerification } from "@/hooks/creator";
-import { Camera, useCameraDevice } from "react-native-vision-camera";
+import {
+  Camera,
+  useCameraDevice,
+  useFrameProcessor,
+  runAsync,
+  Point
+} from "react-native-vision-camera";
+import { Worklets } from "react-native-worklets-core";
 import { OCRResultOverlay } from "@/components/creator/kyc/OCRResultOverlay";
 import { useIDCardOCR } from "@/hooks/creator/useIDCardOCR";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { addTimestampToImage } from "@/utils/imageUtils";
-import DocumentScanner from "react-native-document-scanner-plugin";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -40,7 +46,7 @@ export default function KYCIdBackScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const { documentPaths, setDocumentPhoto, setOCRData } = useKYCVerification();
+  const { documentPaths, setDocumentPhoto, setOCRData, goToStep } = useKYCVerification();
 
   const [showCamera, setShowCamera] = useState(!documentPaths.idBackPath);
   const [capturedImage, setCapturedImage] = useState<string | null>(documentPaths.idBackPath);
@@ -50,21 +56,90 @@ export default function KYCIdBackScreen() {
   const [isCapturing, setIsCapturing] = useState(false);
 
   // OCR - MRZ okuma için
-  const { lastResult } = useIDCardOCR();
+  const { scanText, processFrame, lastResult, resetHistory } = useIDCardOCR();
   const device = useCameraDevice("back");
   const cameraRef = useRef<Camera>(null);
+  const frameCountRef = useRef(0);
 
-  const handleBack = () => router.back();
+  // Auto-capture refs
+  const readyCountRef = useRef(0);
+  const wrongSideCountRef = useRef(0); // Yanlış yüz sayacı
+  const hasAutoCapturedRef = useRef(false);
+  const isCapturingRef = useRef(false);
+  const wrongSideAlertShownRef = useRef(false); // Yanlış yüz uyarısı gösterildi mi
+  const cooldownUntilRef = useRef(0); // Hata sonrası bekleme süresi
+  const AUTO_CAPTURE_THRESHOLD = 15; // ~0.5 saniye - MRZ hızlı okunuyor
+  const WRONG_SIDE_THRESHOLD = 10; // Yanlış yüz için kısa süre
+  const MIN_CONFIDENCE_FOR_CAPTURE = 0.6; // MRZ için daha düşük threshold
+  const COOLDOWN_DURATION = 2000; // Hata sonrası 2 saniye bekle
+
+  // Mount olduğunda ve kamera açıldığında ref'leri reset et
+  useEffect(() => {
+    if (showCamera) {
+      hasAutoCapturedRef.current = false;
+      isCapturingRef.current = false;
+      readyCountRef.current = 0;
+      frameCountRef.current = 0;
+      wrongSideCountRef.current = 0;
+      wrongSideAlertShownRef.current = false;
+      resetHistory(); // Önceki sayfanın OCR sonuçlarını temizle
+      console.log("[ID-Back] Refs reset - camera opened");
+    }
+
+    return () => {
+      resetHistory();
+    };
+  }, [resetHistory, showCamera]);
+
+  const handleBack = () => {
+    goToStep("id-front"); // Önceki adıma dön
+    router.replace("/(creator)/kyc/id-front");
+  };
 
   const toggleFlash = useCallback(() => {
     setFlashOn((prev) => !prev);
   }, []);
 
-  // Manuel capture - Vision Camera ile çek, sonra Document Scanner ile düzelt
-  const handleManualCapture = useCallback(async () => {
-    if (!cameraRef.current || isCapturing) return;
+  // Tap to focus
+  const handleFocus = useCallback(
+    async (point: Point) => {
+      try {
+        if (cameraRef.current && device?.supportsFocus) {
+          await cameraRef.current.focus(point);
+          console.log("[ID-Back] Focus at:", point);
+        }
+      } catch (e) {
+        // Focus failed - ignore
+      }
+    },
+    [device]
+  );
 
+  // Manuel capture - Vision Camera ile çek, crop et, tarih damgası ekle
+  const handleManualCapture = useCallback(async () => {
+    if (!cameraRef.current || isCapturingRef.current) return;
+
+    // Yanlış yüz kontrolü - arka yüzde MRZ olmalı, yoksa ön yüz taratılmış
+    if (!lastResult.data.hasMRZ && lastResult.isComplete) {
+      console.log("[ID-Back] ALERT: Yanlış Yüz (manuel) - MRZ yok ama isComplete", {
+        hasMRZ: lastResult.data.hasMRZ,
+        isComplete: lastResult.isComplete,
+        confidence: lastResult.confidence
+      });
+      Alert.alert("Yanlış Yüz", "Kimliğin ön yüzünü taradınız. Lütfen arka yüzü tarayın.", [
+        { text: "Tekrar Dene" }
+      ]);
+      // Reset capture state so user can try again
+      hasAutoCapturedRef.current = false;
+      readyCountRef.current = 0;
+      wrongSideCountRef.current = 0;
+      wrongSideAlertShownRef.current = false;
+      return;
+    }
+
+    isCapturingRef.current = true;
     setIsCapturing(true);
+    setShowCamera(false); // Hemen kamerayı kapat - çift çekim önleme
     Vibration.vibrate(50);
 
     try {
@@ -79,18 +154,64 @@ export default function KYCIdBackScreen() {
 
       let finalImageUri = photoPath;
 
-      // 1. Document Scanner ile perspektif düzeltme
+      // 1. Fotoğrafı crop et - kimlik kartı çerçevesine göre
       try {
-        const { scannedImages, status } = await DocumentScanner.scanDocument({
-          croppedImageQuality: 100,
-          maxNumDocuments: 1
+        const photoWidth = photo.width;
+        const photoHeight = photo.height;
+
+        // Fotoğraf orientation'ına göre boyutları ayarla
+        const isLandscape = photoWidth > photoHeight;
+        const effectiveWidth = isLandscape ? photoHeight : photoWidth;
+        const effectiveHeight = isLandscape ? photoWidth : photoHeight;
+
+        // Ekran oranlarını hesapla
+        const cardLeftRatio = (SCREEN_WIDTH - CARD_WIDTH) / 2 / SCREEN_WIDTH;
+        const cardTopRatio = (CARD_CENTER_Y - CARD_HEIGHT / 2) / SCREEN_HEIGHT;
+        const cardWidthRatio = CARD_WIDTH / SCREEN_WIDTH;
+        const cardHeightRatio = CARD_HEIGHT / SCREEN_HEIGHT;
+
+        // Crop koordinatlarını hesapla
+        let cropX = Math.floor(cardLeftRatio * effectiveWidth);
+        let cropY = Math.floor(cardTopRatio * effectiveHeight);
+        let cropWidth = Math.floor(cardWidthRatio * effectiveWidth);
+        let cropHeight = Math.floor(cardHeightRatio * effectiveHeight);
+
+        // Sınırları kontrol et
+        cropX = Math.max(0, Math.min(cropX, effectiveWidth - 10));
+        cropY = Math.max(0, Math.min(cropY, effectiveHeight - 10));
+        cropWidth = Math.min(cropWidth, effectiveWidth - cropX);
+        cropHeight = Math.min(cropHeight, effectiveHeight - cropY);
+
+        console.log("[ID-Back] Crop params:", {
+          photoWidth,
+          photoHeight,
+          cropX,
+          cropY,
+          cropWidth,
+          cropHeight
         });
 
-        if (status === "success" && scannedImages && scannedImages.length > 0) {
-          finalImageUri = scannedImages[0];
+        if (
+          cropWidth > 100 &&
+          cropHeight > 100 &&
+          cropX + cropWidth <= effectiveWidth &&
+          cropY + cropHeight <= effectiveHeight
+        ) {
+          // Yeni ImageManipulator API
+          const context = ImageManipulator.manipulate(photoPath);
+          context.crop({ originX: cropX, originY: cropY, width: cropWidth, height: cropHeight });
+          const imageRef = await context.renderAsync();
+          const croppedImage = await imageRef.saveAsync({
+            compress: 0.75,
+            format: SaveFormat.JPEG
+          });
+          finalImageUri = croppedImage.uri;
+          console.log("[ID-Back] Crop successful");
+        } else {
+          console.log("[ID-Back] Skipping crop - invalid dimensions");
         }
-      } catch (scanError) {
-        console.warn("[ID-Back] Document scan failed, using original:", scanError);
+      } catch (cropError) {
+        console.warn("[ID-Back] Crop failed, using original:", cropError);
       }
 
       // 2. Skia ile tarih damgası ekle
@@ -101,11 +222,37 @@ export default function KYCIdBackScreen() {
       }
 
       setCapturedImage(finalImageUri);
-      setShowCamera(false);
+      // showCamera zaten false - çekim başında kapatıldı
 
-      // MRZ verilerini kaydet
-      if (lastResult.data.tcNumber || lastResult.data.firstName) {
-        setOCRData?.(lastResult.data);
+      // OCR verilerini logla
+      console.log("[ID-Back] OCR Sonuçları:", {
+        tcNumber: lastResult.data.tcNumber || "-",
+        firstName: lastResult.data.firstName || "-",
+        lastName: lastResult.data.lastName || "-",
+        birthDate: lastResult.data.birthDate || "-",
+        expiryDate: lastResult.data.expiryDate || "-",
+        gender: lastResult.data.gender || "-",
+        hasMRZ: lastResult.data.hasMRZ ? "Evet" : "Hayır",
+        confidence: `${Math.round(lastResult.confidence * 100)}%`
+      });
+
+      // MRZ verilerini kaydet - sadece yüksek güvenli ve geçerli veriler
+      // Düşük güvenli arka yüz OCR'ı ön yüzdeki doğru verileri bozmasın
+      const hasValidTC = lastResult.data.tcNumber && lastResult.data.tcNumber.length === 11;
+      const hasValidFirstName = lastResult.data.firstName && lastResult.data.firstName.length <= 25;
+      const hasValidLastName = lastResult.data.lastName && lastResult.data.lastName.length <= 25;
+      const isHighConfidence = lastResult.confidence >= 0.7;
+
+      if (isHighConfidence && hasValidTC && hasValidFirstName && hasValidLastName) {
+        // Confidence'ı da ekleyerek gönder
+        setOCRData?.({ ...lastResult.data, confidence: lastResult.confidence });
+      } else {
+        console.log("[ID-Back] OCR güveni düşük veya veriler geçersiz, ön yüz verileri korunuyor", {
+          confidence: lastResult.confidence,
+          tcValid: hasValidTC,
+          firstNameValid: hasValidFirstName,
+          lastNameValid: hasValidLastName
+        });
       }
 
       setIsUploading(true);
@@ -113,20 +260,30 @@ export default function KYCIdBackScreen() {
       setIsUploading(false);
 
       if (!result.success) {
+        console.log("[ID-Back] ALERT: Upload hatası", { error: result.error });
         Alert.alert("Hata", result.error || "Fotoğraf yüklenemedi");
       }
     } catch (error) {
       console.error("Capture error:", error);
+      console.log("[ID-Back] ALERT: Çekim başarısız", { error });
       Alert.alert("Hata", "Çekim başarısız oldu");
+      setShowCamera(true); // Hata durumunda kamerayı tekrar aç
     } finally {
       setIsCapturing(false);
+      isCapturingRef.current = false;
     }
-  }, [isCapturing, flashOn, lastResult.data, setDocumentPhoto, setOCRData]);
+  }, [flashOn, lastResult, setDocumentPhoto, setOCRData]);
 
   const handleRetake = () => {
     setCapturedImage(null);
     setCaptureTime(null);
     setShowCamera(true);
+    // Reset all capture refs
+    hasAutoCapturedRef.current = false;
+    isCapturingRef.current = false;
+    readyCountRef.current = 0;
+    wrongSideCountRef.current = 0;
+    wrongSideAlertShownRef.current = false;
   };
 
   const handleNext = () => {
@@ -134,6 +291,93 @@ export default function KYCIdBackScreen() {
       router.push("/(creator)/kyc/selfie");
     }
   };
+
+  // Frame processor - MRZ OCR sonuçlarını JS'e gönder
+  const handleOCRResult = Worklets.createRunOnJS((ocrResult: any, frameNum: number) => {
+    if (!ocrResult?.resultText) return;
+
+    // processFrame ile sonuçları işle
+    const result = processFrame({ resultText: ocrResult.resultText });
+
+    // Cooldown kontrolü - hata sonrası bekleme süresi
+    const now = Date.now();
+    if (cooldownUntilRef.current > now) {
+      readyCountRef.current = 0;
+      wrongSideCountRef.current = 0;
+      return; // Cooldown süresi dolmadı, bekle
+    }
+
+    // Auto-capture logic - Arka yüzde MRZ + minimum confidence gerekli
+    if (
+      result.data.hasMRZ &&
+      result.confidence >= MIN_CONFIDENCE_FOR_CAPTURE &&
+      !hasAutoCapturedRef.current &&
+      !isCapturingRef.current
+    ) {
+      readyCountRef.current++;
+      wrongSideCountRef.current = 0; // Doğru yüz, yanlış yüz sayacını sıfırla
+      if (readyCountRef.current >= AUTO_CAPTURE_THRESHOLD) {
+        hasAutoCapturedRef.current = true;
+        handleManualCapture();
+      }
+    } else if (!result.data.hasMRZ && result.confidence > 0.3) {
+      // Ön yüz algılandı (MRZ yok ama OCR tamamlandı) - yanlış yüz!
+      readyCountRef.current = 0;
+      wrongSideCountRef.current++;
+
+      if (wrongSideCountRef.current >= WRONG_SIDE_THRESHOLD && !wrongSideAlertShownRef.current) {
+        wrongSideAlertShownRef.current = true;
+        cooldownUntilRef.current = Date.now() + COOLDOWN_DURATION;
+        console.log("[ID-Back] ALERT: Yanlış Yüz (auto) - MRZ yok, confidence > 0.3", {
+          hasMRZ: result.data.hasMRZ,
+          confidence: result.confidence,
+          wrongSideCount: wrongSideCountRef.current
+        });
+        Alert.alert(
+          "Yanlış Yüz",
+          "Kimliğin ön yüzünü taradınız. Lütfen arka yüzü (MRZ kodlu) tarayın.",
+          [
+            {
+              text: "Tamam",
+              onPress: () => {
+                // Reset all capture refs so user can retry
+                wrongSideAlertShownRef.current = false;
+                wrongSideCountRef.current = 0;
+                hasAutoCapturedRef.current = false;
+                readyCountRef.current = 0;
+              }
+            }
+          ]
+        );
+      }
+    } else {
+      readyCountRef.current = 0;
+      wrongSideCountRef.current = 0;
+    }
+  });
+
+  // Frame processor
+  const frameProcessor = useFrameProcessor(
+    (frame) => {
+      "worklet";
+      runAsync(frame, () => {
+        "worklet";
+        frameCountRef.current++;
+        // Her 5 frame'de bir OCR yap (performans için)
+        if (frameCountRef.current % 5 !== 0) return;
+
+        try {
+          const result = scanText(frame);
+          if (result?.resultText) {
+            handleOCRResult(result, frameCountRef.current);
+          }
+        } catch (e) {
+          // OCR error - ignore
+        }
+      });
+    },
+    [scanText, handleOCRResult]
+  );
 
   if (showCamera) {
     if (!device) {
@@ -145,7 +389,10 @@ export default function KYCIdBackScreen() {
     }
 
     return (
-      <View style={styles.cameraContainer}>
+      <Pressable
+        style={styles.cameraContainer}
+        onPress={(e) => handleFocus({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY })}
+      >
         {/* Kamera */}
         <Camera
           ref={cameraRef}
@@ -154,10 +401,12 @@ export default function KYCIdBackScreen() {
           isActive={true}
           photo={true}
           torch={flashOn ? "on" : "off"}
+          frameProcessor={frameProcessor}
+          pixelFormat="yuv"
         />
 
         {/* OCR overlay - MRZ için */}
-        <OCRResultOverlay result={lastResult} />
+        <OCRResultOverlay result={lastResult} variant="back" />
 
         {/* Üst bar */}
         <SafeAreaView style={styles.cameraHeader} edges={["top"]}>
@@ -190,10 +439,10 @@ export default function KYCIdBackScreen() {
             >
               <CameraIcon size={32} color="#fff" />
             </Pressable>
-            <Text style={styles.captureHint}>MRZ kodunu çerçeveye yerleştirin</Text>
+            <Text style={styles.captureHint}>Kimliğinizin arkasını çerçeveye yerleştirin</Text>
           </View>
         </SafeAreaView>
-      </View>
+      </Pressable>
     );
   }
 

@@ -87,12 +87,19 @@ export function useDeviceToken(): UseDeviceTokenReturn {
       console.log('💾 Saving token to database...');
       const { error: dbError } = await supabase
         .from('device_tokens')
-        .upsert({
-          user_id: user.id,
-          token: expoPushToken,
-          device_type: Device.osName === 'iOS' ? 'ios' : 'android',
-          device_name: Device.modelName,
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            token: expoPushToken,
+            device_type: Device.osName === 'iOS' ? 'ios' : 'android',
+            device_name: Device.modelName,
+            device_model: Device.modelId,
+            os_version: Device.osVersion,
+            is_active: true,
+            last_used_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
 
       if (dbError) throw dbError;
 

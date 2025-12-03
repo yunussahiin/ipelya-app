@@ -1,22 +1,16 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { ShieldCheck, Clock, Check, X, User } from "lucide-react";
+import { ShieldCheck, Clock, Check, X, Users } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { KYCStatusBadge } from "@/components/ops/finance";
+import {
+  KYCDataTable,
+  columns,
+  type KYCUserGroup,
+  type KYCApplication
+} from "@/components/ops/finance/kyc/data-table";
 
 // ─────────────────────────────────────────────────────────
 // Data Fetching
@@ -27,12 +21,30 @@ async function getKYCApplications() {
 
   const { data: applications, error } = await supabase
     .from("kyc_applications")
-    .select("*")
+    .select(
+      `
+      id,
+      creator_id,
+      level,
+      status,
+      first_name,
+      last_name,
+      birth_date,
+      id_number,
+      auto_score,
+      auto_recommendation,
+      ocr_form_match,
+      face_detection_passed,
+      rejection_reason,
+      created_at,
+      reviewed_at
+    `
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("[KYC] Error:", error);
-    return { applications: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 } };
+    return { userGroups: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0, users: 0 } };
   }
 
   // Creator profilleri
@@ -45,177 +57,144 @@ async function getKYCApplications() {
 
   const profileMap = new Map(profiles?.map((p) => [p.user_id, p]));
 
-  const enrichedApplications = applications?.map((app) => ({
-    ...app,
-    creator: profileMap.get(app.creator_id) || null
-  }));
+  // Kullanıcı bazlı grupla
+  const userGroupMap = new Map<string, KYCUserGroup>();
+
+  applications?.forEach((app) => {
+    const creator = profileMap.get(app.creator_id) || null;
+    const enrichedApp: KYCApplication = {
+      ...app,
+      creator
+    };
+
+    if (userGroupMap.has(app.creator_id)) {
+      const group = userGroupMap.get(app.creator_id)!;
+      group.applications.push(enrichedApp);
+      group.totalApplications++;
+      if (app.status === "approved") group.hasApproved = true;
+      if (app.status === "pending") group.hasPending = true;
+      if (app.status === "rejected") group.hasRejected = true;
+    } else {
+      userGroupMap.set(app.creator_id, {
+        creator_id: app.creator_id,
+        creator,
+        applications: [enrichedApp],
+        latestApplication: enrichedApp,
+        totalApplications: 1,
+        hasApproved: app.status === "approved",
+        hasPending: app.status === "pending",
+        hasRejected: app.status === "rejected"
+      });
+    }
+  });
+
+  const userGroups = Array.from(userGroupMap.values());
 
   const counts = {
     all: applications?.length || 0,
     pending: applications?.filter((a) => a.status === "pending").length || 0,
     approved: applications?.filter((a) => a.status === "approved").length || 0,
-    rejected: applications?.filter((a) => a.status === "rejected").length || 0
+    rejected: applications?.filter((a) => a.status === "rejected").length || 0,
+    users: userGroups.length
   };
 
-  return { applications: enrichedApplications || [], counts };
+  return { userGroups, counts };
 }
 
 // ─────────────────────────────────────────────────────────
 // Components
 // ─────────────────────────────────────────────────────────
 
-function RecommendationBadge({ recommendation }: { recommendation?: string }) {
-  if (!recommendation) return null;
-
-  const config: Record<string, { label: string; className: string }> = {
-    auto_approve: {
-      label: "Otomatik Onay",
-      className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-    },
-    manual_review: {
-      label: "Manuel İnceleme",
-      className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-    },
-    auto_reject: {
-      label: "Otomatik Red",
-      className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-    }
-  };
-
-  const c = config[recommendation] || { label: recommendation, className: "" };
-
+function StatsCards({
+  counts
+}: {
+  counts: { all: number; pending: number; approved: number; rejected: number; users: number };
+}) {
   return (
-    <Badge variant="outline" className={c.className}>
-      {c.label}
-    </Badge>
-  );
-}
-
-function KYCApplicationsTable({ applications }: { applications: any[] }) {
-  if (applications.length === 0) {
-    return <div className="text-center py-8 text-muted-foreground">Bu kategoride başvuru yok</div>;
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Creator</TableHead>
-          <TableHead>Ad Soyad</TableHead>
-          <TableHead className="text-center">Skor</TableHead>
-          <TableHead>Öneri</TableHead>
-          <TableHead>Tarih</TableHead>
-          <TableHead>Durum</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {applications.map((app) => (
-          <TableRow key={app.id}>
-            <TableCell>
-              <Link
-                href={`/ops/kyc/${app.id}`}
-                className="flex items-center gap-2 hover:opacity-80"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={app.creator?.avatar_url || undefined} />
-                  <AvatarFallback>
-                    {app.creator?.username?.[0]?.toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="font-medium">@{app.creator?.username || "unknown"}</span>
-              </Link>
-            </TableCell>
-            <TableCell>
-              {app.first_name} {app.last_name}
-            </TableCell>
-            <TableCell className="text-center">
-              {app.auto_score ? (
-                <span
-                  className={`font-medium ${
-                    app.auto_score >= 0.8
-                      ? "text-green-600"
-                      : app.auto_score >= 0.5
-                        ? "text-yellow-600"
-                        : "text-red-600"
-                  }`}
-                >
-                  {Math.round(app.auto_score * 100)}%
-                </span>
-              ) : (
-                "-"
-              )}
-            </TableCell>
-            <TableCell>
-              <RecommendationBadge recommendation={app.auto_recommendation} />
-            </TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {new Date(app.created_at).toLocaleDateString("tr-TR")}
-            </TableCell>
-            <TableCell>
-              <KYCStatusBadge status={app.status} level={app.level} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <div className="grid gap-4 md:grid-cols-5">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Kullanıcı
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{counts.users}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Toplam Başvuru
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{counts.all}</div>
+        </CardContent>
+      </Card>
+      <Card className="border-l-2 border-l-yellow-500">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Clock className="h-4 w-4 text-yellow-500" />
+            Bekleyen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-yellow-600">{counts.pending}</div>
+        </CardContent>
+      </Card>
+      <Card className="border-l-2 border-l-green-500">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Check className="h-4 w-4 text-green-500" />
+            Onaylı
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">{counts.approved}</div>
+        </CardContent>
+      </Card>
+      <Card className="border-l-2 border-l-red-500">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <X className="h-4 w-4 text-red-500" />
+            Reddedilmiş
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-red-600">{counts.rejected}</div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 async function KYCApplicationsContent() {
-  const { applications, counts } = await getKYCApplications();
-
-  const pending = applications.filter((a) => a.status === "pending");
-  const approved = applications.filter((a) => a.status === "approved");
-  const rejected = applications.filter((a) => a.status === "rejected");
+  const { userGroups, counts } = await getKYCApplications();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5" />
-          KYC Başvuruları
-        </CardTitle>
-        <CardDescription>Kimlik doğrulama başvuru listesi</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="pending">
-          <TabsList>
-            <TabsTrigger value="all" className="gap-2">
-              Tümü
-              <Badge variant="secondary">{counts.all}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="gap-2">
-              <Clock className="h-3 w-3" />
-              Bekleyen
-              {counts.pending > 0 && <Badge variant="destructive">{counts.pending}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="approved" className="gap-2">
-              <Check className="h-3 w-3" />
-              Onaylı
-              <Badge variant="secondary">{counts.approved}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="rejected" className="gap-2">
-              <X className="h-3 w-3" />
-              Reddedilmiş
-              <Badge variant="secondary">{counts.rejected}</Badge>
-            </TabsTrigger>
-          </TabsList>
+    <div className="space-y-6">
+      {/* Stats */}
+      <StatsCards counts={counts} />
 
-          <TabsContent value="all" className="mt-4">
-            <KYCApplicationsTable applications={applications} />
-          </TabsContent>
-          <TabsContent value="pending" className="mt-4">
-            <KYCApplicationsTable applications={pending} />
-          </TabsContent>
-          <TabsContent value="approved" className="mt-4">
-            <KYCApplicationsTable applications={approved} />
-          </TabsContent>
-          <TabsContent value="rejected" className="mt-4">
-            <KYCApplicationsTable applications={rejected} />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+      {/* Data Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5" />
+            KYC Başvuruları
+          </CardTitle>
+          <CardDescription>
+            Kullanıcıya tıklayarak tüm başvurularını görüntüleyebilirsiniz
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <KYCDataTable columns={columns} data={userGroups} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

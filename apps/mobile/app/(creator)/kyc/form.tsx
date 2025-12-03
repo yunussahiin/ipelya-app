@@ -4,7 +4,17 @@
  */
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Platform } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Platform,
+  KeyboardAvoidingView,
+  Keyboard
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
@@ -12,7 +22,7 @@ import { ArrowLeft, ArrowRight, Calendar, Check } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
-import { useKYCVerification } from "@/hooks/creator";
+import { useKYCVerification, validateTCNumber } from "@/hooks/creator";
 
 export default function KYCFormScreen() {
   const { colors } = useTheme();
@@ -20,25 +30,18 @@ export default function KYCFormScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const { formData, setFormData } = useKYCVerification();
+  const { formData, setFormData, goToStep } = useKYCVerification();
 
-  // TODO: Test için varsayılan değerler - Production'da kaldır!
-  useEffect(() => {
-    if (!formData.firstName) {
-      setFormData({
-        firstName: "Yunus",
-        lastName: "Şahin",
-        birthDate: "1996-12-29",
-        idNumber: "26087149210" // TC'yi buraya yaz: "12345678901"
-      });
-      setLocalDate(new Date(1996, 11, 29)); // Aralık = 11 (0-indexed)
-    }
+  // 18 yaş sınırı için maksimum doğum tarihi (bugünden 18 yıl önce)
+  const maxBirthDate = useMemo(() => {
+    const today = new Date();
+    return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
   }, []);
 
   const [localDate, setLocalDate] = useState<Date | null>(
-    formData.birthDate ? new Date(formData.birthDate) : new Date(1996, 11, 29)
+    formData.birthDate ? new Date(formData.birthDate) : null
   );
-  const [tempDate, setTempDate] = useState<Date>(localDate || new Date(1996, 11, 29));
+  const [tempDate, setTempDate] = useState<Date>(localDate || new Date(2000, 0, 1));
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // BottomSheet ref
@@ -70,7 +73,23 @@ export default function KYCFormScreen() {
     []
   );
 
-  const handleBack = () => router.back();
+  const handleBack = () => {
+    router.replace("/(creator)/kyc"); // KYC ana sayfasına dön
+  };
+
+  /**
+   * 18 yaş kontrolü - gün gün hesaplama
+   */
+  const isAtLeast18 = (birthDate: Date): boolean => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+
+    // 18 yıl önce bugünün tarihi
+    const minDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+
+    // Doğum tarihi, 18 yıl önceki tarihten önce veya eşit olmalı
+    return birth <= minDate;
+  };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -83,11 +102,17 @@ export default function KYCFormScreen() {
     }
     if (!localDate) {
       newErrors.birthDate = "Doğum tarihi gerekli";
-    } else {
-      const age = Math.floor((Date.now() - localDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-      if (age < 18) {
-        newErrors.birthDate = "18 yaşından büyük olmalısınız";
-      }
+    } else if (!isAtLeast18(localDate)) {
+      newErrors.birthDate = "18 yaşından büyük olmalısınız";
+    }
+
+    // TC Kimlik No zorunlu ve geçerli olmalı
+    if (!formData.idNumber?.trim()) {
+      newErrors.idNumber = "TC Kimlik No gerekli";
+    } else if (!/^\d{11}$/.test(formData.idNumber.trim())) {
+      newErrors.idNumber = "TC Kimlik No 11 haneli olmalı";
+    } else if (!validateTCNumber(formData.idNumber.trim())) {
+      newErrors.idNumber = "Geçersiz TC Kimlik No";
     }
 
     setErrors(newErrors);
@@ -96,6 +121,7 @@ export default function KYCFormScreen() {
 
   const handleNext = () => {
     if (validateForm()) {
+      goToStep("id-front"); // Step'i güncelle
       router.push("/(creator)/kyc/id-front");
     }
   };
@@ -142,111 +168,116 @@ export default function KYCFormScreen() {
           <Text style={[styles.progressText, { color: colors.textMuted }]}>Adım 1/4</Text>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Kimliğinizdeki bilgileri girin
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Lütfen bilgilerinizi kimliğinizde yazdığı şekilde girin.
-          </Text>
-
-          {/* First Name */}
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Ad</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  color: colors.textPrimary,
-                  borderColor: errors.firstName ? "#EF4444" : colors.border
-                }
-              ]}
-              value={formData.firstName}
-              onChangeText={(text) => setFormData({ ...formData, firstName: text })}
-              placeholder="Adınız"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-            />
-            {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
-          </View>
-
-          {/* Last Name */}
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Soyad</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  color: colors.textPrimary,
-                  borderColor: errors.lastName ? "#EF4444" : colors.border
-                }
-              ]}
-              value={formData.lastName}
-              onChangeText={(text) => setFormData({ ...formData, lastName: text })}
-              placeholder="Soyadınız"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-            />
-            {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
-          </View>
-
-          {/* Birth Date */}
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>Doğum Tarihi</Text>
-            <Pressable
-              style={[
-                styles.dateButton,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: errors.birthDate ? "#EF4444" : colors.border
-                }
-              ]}
-              onPress={openDatePicker}
-            >
-              <Text
-                style={[
-                  styles.dateText,
-                  { color: localDate ? colors.textPrimary : colors.textMuted }
-                ]}
-              >
-                {localDate ? formatDate(localDate) : "Tarih seçin"}
-              </Text>
-              <Calendar size={20} color={colors.textMuted} />
-            </Pressable>
-            {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
-          </View>
-
-          {/* ID Number (Optional) */}
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>
-              TC Kimlik No <Text style={{ color: colors.textMuted }}>(Opsiyonel)</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
+              Kimliğinizdeki bilgileri girin
             </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  color: colors.textPrimary,
-                  borderColor: colors.border
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Lütfen bilgilerinizi kimliğinizde yazdığı şekilde girin.
+            </Text>
+
+            {/* First Name */}
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Ad</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.textPrimary,
+                    borderColor: errors.firstName ? "#EF4444" : colors.border
+                  }
+                ]}
+                value={formData.firstName}
+                onChangeText={(text) => setFormData({ ...formData, firstName: text })}
+                placeholder="Adınız"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+              />
+              {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+            </View>
+
+            {/* Last Name */}
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Soyad</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.textPrimary,
+                    borderColor: errors.lastName ? "#EF4444" : colors.border
+                  }
+                ]}
+                value={formData.lastName}
+                onChangeText={(text) => setFormData({ ...formData, lastName: text })}
+                placeholder="Soyadınız"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+              />
+              {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+            </View>
+
+            {/* Birth Date */}
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Doğum Tarihi</Text>
+              <Pressable
+                style={[
+                  styles.dateButton,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: errors.birthDate ? "#EF4444" : colors.border
+                  }
+                ]}
+                onPress={openDatePicker}
+              >
+                <Text
+                  style={[
+                    styles.dateText,
+                    { color: localDate ? colors.textPrimary : colors.textMuted }
+                  ]}
+                >
+                  {localDate ? formatDate(localDate) : "Tarih seçin"}
+                </Text>
+                <Calendar size={20} color={colors.textMuted} />
+              </Pressable>
+              {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
+            </View>
+
+            {/* ID Number (Required) */}
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>TC Kimlik No</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.textPrimary,
+                    borderColor: errors.idNumber ? "#EF4444" : colors.border
+                  }
+                ]}
+                value={formData.idNumber}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, idNumber: text.replace(/\D/g, "").slice(0, 11) })
                 }
-              ]}
-              value={formData.idNumber}
-              onChangeText={(text) =>
-                setFormData({ ...formData, idNumber: text.replace(/\D/g, "") })
-              }
-              placeholder="11 haneli TC kimlik numaranız"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="numeric"
-              maxLength={11}
-            />
-          </View>
-        </ScrollView>
+                placeholder="11 haneli TC kimlik numaranız"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                maxLength={11}
+              />
+              {errors.idNumber && <Text style={styles.errorText}>{errors.idNumber}</Text>}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Footer */}
         <View style={[styles.footer, { backgroundColor: colors.background }]}>
@@ -303,7 +334,7 @@ export default function KYCFormScreen() {
                 mode="date"
                 display="spinner"
                 onChange={handleDateChange}
-                maximumDate={new Date()}
+                maximumDate={maxBirthDate}
                 minimumDate={new Date(1920, 0, 1)}
                 textColor={colors.textPrimary}
                 locale="tr-TR"

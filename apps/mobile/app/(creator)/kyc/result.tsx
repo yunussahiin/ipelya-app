@@ -1,16 +1,15 @@
 /**
  * KYC Result Screen
- * Başvuru sonuç ekranı
+ * Başvuru sonuç ekranı - Modern UI
  */
 
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React, { useMemo, useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Pressable, Animated, ScrollView } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { CheckCircle, Clock, ArrowRight } from "lucide-react-native";
+import { CheckCircle, Clock, ArrowRight, Shield, Bell, Wallet } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useKYCVerification } from "@/hooks/creator";
-import LottieView from "lottie-react-native";
 
 export default function KYCResultScreen() {
   const { colors } = useTheme();
@@ -20,78 +19,97 @@ export default function KYCResultScreen() {
 
   const { profile } = useKYCVerification();
 
+  // Animasyonlar
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Giriş animasyonu
+    Animated.sequence([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true
+      })
+    ]).start();
+  }, []);
+
   const handleDone = () => {
     router.replace("/(creator)/revenue");
   };
 
-  const handleGoToDashboard = () => {
-    router.replace("/(creator)/dashboard");
-  };
+  const steps = [
+    { icon: Shield, title: "Otomatik İnceleme", desc: "Belgeleriniz kontrol ediliyor" },
+    { icon: Bell, title: "Bildirim Alın", desc: "Onay durumu bildirilecek" },
+    { icon: Wallet, title: "Para Çekin", desc: "Kazancınızı çekebilirsiniz" }
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Success Animation */}
-        <View style={styles.animationContainer}>
-          <View style={[styles.iconCircle, { backgroundColor: "#10B98120" }]}>
-            <CheckCircle size={64} color="#10B981" />
-          </View>
-        </View>
-
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Başvurunuz Alındı!</Text>
-
-        <Text style={[styles.description, { color: colors.textSecondary }]}>
-          KYC başvurunuz başarıyla gönderildi. Başvurunuz genellikle 24 saat içinde incelenir.
-        </Text>
-
-        {/* Status Card */}
-        <View style={[styles.statusCard, { backgroundColor: colors.surface }]}>
-          <View style={styles.statusRow}>
-            <Clock size={20} color="#F59E0B" />
-            <View style={styles.statusTextContainer}>
-              <Text style={[styles.statusLabel, { color: colors.textPrimary }]}>Durum</Text>
-              <Text style={[styles.statusValue, { color: "#F59E0B" }]}>İnceleniyor</Text>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Success Animation */}
+          <Animated.View style={[styles.animationContainer, { transform: [{ scale: scaleAnim }] }]}>
+            <View style={styles.iconCircle}>
+              <View style={styles.iconInner}>
+                <CheckCircle size={44} color="#fff" strokeWidth={2.5} />
+              </View>
             </View>
-          </View>
+          </Animated.View>
 
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <Animated.View style={[styles.contentInner, { opacity: fadeAnim }]}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Başvurunuz Alındı!</Text>
 
-          <View style={styles.statusRow}>
-            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Sonuç hakkında bildirim alacaksınız. Başvurunuz onaylandığında para çekme işlemi
-              yapabilirsiniz.
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
+              KYC başvurunuz başarıyla gönderildi.{"\n"}Genellikle 24 saat içinde incelenir.
             </Text>
-          </View>
-        </View>
 
-        {/* Next Steps */}
-        <View style={styles.nextSteps}>
-          <Text style={[styles.nextStepsTitle, { color: colors.textPrimary }]}>
-            Sonraki Adımlar
-          </Text>
-          <View style={styles.stepItem}>
-            <View style={[styles.stepDot, { backgroundColor: colors.accent }]} />
-            <Text style={[styles.stepText, { color: colors.textSecondary }]}>
-              Başvurunuz otomatik olarak incelenir
-            </Text>
-          </View>
-          <View style={styles.stepItem}>
-            <View style={[styles.stepDot, { backgroundColor: colors.accent }]} />
-            <Text style={[styles.stepText, { color: colors.textSecondary }]}>
-              Onaylandığında bildirim alırsınız
-            </Text>
-          </View>
-          <View style={styles.stepItem}>
-            <View style={[styles.stepDot, { backgroundColor: colors.accent }]} />
-            <Text style={[styles.stepText, { color: colors.textSecondary }]}>
-              Para çekme işlemi yapabilirsiniz
-            </Text>
-          </View>
-        </View>
-      </View>
+            {/* Status Card */}
+            <View style={[styles.statusCard, { backgroundColor: colors.surface }]}>
+              <View style={styles.statusBadge}>
+                <Clock size={14} color="#F59E0B" />
+                <Text style={styles.statusBadgeText}>İnceleniyor</Text>
+              </View>
+              <Text style={[styles.statusInfo, { color: colors.textSecondary }]}>
+                Sonuç hakkında bildirim alacaksınız.
+              </Text>
+            </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
+            {/* Next Steps */}
+            <Text style={[styles.nextStepsTitle, { color: colors.textMuted }]}>
+              SONRAKI ADIMLAR
+            </Text>
+
+            {steps.map((step, index) => (
+              <View key={index} style={[styles.stepCard, { backgroundColor: colors.surface }]}>
+                <View style={[styles.stepIcon, { backgroundColor: `${colors.accent}15` }]}>
+                  <step.icon size={18} color={colors.accent} />
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
+                    {step.title}
+                  </Text>
+                  <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>
+                    {step.desc}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+
+      {/* Footer - Safe Area */}
+      <SafeAreaView style={styles.footer} edges={["bottom"]}>
         <Pressable
           style={[styles.primaryButton, { backgroundColor: colors.accent }]}
           onPress={handleDone}
@@ -99,17 +117,8 @@ export default function KYCResultScreen() {
           <Text style={styles.primaryButtonText}>Ödeme Yönetimine Dön</Text>
           <ArrowRight size={20} color="#fff" />
         </Pressable>
-
-        <Pressable
-          style={[styles.secondaryButton, { borderColor: colors.border }]}
-          onPress={handleGoToDashboard}
-        >
-          <Text style={[styles.secondaryButtonText, { color: colors.textPrimary }]}>
-            Dashboard'a Git
-          </Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -119,92 +128,119 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       flex: 1,
       backgroundColor: colors.background
     },
-    content: {
-      flex: 1,
-      padding: 24,
-      alignItems: "center",
-      justifyContent: "center"
+    safeArea: {
+      flex: 1
+    },
+    scrollContent: {
+      paddingHorizontal: 24,
+      paddingTop: 48,
+      paddingBottom: 24
     },
     animationContainer: {
+      alignItems: "center",
       marginBottom: 24
     },
     iconCircle: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: "#10B98120",
       alignItems: "center",
       justifyContent: "center"
     },
+    iconInner: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: "#10B981",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8
+    },
+    contentInner: {
+      alignItems: "center"
+    },
     title: {
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: "700",
-      marginBottom: 12,
+      marginBottom: 8,
       textAlign: "center"
     },
     description: {
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 15,
+      lineHeight: 22,
       textAlign: "center",
-      marginBottom: 32,
-      paddingHorizontal: 20
+      marginBottom: 20
     },
     statusCard: {
       width: "100%",
-      padding: 20,
-      borderRadius: 16,
-      marginBottom: 32
+      padding: 16,
+      borderRadius: 14,
+      marginBottom: 24,
+      gap: 10
     },
-    statusRow: {
+    statusBadge: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12
+      alignSelf: "flex-start",
+      backgroundColor: "#F59E0B15",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      gap: 6
     },
-    statusTextContainer: {
-      flex: 1
-    },
-    statusLabel: {
+    statusBadgeText: {
+      color: "#F59E0B",
       fontSize: 13,
-      marginBottom: 2
-    },
-    statusValue: {
-      fontSize: 16,
       fontWeight: "600"
     },
-    divider: {
-      height: 1,
-      marginVertical: 16
-    },
-    infoText: {
+    statusInfo: {
       fontSize: 14,
       lineHeight: 20
     },
-    nextSteps: {
-      width: "100%",
-      gap: 12
-    },
     nextStepsTitle: {
-      fontSize: 16,
+      fontSize: 11,
       fontWeight: "600",
-      marginBottom: 8
+      letterSpacing: 0.5,
+      marginBottom: 12,
+      alignSelf: "flex-start"
     },
-    stepItem: {
+    stepCard: {
+      width: "100%",
       flexDirection: "row",
       alignItems: "center",
-      gap: 12
+      padding: 14,
+      borderRadius: 12,
+      gap: 12,
+      marginBottom: 8
     },
-    stepDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4
+    stepIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center"
     },
-    stepText: {
-      fontSize: 14,
+    stepContent: {
       flex: 1
     },
+    stepTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 2
+    },
+    stepDesc: {
+      fontSize: 12
+    },
     footer: {
-      padding: 20,
-      paddingBottom: insets.bottom + 20,
-      gap: 12
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 16,
+      backgroundColor: colors.background
     },
     primaryButton: {
       flexDirection: "row",
@@ -218,16 +254,5 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       color: "#fff",
       fontSize: 16,
       fontWeight: "600"
-    },
-    secondaryButton: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 16,
-      borderRadius: 14,
-      borderWidth: 1
-    },
-    secondaryButtonText: {
-      fontSize: 16,
-      fontWeight: "500"
     }
   });

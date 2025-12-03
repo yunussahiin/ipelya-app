@@ -26,12 +26,17 @@ import { ArrowLeft, Camera as CameraIcon, RefreshCw, ArrowRight, Zap } from "luc
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useKYCVerification } from "@/hooks/creator";
 import { useIDCardOCR, type OCRResult } from "@/hooks/creator/useIDCardOCR";
-import { Camera, useFrameProcessor, runAsync, useCameraDevice } from "react-native-vision-camera";
+import {
+  Camera,
+  useFrameProcessor,
+  runAsync,
+  useCameraDevice,
+  Point
+} from "react-native-vision-camera";
 import { Worklets } from "react-native-worklets-core";
 import { OCRResultOverlay } from "@/components/creator/kyc/OCRResultOverlay";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { addTimestampToImage } from "@/utils/imageUtils";
-import DocumentScanner from "react-native-document-scanner-plugin";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -47,7 +52,7 @@ export default function KYCIdFrontScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const { documentPaths, setDocumentPhoto, setOCRData } = useKYCVerification();
+  const { documentPaths, setDocumentPhoto, setOCRData, goToStep } = useKYCVerification();
 
   const [showCamera, setShowCamera] = useState(!documentPaths.idFrontPath);
   const [capturedImage, setCapturedImage] = useState<string | null>(documentPaths.idFrontPath);
@@ -66,28 +71,77 @@ export default function KYCIdFrontScreen() {
     setFlashOn((prev) => !prev);
   }, []);
 
+  // Tap to focus
+  const handleFocus = useCallback(
+    async (point: Point) => {
+      try {
+        if (cameraRef.current && device?.supportsFocus) {
+          await cameraRef.current.focus(point);
+          console.log("[ID-Front] Focus at:", point);
+        }
+      } catch (e) {
+        // Focus failed - ignore
+      }
+    },
+    [device]
+  );
+
   // Auto-capture when OCR is complete
   const readyCountRef = useRef(0);
   const frameCountRef = useRef(0);
   const hasAutoCapturedRef = useRef(false);
   const isCapturingRef = useRef(false);
-  const AUTO_CAPTURE_THRESHOLD = 30; // ~1 saniye
+  const cooldownUntilRef = useRef(0); // Hata sonrası bekleme süresi
+  const AUTO_CAPTURE_THRESHOLD = 25; // ~0.8 saniye - OCR stabilize olsun
+  const MIN_CONFIDENCE_FOR_CAPTURE = 0.85; // Minimum %85 güven gerekli
+  const COOLDOWN_DURATION = 2000; // Hata sonrası 2 saniye bekle
 
-  // Cleanup
+  // Mount olduğunda ve kamera açıldığında ref'leri reset et
   useEffect(() => {
+    // Sayfa yüklendiğinde veya kamera açıldığında tüm ref'leri sıfırla
+    if (showCamera) {
+      hasAutoCapturedRef.current = false;
+      isCapturingRef.current = false;
+      readyCountRef.current = 0;
+      frameCountRef.current = 0;
+      resetHistory(); // Önceki sayfanın OCR sonuçlarını temizle
+      console.log("[ID-Front] Refs reset - camera opened");
+    }
+
     return () => {
       resetHistory();
     };
-  }, [resetHistory]);
+  }, [resetHistory, showCamera]);
 
-  const handleBack = () => router.back();
+  const handleBack = () => {
+    goToStep("form"); // Önceki adıma dön
+    router.replace("/(creator)/kyc/form");
+  };
 
-  // Manuel capture - Vision Camera ile çek, sonra Document Scanner ile düzelt
+  // Manuel capture - Vision Camera ile çek, crop et, tarih damgası ekle
   const handleManualCapture = useCallback(async () => {
     if (!cameraRef.current || isCapturingRef.current) return;
 
+    // Yanlış yüz kontrolü - ön yüzde MRZ varsa arka yüz taratılmış demektir
+    if (lastResult.data.hasMRZ) {
+      console.log("[ID-Front] ALERT: Yanlış Yüz - MRZ algılandı, arka yüz taratılmış", {
+        hasMRZ: lastResult.data.hasMRZ,
+        isComplete: lastResult.isComplete
+      });
+      Alert.alert("Yanlış Yüz", "Kimliğin arka yüzünü taradınız. Lütfen ön yüzü tarayın.", [
+        { text: "Tekrar Dene" }
+      ]);
+      // Reset capture state + cooldown so user has time to flip card
+      hasAutoCapturedRef.current = false;
+      readyCountRef.current = 0;
+      cooldownUntilRef.current = Date.now() + COOLDOWN_DURATION;
+      console.log("[ID-Front] Cooldown started - wrong side");
+      return; // Fotoğraf çekme!
+    }
+
     isCapturingRef.current = true;
     setIsCapturing(true);
+    setShowCamera(false); // Hemen kamerayı kapat - çift çekim önleme
     Vibration.vibrate(50);
 
     try {
@@ -102,18 +156,64 @@ export default function KYCIdFrontScreen() {
 
       let finalImageUri = photoPath;
 
-      // 1. Document Scanner ile perspektif düzeltme
+      // 1. Fotoğrafı crop et - kimlik kartı çerçevesine göre
       try {
-        const { scannedImages, status } = await DocumentScanner.scanDocument({
-          croppedImageQuality: 100,
-          maxNumDocuments: 1
+        const photoWidth = photo.width;
+        const photoHeight = photo.height;
+
+        // Fotoğraf orientation'ına göre boyutları ayarla
+        const isLandscape = photoWidth > photoHeight;
+        const effectiveWidth = isLandscape ? photoHeight : photoWidth;
+        const effectiveHeight = isLandscape ? photoWidth : photoHeight;
+
+        // Ekran oranlarını hesapla
+        const cardLeftRatio = (SCREEN_WIDTH - CARD_WIDTH) / 2 / SCREEN_WIDTH;
+        const cardTopRatio = (CARD_CENTER_Y - CARD_HEIGHT / 2) / SCREEN_HEIGHT;
+        const cardWidthRatio = CARD_WIDTH / SCREEN_WIDTH;
+        const cardHeightRatio = CARD_HEIGHT / SCREEN_HEIGHT;
+
+        // Crop koordinatlarını hesapla
+        let cropX = Math.floor(cardLeftRatio * effectiveWidth);
+        let cropY = Math.floor(cardTopRatio * effectiveHeight);
+        let cropWidth = Math.floor(cardWidthRatio * effectiveWidth);
+        let cropHeight = Math.floor(cardHeightRatio * effectiveHeight);
+
+        // Sınırları kontrol et
+        cropX = Math.max(0, Math.min(cropX, effectiveWidth - 10));
+        cropY = Math.max(0, Math.min(cropY, effectiveHeight - 10));
+        cropWidth = Math.min(cropWidth, effectiveWidth - cropX);
+        cropHeight = Math.min(cropHeight, effectiveHeight - cropY);
+
+        console.log("[ID-Front] Crop params:", {
+          photoWidth,
+          photoHeight,
+          cropX,
+          cropY,
+          cropWidth,
+          cropHeight
         });
 
-        if (status === "success" && scannedImages && scannedImages.length > 0) {
-          finalImageUri = scannedImages[0];
+        if (
+          cropWidth > 100 &&
+          cropHeight > 100 &&
+          cropX + cropWidth <= effectiveWidth &&
+          cropY + cropHeight <= effectiveHeight
+        ) {
+          // Yeni ImageManipulator API
+          const context = ImageManipulator.manipulate(photoPath);
+          context.crop({ originX: cropX, originY: cropY, width: cropWidth, height: cropHeight });
+          const imageRef = await context.renderAsync();
+          const croppedImage = await imageRef.saveAsync({
+            compress: 0.75,
+            format: SaveFormat.JPEG
+          });
+          finalImageUri = croppedImage.uri;
+          console.log("[ID-Front] Crop successful");
+        } else {
+          console.log("[ID-Front] Skipping crop - invalid dimensions");
         }
-      } catch (scanError) {
-        console.warn("[ID-Front] Document scan failed, using original:", scanError);
+      } catch (cropError) {
+        console.warn("[ID-Front] Crop failed, using original:", cropError);
       }
 
       // 2. Skia ile tarih damgası ekle
@@ -123,12 +223,88 @@ export default function KYCIdFrontScreen() {
         console.warn("[ID-Front] Timestamp failed:", timestampError);
       }
 
-      setCapturedImage(finalImageUri);
-      setShowCamera(false);
+      // OCR verilerini logla
+      console.log("[ID-Front] OCR Sonuçları:", {
+        tcNumber: lastResult.data.tcNumber || "-",
+        firstName: lastResult.data.firstName || "-",
+        lastName: lastResult.data.lastName || "-",
+        birthDate: lastResult.data.birthDate || "-",
+        hasMRZ: lastResult.data.hasMRZ ? "Evet" : "Hayır",
+        confidence: `${Math.round(lastResult.confidence * 100)}%`
+      });
 
-      // OCR verilerini kaydet
-      if (lastResult.data.tcNumber || lastResult.data.firstName || lastResult.data.lastName) {
-        setOCRData?.(lastResult.data);
+      // OCR kalitesi kontrolü - kötü sonuçları engelle
+      const firstName = (lastResult.data.firstName || "").toUpperCase();
+      const lastName = (lastResult.data.lastName || "").toUpperCase();
+
+      // Kötü OCR tespiti - yaygın yanlış okumalar
+      const badWords = [
+        "REPUBLIC",
+        "TURKEY",
+        "IDENTITY",
+        "CARD",
+        "TURKIYE",
+        "TORKIYE",
+        "TÜRKIYE",
+        "CUMHURIYET",
+        "CUMHURIYETI",
+        "CUNEHURIYETI",
+        "KIMLIK",
+        "KARTI",
+        "SURNAME",
+        "NAME",
+        "GIVEN",
+        "DATE",
+        "BIRTH",
+        "DOCUMENT"
+      ];
+
+      const containsBadWord = badWords.some(
+        (word) => firstName.includes(word) || lastName.includes(word)
+      );
+
+      const isBadOCR =
+        firstName.length > 25 || // İsim çok uzun (yanlış okuma)
+        lastName.length > 25 ||
+        firstName.split(" ").length > 3 || // Çok fazla kelime
+        containsBadWord ||
+        !lastResult.data.tcNumber; // TC kimlik no okunamadı
+
+      if (isBadOCR || lastResult.confidence < 0.6) {
+        console.log("[ID-Front] ALERT: Okuma Kalitesi Düşük", {
+          isBadOCR,
+          confidence: lastResult.confidence,
+          firstName,
+          lastName,
+          tcNumber: lastResult.data.tcNumber
+        });
+        Alert.alert(
+          "Okuma Kalitesi Düşük",
+          "Kimlik kartı net okunamadı. Lütfen:\n\n• Kartı çerçeveye düzgün yerleştirin\n• Işığın yeterli olduğundan emin olun\n• Telefonu sabit tutun",
+          [{ text: "Tekrar Dene" }]
+        );
+        // Reset capture state + cooldown so user has time to adjust
+        setShowCamera(true); // Kamerayı tekrar aç
+        setIsCapturing(false);
+        isCapturingRef.current = false;
+        hasAutoCapturedRef.current = false;
+        readyCountRef.current = 0;
+        cooldownUntilRef.current = Date.now() + COOLDOWN_DURATION;
+        console.log("[ID-Front] Cooldown started - 2 seconds");
+        return;
+      }
+
+      setCapturedImage(finalImageUri);
+      // showCamera zaten false - çekim başında kapatıldı
+
+      // OCR verilerini kaydet - sadece yüksek güvenli ve geçerli veriler
+      const hasValidTC = lastResult.data.tcNumber && lastResult.data.tcNumber.length === 11;
+      const hasValidName = lastResult.data.firstName && lastResult.data.firstName.length <= 30;
+      if (lastResult.confidence >= 0.7 && hasValidTC && hasValidName) {
+        // Confidence'ı da ekleyerek gönder
+        setOCRData?.({ ...lastResult.data, confidence: lastResult.confidence });
+      } else {
+        console.log("[ID-Front] OCR güveni düşük veya veriler geçersiz, kayıt atlandı");
       }
 
       setIsUploading(true);
@@ -136,15 +312,19 @@ export default function KYCIdFrontScreen() {
       setIsUploading(false);
 
       if (!result.success) {
+        console.log("[ID-Front] ALERT: Upload hatası", { error: result.error });
         Alert.alert("Hata", result.error || "Fotoğraf yüklenemedi");
       }
     } catch (error) {
       console.error("Capture error:", error);
+      console.log("[ID-Front] ALERT: Çekim başarısız", { error });
       Alert.alert("Hata", "Çekim başarısız oldu");
+      setShowCamera(true); // Hata durumunda kamerayı tekrar aç
     } finally {
       setIsCapturing(false);
+      isCapturingRef.current = false;
     }
-  }, [flashOn, lastResult.data, setDocumentPhoto, setOCRData]);
+  }, [flashOn, lastResult, setDocumentPhoto, setOCRData]);
 
   // Frame processor - OCR sonuçlarını JS'e gönder
   const handleOCRResult = Worklets.createRunOnJS((ocrResult: any, frameNum: number) => {
@@ -153,14 +333,38 @@ export default function KYCIdFrontScreen() {
     // processFrame ile sonuçları işle
     const result = processFrame({ resultText: ocrResult.resultText });
 
+    // Debug: Her 30 frame'de bir durumu logla
+    if (frameNum % 30 === 0) {
+      console.log("[ID-Front] Auto-capture state:", {
+        isComplete: result.isComplete,
+        hasAutoCaptured: hasAutoCapturedRef.current,
+        isCapturing: isCapturingRef.current,
+        readyCount: readyCountRef.current,
+        confidence: Math.round(result.confidence * 100) + "%"
+      });
+    }
+
+    // Cooldown kontrolü - hata sonrası bekleme süresi
+    const now = Date.now();
+    if (cooldownUntilRef.current > now) {
+      readyCountRef.current = 0;
+      return; // Cooldown süresi dolmadı, bekle
+    }
+
     // Auto-capture logic - sadece bir kez çalışsın
-    if (result.isComplete && !hasAutoCapturedRef.current && !isCapturingRef.current) {
+    // Minimum confidence kontrolü ekle - düşük güvende çekme
+    if (
+      result.isComplete &&
+      result.confidence >= MIN_CONFIDENCE_FOR_CAPTURE &&
+      !hasAutoCapturedRef.current &&
+      !isCapturingRef.current
+    ) {
       readyCountRef.current++;
       if (readyCountRef.current >= AUTO_CAPTURE_THRESHOLD) {
         hasAutoCapturedRef.current = true;
         handleManualCapture();
       }
-    } else if (!result.isComplete) {
+    } else if (!result.isComplete || result.confidence < MIN_CONFIDENCE_FOR_CAPTURE) {
       readyCountRef.current = 0;
     }
   });
@@ -207,7 +411,10 @@ export default function KYCIdFrontScreen() {
     }
 
     return (
-      <View style={styles.cameraContainer}>
+      <Pressable
+        style={styles.cameraContainer}
+        onPress={(e) => handleFocus({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY })}
+      >
         {/* Kamera */}
         <Camera
           ref={cameraRef}
@@ -217,10 +424,11 @@ export default function KYCIdFrontScreen() {
           photo={true}
           torch={flashOn ? "on" : "off"}
           frameProcessor={frameProcessor}
+          pixelFormat="yuv"
         />
 
         {/* OCR overlay */}
-        <OCRResultOverlay result={lastResult} />
+        <OCRResultOverlay result={lastResult} variant="front" />
 
         {/* Üst bar */}
         <SafeAreaView style={styles.cameraHeader} edges={["top"]}>
@@ -260,7 +468,7 @@ export default function KYCIdFrontScreen() {
             </Text>
           </View>
         </SafeAreaView>
-      </View>
+      </Pressable>
     );
   }
 

@@ -24,6 +24,7 @@ export interface IDCardData {
   nationality?: string;
   documentNo?: string;
   rawText?: string;
+  hasMRZ?: boolean; // MRZ satırları var mı (arka yüz göstergesi)
 }
 
 export interface OCRResult {
@@ -96,16 +97,40 @@ interface MRZData {
   documentNo?: string;
 }
 
+/**
+ * MRZ var mı kontrol et (arka yüz tespiti için)
+ */
+function hasMRZPattern(text: string): boolean {
+  // OCR hataları: « → <
+  const cleanText = text.replace(/«/g, '<').replace(/\s+/g, '').toUpperCase();
+  // MRZ pattern: IDTUR veya çoklu < karakterleri veya TUR + 11 haneli TC
+  return /IDTUR/.test(cleanText) || 
+         /<<</.test(cleanText) || 
+         /TUR\d{10,11}/.test(cleanText) ||
+         /[A-Z]+<<[A-Z]+/.test(cleanText);
+}
+
 function parseMRZ(text: string): MRZData | null {
-  const cleanText = text.replace(/\s+/g, '').toUpperCase();
+  // OCR hataları: « → <, boşlukları temizle
+  const cleanText = text
+    .replace(/«/g, '<')  // OCR hatası: « → <
+    .replace(/\s+/g, '')
+    .toUpperCase();
   
-  // MRZ Satır 2 pattern: YYMMDD + check + gender + YYMMDD + check + TUR + TC(11) + check
-  // Örnek: 9305293F240727TUR82345678902
-  const line2Regex = /(\d{2})(\d{2})(\d{2})\d([MF])(\d{2})(\d{2})(\d{2})\dTUR(\d{11})/;
+  // MRZ Satır 2 pattern: YYMMDD + check + gender + YYMMDD + check + TUR + filler
+  // Örnek: 9612291M2806033TUR<<<<<<<<<<0
+  // TC numarası Line 1'de, Line 2'de sadece tarihler ve cinsiyet var
+  const line2Regex = /(\d{2})(\d{2})(\d{2})\d\s*([MF])\s*(\d{2})(\d{2})(\d{2})\d\s*TUR/;
   const line2Match = line2Regex.exec(cleanText);
   
+  // TC numarası için ayrı pattern - Line 1'de: I<TURA11N777024<26087149210<<<
+  const tcFromLine1Regex = /[<«](\d{11})[<«]/;
+  const tcMatch = tcFromLine1Regex.exec(cleanText);
+  
   // MRZ Satır 3 pattern: SOYAD<<AD veya SOYAD<<AD<<IKINCIADI
-  const line3Regex = /([A-Z]+)<<([A-Z]+)(?:<<([A-Z]+))?<{2,}/;
+  // OCR bazen Ş'yi OS, Ğ'yi G, İ'yi I olarak okur, « yerine < kullanabilir
+  // En az 2 tane << olmalı (SOYAD<<AD formatı)
+  const line3Regex = /([A-ZÇĞİÖŞÜ]{2,20})[<«]{2,}([A-ZÇĞİÖŞÜ]{2,20})(?:[<«]{2,}([A-ZÇĞİÖŞÜ]+))?[<«]*/;
   const line3Match = line3Regex.exec(cleanText);
   
   // MRZ Satır 1 pattern: IDTUR + Seri No
@@ -132,21 +157,28 @@ function parseMRZ(text: string): MRZData | null {
     const expiryYear = expiryYY <= 50 ? 2000 + expiryYY : 1900 + expiryYY;
     result.expiryDate = `${expiryYear}-${line2Match[6]}-${line2Match[7]}`;
     
-    // TC Kimlik No
-    result.tcNumber = line2Match[8];
-    
     // Uyruk
     result.nationality = 'TC';
-    
-    // MRZ Line 2 parsed
+  }
+  
+  // TC Kimlik No - Line 1'den al
+  if (tcMatch) {
+    result.tcNumber = tcMatch[1];
   }
   
   if (line3Match) {
+    // MRZ'den gelen isim/soyisim - artık regex daha spesifik
     result.lastName = line3Match[1];
-    result.firstName = line3Match[3] 
-      ? `${line3Match[2]} ${line3Match[3]}`
+    
+    // Middle name varsa ve geçerli bir isimse ekle (K, KK, I gibi OCR hatalarını filtrele)
+    const middleName = line3Match[3];
+    const isValidMiddleName = middleName && 
+      middleName.length >= 2 && 
+      !/^[KIO]+$/.test(middleName); // Sadece K, I, O karakterlerinden oluşuyorsa geçersiz
+    
+    result.firstName = isValidMiddleName 
+      ? `${line3Match[2]} ${middleName}`
       : line3Match[2];
-    // MRZ Line 3 parsed
   }
   
   if (line1Match) {
@@ -190,29 +222,65 @@ function extractTCNumber(text: string): string | undefined {
 
 /**
  * Metinden doğum tarihi çıkar
+ * TC Kimlik kartında: "Doğum Tarihi / Date of Birth" altında "29.12.1996" formatında
  */
 function extractDate(text: string): string | undefined {
-  // Önce MRZ'den dene
+  // Önce MRZ'den dene (arka yüz)
   const mrzData = parseMRZ(text);
   if (mrzData?.birthDate) {
     return mrzData.birthDate;
   }
 
-  // GG.AA.YYYY veya GG/AA/YYYY (ön yüz)
-  const dateRegex = /\b(\d{2})[\.\/](\d{2})[\.\/](\d{4})\b/g;
-  const match = dateRegex.exec(text);
+  // Ön yüzden: "Doğum Tarihi" veya "Date of Birth" etiketinden sonraki tarihi ara
+  const birthDatePatterns = [
+    // "Doğum Tarihi / Date of Birth" sonrası
+    /(?:Do[gğ]um\s*Tarihi|Date\s*of\s*Birth)[^\d]*(\d{2})[\.\/\-](\d{2})[\.\/\-](\d{4})/gi,
+    // Sadece "Doğum" kelimesi sonrası
+    /Do[gğ]um[^\d]*(\d{2})[\.\/\-](\d{2})[\.\/\-](\d{4})/gi,
+  ];
+
+  for (const pattern of birthDatePatterns) {
+    const match = pattern.exec(text);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const year = parseInt(match[3], 10);
+      
+      // Doğum tarihi validasyonu - 18 yaş ve üzeri, makul bir tarih
+      if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2010) {
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  // Fallback: Tüm tarihleri bul ve doğum tarihi olabilecekleri filtrele
+  const dateRegex = /\b(\d{2})[\.\/\-](\d{2})[\.\/\-](\d{4})\b/g;
+  const dates: { date: string; year: number }[] = [];
+  let match;
   
-  if (match) {
+  while ((match = dateRegex.exec(text)) !== null) {
     const day = parseInt(match[1], 10);
     const month = parseInt(match[2], 10);
     const year = parseInt(match[3], 10);
     
-    // Basit tarih validasyonu - 18 yaş ve üzeri
-    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2010) {
-      // BirthDate found
-      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    // Geçerli tarih mi?
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      // Doğum tarihi olabilecek yıllar (1900-2010)
+      if (year >= 1900 && year <= 2010) {
+        dates.push({
+          date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+          year
+        });
+      }
     }
   }
+
+  // En eski tarihi doğum tarihi olarak kabul et (geçerlilik tarihi daha yeni olacaktır)
+  if (dates.length > 0) {
+    dates.sort((a, b) => a.year - b.year);
+    return dates[0].date;
+  }
+
   return undefined;
 }
 
@@ -226,47 +294,66 @@ function extractNames(text: string): { firstName?: string; lastName?: string } {
     return { firstName: mrzData.firstName, lastName: mrzData.lastName };
   }
 
-  // Ön yüzden: "Soyadı / Surname" ve "Adı / Given Name(s)" etiketlerinden sonra
-  // Soyad pattern: Soyadı / Surname sonrası büyük harfli kelime (sadece harfler)
-  const surnameMatch = /(?:Soyad[ıi]|Surname)[^\n]*\n\s*([A-ZÇĞİÖŞÜa-zçğıöşü]+)/i.exec(text);
-  // Ad pattern: Adı / Given Name sonrası büyük harfli kelime(ler) - Doğum'a kadar
-  const givenNameMatch = /(?:Ad[ıi]t?|Given\s*Name)[^\n]*\n\s*([A-ZÇĞİÖŞÜa-zçğıöşü]+(?:\s+[A-ZÇĞİÖŞÜa-zçğıöşü]+)?)/i.exec(text);
+  // Ön yüzden: Soyad ve Ad etiketlerini ara
+  // OCR çıktısı: "Soyadı / Surname\nŞAHİN\nAdı Given Name(s)\nYUNUS"
   
-  if (surnameMatch || givenNameMatch) {
-    // Sadece büyük harfli kısmı al, satır sonu ve sonrasını temizle
-    const cleanName = (name?: string) => {
-      if (!name) return undefined;
-      // İlk kelimeyi al (satır sonu veya küçük harften önce)
-      const match = name.match(/^[A-ZÇĞİÖŞÜ]+/);
-      return match?.[0];
-    };
-    
-    const result = {
-      lastName: cleanName(surnameMatch?.[1]),
-      firstName: cleanName(givenNameMatch?.[1]),
-    };
-    // Names from labels
-    return result;
+  // Pattern: "Soyadı/ Surname" sonrası satır sonu ve büyük harfli isim (tek satır)
+  const surnamePatterns = [
+    /Soyad[ıi]\s*[\/\|]?\s*Surname\s*\n([A-ZÇĞİÖŞÜ]+)\n/i,
+    /Surname\s*\n([A-ZÇĞİÖŞÜ]+)\n/i,
+    /Soyad[ıi]\s*\n([A-ZÇĞİÖŞÜ]+)\n/i,
+  ];
+  
+  // Pattern: "Adı/ Given Name(s)" sonrası satır sonu ve büyük harfli isim (tek satır, sonraki satıra kadar)
+  const givenNamePatterns = [
+    /Ad[ıi]\s*[\/\|]?\s*Given\s*Name\(?s?\)?\s*\n([A-ZÇĞİÖŞÜ]+(?:\s+[A-ZÇĞİÖŞÜ]+)?)\n/i,
+    /Given\s*Name\(?s?\)?\s*\n([A-ZÇĞİÖŞÜ]+(?:\s+[A-ZÇĞİÖŞÜ]+)?)\n/i,
+    /Ad[ıi]\s*\n([A-ZÇĞİÖŞÜ]+(?:\s+[A-ZÇĞİÖŞÜ]+)?)\n/i,
+  ];
+  
+  let lastName: string | undefined;
+  let firstName: string | undefined;
+  
+  // Soyad ara
+  for (const pattern of surnamePatterns) {
+    const match = pattern.exec(text);
+    if (match?.[1]) {
+      lastName = match[1].toUpperCase();
+      break;
+    }
+  }
+  
+  // Ad ara
+  for (const pattern of givenNamePatterns) {
+    const match = pattern.exec(text);
+    if (match?.[1]) {
+      firstName = match[1].toUpperCase();
+      break;
+    }
+  }
+  
+  if (lastName || firstName) {
+    return { lastName, firstName };
   }
 
-  // TC kimlik kartında isimler büyük harfle yazılır
-  // Türkçe karakterler dahil
+  // Fallback: TC kimlik kartında isimler büyük harfle yazılır
   const nameRegex = /\b[A-ZÇĞİÖŞÜ]{2,}\b/g;
   const matches = text.match(nameRegex);
   
   if (matches && matches.length >= 2) {
-    // Belirli kelimeleri filtrele (TÜRKİYE, CUMHURİYETİ, KİMLİK, vb.)
+    // Belirli kelimeleri filtrele
     const excludeWords = [
-      'TÜRKİYE', 'TURKEY', 'CUMHURİYETİ', 'CUMHURİYETI', 'CUMHURIYET', 'REPUBLIC',
-      'KİMLİK', 'KIMLIK', 'KARTI', 'CARD', 'IDENTITY', 'NÜFUS',
+      'TÜRKİYE', 'TURKEY', 'CUMHURİYETİ', 'CUMHURİYETI', 'CUMHURIYET', 'REPUBLIC', 'OF',
+      'KİMLİK', 'KIMLIK', 'KARTI', 'CARD', 'IDENTITY', 'NÜFUS', 'LDENTITY', 'DENTITY',
       'DOĞUM', 'DOGUM', 'TARİHİ', 'TARIHI', 'DATE', 'BIRTH', 'YERİ', 'YERI', 'PLACE',
-      'SOYADI', 'SURNAME', 'ADI', 'NAME', 'GIVEN', 'NAMES',
+      'SOYADI', 'SURNAME', 'ADI', 'NAME', 'GIVEN', 'NAMES', 'SON',
       'SERİ', 'SERI', 'NO', 'SIRA', 'NUMARASI', 'TC', 'TCKN', 'TR',
-      'GEÇERLİLİK', 'GECERLILIK', 'VALIDITY', 'VALID', 'UNTIL',
+      'GEÇERLİLİK', 'GECERLILIK', 'VALIDITY', 'VALID', 'UNTIL', 'GEÇERLILIK',
       'ANNE', 'BABA', 'MOTHER', 'FATHER',
-      'IDTUR', 'TUR', 'MAKBULE', 'BAKANLIGI', 'ICISLERI', 'VEREN', 'MAKAM',
-      'CİNSİYET', 'CINSIYET', 'GENDER', 'UYRUK', 'NATIONALITY',
-      'LDENTITY', 'LDENTIEY', 'LDENTY', 'IDENTTY', 'KIMIIK', 'KIMIK', 'KIMI'
+      'IDTUR', 'TUR', 'BAKANLIGI', 'ICISLERI', 'VEREN', 'MAKAM',
+      'CİNSİYET', 'CINSIYET', 'GENDER', 'UYRUK', 'NATIONALITY', 'UYRUGU',
+      'LDENTITY', 'LDENTIEY', 'LDENTY', 'IDENTTY', 'KIMIIK', 'KIMIK', 'KIMI',
+      'DOCUMENT', 'NUMBER', 'IMZA', 'SIGNATURE', 'IMZASI'
     ];
     
     const filteredNames = matches.filter(name => 
@@ -274,12 +361,10 @@ function extractNames(text: string): { firstName?: string; lastName?: string } {
     );
     
     if (filteredNames.length >= 2) {
-      // Genellikle soyad önce, ad sonra gelir
-      // Ama emin olamayız, en uzun iki kelimeyi alalım
-      const sorted = filteredNames.sort((a, b) => b.length - a.length);
+      // İlk iki ismi al (soyad genelde önce gelir)
       return {
-        lastName: sorted[0],
-        firstName: sorted[1],
+        lastName: filteredNames[0],
+        firstName: filteredNames.slice(1).join(' '),
       };
     } else if (filteredNames.length === 1) {
       return { firstName: filteredNames[0] };
@@ -416,7 +501,10 @@ export function useIDCardOCR() {
   const parseOCRResult = useCallback((ocrResult: any): IDCardData => {
     const text = ocrResult?.resultText || '';
     
-    // Raw text processing
+    // Debug: Raw OCR text (her 30 frame'de bir logla)
+    if (Math.random() < 0.03) {
+      console.log('[OCR] Raw text sample:', text.substring(0, 300));
+    }
     
     const tcNumber = extractTCNumber(text);
     const names = extractNames(text);
@@ -425,8 +513,9 @@ export function useIDCardOCR() {
     const gender = extractGender(text);
     const nationality = extractNationality(text);
     const documentNo = extractDocumentNo(text);
+    const hasMRZ = hasMRZPattern(text);
     
-    const data = {
+    return {
       tcNumber,
       ...names,
       birthDate,
@@ -434,12 +523,7 @@ export function useIDCardOCR() {
       gender,
       nationality,
       documentNo,
-    };
-    
-    // Data extracted
-    
-    return {
-      ...data,
+      hasMRZ,
       rawText: text,
     };
   }, []);
@@ -464,6 +548,7 @@ export function useIDCardOCR() {
       gender: {},
       nationality: {},
       documentNo: {},
+      hasMRZ: {},
       rawText: {},
     };
 
@@ -489,6 +574,10 @@ export function useIDCardOCR() {
       return mostFrequent;
     };
 
+    // hasMRZ için çoğunluk kontrolü
+    const mrzTrueCount = resultsHistory.current.filter(r => r.hasMRZ === true).length;
+    const hasMRZ = mrzTrueCount > resultsHistory.current.length / 2;
+
     const consolidatedData: IDCardData = {
       tcNumber: getMostFrequent(counts.tcNumber),
       firstName: getMostFrequent(counts.firstName),
@@ -498,6 +587,7 @@ export function useIDCardOCR() {
       gender: getMostFrequent(counts.gender) as 'M' | 'F' | undefined,
       nationality: getMostFrequent(counts.nationality),
       documentNo: getMostFrequent(counts.documentNo),
+      hasMRZ,
     };
 
     // Güven skoru hesapla (temel 4 alan + bonus alanlar)
@@ -515,9 +605,13 @@ export function useIDCardOCR() {
     if (consolidatedData.documentNo) bonusFields++;
 
     const confidence = (fieldsFound + bonusFields * 0.25) / 5; // Max 1.0
-    const isComplete = fieldsFound >= 3; // En az 3 temel alan bulunmalı
-
-    // Consolidated result ready
+    
+    // isComplete için sıkı kontrol:
+    // - En az 3 temel alan bulunmalı
+    // - Ad ve soyad en az 2 karakter olmalı (yanlış okumayı önlemek için)
+    const validFirstName = consolidatedData.firstName && consolidatedData.firstName.length >= 2;
+    const validLastName = consolidatedData.lastName && consolidatedData.lastName.length >= 2;
+    const isComplete = fieldsFound >= 3 && validFirstName && validLastName;
 
     return {
       data: consolidatedData,
@@ -529,11 +623,28 @@ export function useIDCardOCR() {
   /**
    * Frame işle - OCR sonucunu parse et ve state'i güncelle
    * @param ocrResult - { resultText: string } formatında OCR sonucu
+   * @param logResults - true ise sonuçları logla (varsayılan: false)
    */
-  const processFrame = useCallback((ocrResult: { resultText: string }): OCRResult => {
+  const processFrame = useCallback((ocrResult: { resultText: string }, logResults = false): OCRResult => {
     const data = parseOCRResult(ocrResult);
     const result = consolidateResults(data);
     setLastResult(result);
+    
+    // İstenirse sonuçları logla
+    if (logResults && result.isComplete) {
+      console.log('[OCR] Taranan veriler:', {
+        tcNumber: result.data.tcNumber || '-',
+        firstName: result.data.firstName || '-',
+        lastName: result.data.lastName || '-',
+        birthDate: result.data.birthDate || '-',
+        expiryDate: result.data.expiryDate || '-',
+        gender: result.data.gender || '-',
+        documentNo: result.data.documentNo || '-',
+        hasMRZ: result.data.hasMRZ ? 'Evet (Arka yüz)' : 'Hayır (Ön yüz)',
+        confidence: `${Math.round(result.confidence * 100)}%`,
+      });
+    }
+    
     return result;
   }, [parseOCRResult, consolidateResults]);
 

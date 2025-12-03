@@ -50,9 +50,32 @@ interface OCRComparisonCardProps {
 // Helper Functions
 // ─────────────────────────────────────────────────────────
 
+/**
+ * Türkçe karakterleri ASCII karşılıklarına dönüştürür
+ * Ş→S, İ→I, Ğ→G, Ü→U, Ö→O, Ç→C
+ */
+function normalizeTurkishChars(str: string): string {
+  const turkishMap: Record<string, string> = {
+    Ş: "S",
+    ş: "s",
+    İ: "I",
+    ı: "i",
+    Ğ: "G",
+    ğ: "g",
+    Ü: "U",
+    ü: "u",
+    Ö: "O",
+    ö: "o",
+    Ç: "C",
+    ç: "c"
+  };
+  return str.replace(/[ŞşİıĞğÜüÖöÇç]/g, (char) => turkishMap[char] || char);
+}
+
 function normalizeString(str: string | null | undefined): string {
   if (!str) return "";
-  return str.toUpperCase().trim().replace(/\s+/g, " ");
+  // Önce Türkçe karakterleri normalize et, sonra uppercase yap
+  return normalizeTurkishChars(str).toUpperCase().trim().replace(/\s+/g, " ");
 }
 
 function compareFields(

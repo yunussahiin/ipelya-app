@@ -61,7 +61,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-secure-store",
     "expo-web-browser",
     "expo-iap",
-    "react-native-document-scanner-plugin",
     "expo-system-ui",
     "expo-asset",
     [

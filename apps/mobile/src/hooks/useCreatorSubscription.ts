@@ -50,7 +50,7 @@ export function useCreatorSubscription() {
         .from('creator_subscriptions')
         .select(`
           *,
-          tier:creator_subscription_tiers(*)
+          tier:creator_subscription_tiers!left(*)
         `)
         .eq('subscriber_id', userId)
         .in('status', ['active', 'paused']);

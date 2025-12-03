@@ -1,11 +1,18 @@
 /**
  * useKYCVerification Hook
  * KYC doğrulama süreci yönetimi
+ * 
+ * Özellikler:
+ * - Aşama kaydetme (AsyncStorage)
+ * - Kullanıcı çıkıp girdiğinde kaldığı yerden devam
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { File } from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const KYC_STORAGE_KEY = 'kyc_wizard_state';
 
 export type KYCLevel = 'basic' | 'full';
 export type KYCStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -39,6 +46,7 @@ export interface OCRData {
   firstName?: string;
   lastName?: string;
   birthDate?: string;
+  confidence?: number; // 0-1 arası OCR güven skoru
 }
 
 export interface KYCDocumentPaths {
@@ -69,9 +77,72 @@ export function useKYCVerification() {
     selfiePath: null
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isRestored, setIsRestored] = useState(false);
   
   // OCR data (kimlik okuma sonuçları)
   const [ocrData, setOcrDataState] = useState<OCRData | null>(null);
+  
+  // Face detection sonucu (selfie ekranından)
+  const [faceDetectionPassed, setFaceDetectionPassed] = useState<boolean>(false);
+  
+  // Liveness frames (canlılık kontrolü sonuçları)
+  const [livenessFrames, setLivenessFrames] = useState<any[]>([]);
+
+  // Wizard state'ini AsyncStorage'a kaydet
+  const saveWizardState = useCallback(async () => {
+    try {
+      const state = {
+        currentStep,
+        formData,
+        documentPaths,
+        ocrData,
+        savedAt: new Date().toISOString()
+      };
+      await AsyncStorage.setItem(KYC_STORAGE_KEY, JSON.stringify(state));
+      console.log('[KYC] Wizard state saved:', currentStep);
+    } catch (e) {
+      console.warn('[KYC] Failed to save wizard state:', e);
+    }
+  }, [currentStep, formData, documentPaths, ocrData]);
+
+  // Wizard state'ini AsyncStorage'dan yükle
+  const restoreWizardState = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem(KYC_STORAGE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        
+        // 24 saatten eski ise temizle
+        const savedAt = new Date(state.savedAt);
+        const hoursSinceSave = (Date.now() - savedAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceSave > 24) {
+          console.log('[KYC] Saved state expired, clearing');
+          await AsyncStorage.removeItem(KYC_STORAGE_KEY);
+          return;
+        }
+        
+        console.log('[KYC] Restoring wizard state:', state.currentStep);
+        
+        if (state.formData) setFormData(state.formData);
+        if (state.documentPaths) setDocumentPaths(state.documentPaths);
+        if (state.ocrData) setOcrDataState(state.ocrData);
+        if (state.currentStep && state.currentStep !== 'result') {
+          setCurrentStep(state.currentStep);
+        }
+      }
+    } catch (e) {
+      console.warn('[KYC] Failed to restore wizard state:', e);
+    } finally {
+      setIsRestored(true);
+    }
+  }, []);
+
+  // State değiştiğinde kaydet
+  useEffect(() => {
+    if (isRestored && currentStep !== 'result') {
+      saveWizardState();
+    }
+  }, [isRestored, currentStep, formData, documentPaths, ocrData, saveWizardState]);
 
   const loadStatus = useCallback(async () => {
     setIsLoading(true);
@@ -91,7 +162,8 @@ export function useKYCVerification() {
 
   useEffect(() => {
     loadStatus();
-  }, [loadStatus]);
+    restoreWizardState();
+  }, [loadStatus, restoreWizardState]);
 
   const uploadDocument = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie', captureTime?: Date): Promise<string | null> => {
     console.log(`[KYC Upload] Starting upload for ${type}`, { localUri });
@@ -151,8 +223,44 @@ export function useKYCVerification() {
     }
   };
 
+  // Eski fotoğrafı bucket'tan sil
+  const deleteDocument = async (type: 'id-front' | 'id-back' | 'selfie'): Promise<boolean> => {
+    const pathKey = type === 'id-front' ? 'idFrontPath' : type === 'id-back' ? 'idBackPath' : 'selfiePath';
+    const currentPath = documentPaths[pathKey];
+    
+    if (!currentPath) return true; // Silinecek dosya yok
+    
+    try {
+      console.log(`[KYC Delete] Deleting ${type}:`, currentPath);
+      const { error } = await supabase.storage
+        .from('kyc-documents')
+        .remove([currentPath]);
+      
+      if (error) {
+        console.warn(`[KYC Delete] Error deleting ${type}:`, error);
+        return false;
+      }
+      
+      console.log(`[KYC Delete] Successfully deleted ${type}`);
+      
+      // State'i temizle
+      setDocumentPaths(prev => ({
+        ...prev,
+        [pathKey]: null
+      }));
+      
+      return true;
+    } catch (err: any) {
+      console.error(`[KYC Delete] Error:`, err);
+      return false;
+    }
+  };
+
   const setDocumentPhoto = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie', captureTime?: Date) => {
     try {
+      // Önce eski fotoğrafı sil (varsa)
+      await deleteDocument(type);
+      
       const path = await uploadDocument(localUri, type, captureTime);
       
       setDocumentPaths(prev => ({
@@ -160,6 +268,14 @@ export function useKYCVerification() {
         [`${type.replace('-', '')}Path`]: path,
         [type === 'id-front' ? 'idFrontPath' : type === 'id-back' ? 'idBackPath' : 'selfiePath']: path
       }));
+      
+      // currentStep'i de güncelle - hangi aşamadayız
+      const stepMap: Record<string, KYCStep> = {
+        'id-front': 'id-back',  // id-front çekildiyse sonraki adım id-back
+        'id-back': 'selfie',    // id-back çekildiyse sonraki adım selfie
+        'selfie': 'selfie'      // selfie çekildiyse aynı kalır (son adım)
+      };
+      setCurrentStep(stepMap[type]);
       
       return { success: true, path };
     } catch (err: any) {
@@ -190,11 +306,31 @@ export function useKYCVerification() {
           idFrontPath: documentPaths.idFrontPath,
           idBackPath: documentPaths.idBackPath,
           selfiePath: documentPaths.selfiePath,
-          level
+          level,
+          // OCR verilerini ekle
+          ocrData: ocrData ? {
+            tc_number: ocrData.tcNumber,
+            first_name: ocrData.firstName,
+            last_name: ocrData.lastName,
+            birth_date: ocrData.birthDate,
+            confidence_score: ocrData.confidence || 0
+          } : null,
+          // Face detection sonucunu ekle
+          faceDetectionPassed,
+          // Liveness frames (canlılık kontrolü)
+          livenessFrames: livenessFrames.length > 0 ? livenessFrames : null
         }
       });
 
       if (fnError) throw fnError;
+
+      // Başvuru başarılı - wizard state'i temizle
+      try {
+        await AsyncStorage.removeItem(KYC_STORAGE_KEY);
+        console.log('[KYC] Application submitted, wizard state cleared');
+      } catch (e) {
+        // Ignore
+      }
 
       await loadStatus();
       setCurrentStep('result');
@@ -228,19 +364,36 @@ export function useKYCVerification() {
     }
   };
 
-  const reset = () => {
+  const reset = async () => {
     setCurrentStep('form');
     setFormData({ firstName: '', lastName: '', birthDate: '', idNumber: '' });
     setDocumentPaths({ idFrontPath: null, idBackPath: null, selfiePath: null });
     setOcrDataState(null);
     setError(null);
+    
+    // AsyncStorage'ı da temizle
+    try {
+      await AsyncStorage.removeItem(KYC_STORAGE_KEY);
+      console.log('[KYC] Wizard state cleared');
+    } catch (e) {
+      console.warn('[KYC] Failed to clear wizard state:', e);
+    }
   };
 
   /**
    * OCR verilerini kaydet ve form'u otomatik doldur
+   * Not: Mevcut OCR verileriyle merge eder (arka yüz ön yüzü override etmez)
    */
   const setOCRData = useCallback((data: OCRData) => {
-    setOcrDataState(data);
+    // Mevcut OCR verileriyle merge et (yeni veri öncelikli, ama undefined olanlar eski değeri korur)
+    // Confidence için en yüksek değeri al
+    setOcrDataState(prev => ({
+      tcNumber: data.tcNumber || prev?.tcNumber,
+      firstName: data.firstName || prev?.firstName,
+      lastName: data.lastName || prev?.lastName,
+      birthDate: data.birthDate || prev?.birthDate,
+      confidence: Math.max(data.confidence || 0, prev?.confidence || 0),
+    }));
     
     // Form'u OCR verileriyle güncelle (sadece boş alanları)
     setFormData(prev => ({
@@ -303,11 +456,18 @@ export function useKYCVerification() {
     canSubmit,
     // OCR
     ocrData,
+    // Face detection
+    faceDetectionPassed,
+    // Liveness
+    livenessFrames,
     // Actions
     setFormData,
     setDocumentPhoto,
+    deleteDocument,
     setOCRData,
     validateOCRMatch,
+    setFaceDetectionPassed,
+    setLivenessFrames,
     submitApplication,
     goToStep,
     nextStep,

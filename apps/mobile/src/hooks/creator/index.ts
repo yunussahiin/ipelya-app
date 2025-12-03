@@ -12,6 +12,7 @@ export { useCreatorRealtime } from './useCreatorRealtime';
 export { useCreatorNotifications } from './useCreatorNotifications';
 export { useKYCSelfieDetection, getValidationColor } from './useKYCSelfieDetection';
 export { useIDCardOCR, validateTCNumber } from './useIDCardOCR';
+export { useLivenessDetection, calculateLivenessScore, LIVENESS_STEPS, LIVENESS_STEP_CONFIGS } from './useLivenessDetection';
 export { useDocumentNormalizer } from './useDocumentNormalizer';
 
 // Types re-export
@@ -73,3 +74,10 @@ export type {
   DocumentDetectionResult,
   NormalizationResult
 } from './useDocumentNormalizer';
+
+export type {
+  LivenessStep,
+  LivenessStepConfig,
+  LivenessFrame,
+  LivenessResult
+} from './useLivenessDetection';

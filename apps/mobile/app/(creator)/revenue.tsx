@@ -7,6 +7,7 @@ import React, { useMemo, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { ArrowLeft, Plus, CreditCard, ShieldCheck, ChevronRight, Lock } from "lucide-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
@@ -67,7 +68,14 @@ export default function CreatorRevenueScreen() {
     toggleAutoPayout
   } = useAutoPayoutSettings();
 
-  const { profile: kycProfile } = useKYCVerification();
+  const { profile: kycProfile, refresh: refreshKYC } = useKYCVerification();
+
+  // Sayfa focus olduğunda KYC durumunu yenile
+  useFocusEffect(
+    useCallback(() => {
+      refreshKYC();
+    }, [refreshKYC])
+  );
 
   // State
   const [refreshing, setRefreshing] = useState(false);
@@ -93,9 +101,10 @@ export default function CreatorRevenueScreen() {
   const paymentMethodStatus = getPaymentMethodStatus();
   const primaryMethod = paymentMethods.find((m) => m.isDefault) || paymentMethods[0];
 
-  // KYC tamamlanmış mı?
+  // KYC durumu
   const isKYCApproved = kycProfile?.status === "approved";
   const isKYCPending = kycProfile?.status === "pending";
+  const isKYCRejected = kycProfile?.status === "rejected";
 
   const handleGoToKYC = () => {
     router.push("/(creator)/kyc");
@@ -111,9 +120,9 @@ export default function CreatorRevenueScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refreshMethods(), refreshPayouts()]);
+    await Promise.all([refreshMethods(), refreshPayouts(), refreshKYC()]);
     setRefreshing(false);
-  }, [refreshMethods, refreshPayouts]);
+  }, [refreshMethods, refreshPayouts, refreshKYC]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -123,7 +132,13 @@ export default function CreatorRevenueScreen() {
           <ArrowLeft size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Ödeme Yönetimi</Text>
-        <View style={{ width: 40 }} />
+        {/* Debug: KYC Result ekranını test et */}
+        {__DEV__ && (
+          <Pressable style={styles.backButton} onPress={() => router.push("/(creator)/kyc/result")}>
+            <ShieldCheck size={20} color={colors.accent} />
+          </Pressable>
+        )}
+        {!__DEV__ && <View style={{ width: 40 }} />}
       </View>
 
       <ScrollView
@@ -192,27 +207,64 @@ export default function CreatorRevenueScreen() {
             {!isKYCApproved && (
               <View style={styles.section}>
                 <Pressable
-                  style={[styles.kycRequiredCard, { backgroundColor: colors.surface }]}
+                  style={[
+                    styles.kycRequiredCard,
+                    {
+                      backgroundColor: isKYCRejected ? "#EF444415" : colors.surface,
+                      borderWidth: isKYCRejected ? 1 : 0,
+                      borderColor: isKYCRejected ? "#EF444430" : "transparent"
+                    }
+                  ]}
                   onPress={handleGoToKYC}
                 >
                   <View
-                    style={[styles.kycIconContainer, { backgroundColor: `${colors.accent}15` }]}
+                    style={[
+                      styles.kycIconContainer,
+                      {
+                        backgroundColor: isKYCRejected
+                          ? "#EF444420"
+                          : isKYCPending
+                            ? "#F59E0B20"
+                            : `${colors.accent}15`
+                      }
+                    ]}
                   >
-                    <ShieldCheck size={28} color={colors.accent} />
+                    <ShieldCheck
+                      size={28}
+                      color={isKYCRejected ? "#EF4444" : isKYCPending ? "#F59E0B" : colors.accent}
+                    />
                   </View>
                   <View style={styles.kycContent}>
-                    <Text style={[styles.kycTitle, { color: colors.textPrimary }]}>
-                      {isKYCPending ? "KYC Doğrulama Bekliyor" : "KYC Doğrulama Gerekli"}
+                    <Text
+                      style={[
+                        styles.kycTitle,
+                        { color: isKYCRejected ? "#EF4444" : colors.textPrimary }
+                      ]}
+                    >
+                      {isKYCRejected
+                        ? "KYC Başvurusu Reddedildi"
+                        : isKYCPending
+                          ? "KYC Doğrulama Bekliyor"
+                          : "KYC Doğrulama Gerekli"}
                     </Text>
                     <Text style={[styles.kycDescription, { color: colors.textSecondary }]}>
-                      {isKYCPending
-                        ? "Kimlik doğrulamanız inceleniyor. Bu işlem 1-3 iş günü sürebilir."
-                        : "Ödeme yöntemi ekleyebilmek için önce kimlik doğrulamasını tamamlayın."}
+                      {isKYCRejected
+                        ? "Başvurunuz reddedildi. Detayları görmek ve yeniden başvurmak için tıklayın."
+                        : isKYCPending
+                          ? "Kimlik doğrulamanız inceleniyor. Bu işlem 1-3 iş günü sürebilir."
+                          : "Ödeme yöntemi ekleyebilmek için önce kimlik doğrulamasını tamamlayın."}
                     </Text>
                   </View>
                   {!isKYCPending && (
-                    <View style={[styles.kycButton, { backgroundColor: colors.accent }]}>
-                      <Text style={styles.kycButtonText}>Doğrula</Text>
+                    <View
+                      style={[
+                        styles.kycButton,
+                        { backgroundColor: isKYCRejected ? "#EF4444" : colors.accent }
+                      ]}
+                    >
+                      <Text style={styles.kycButtonText}>
+                        {isKYCRejected ? "Tekrar Dene" : "Doğrula"}
+                      </Text>
                       <ChevronRight size={16} color="#fff" />
                     </View>
                   )}

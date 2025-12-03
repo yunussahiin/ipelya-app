@@ -1,28 +1,20 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import Image from "next/image";
-import {
-  ArrowLeft,
-  User,
-  FileText,
-  ShieldCheck,
-  Eye,
-  Maximize2,
-  CheckCircle,
-  XCircle,
-  AlertCircle
-} from "lucide-react";
+import { ArrowLeft, User, FileText } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { KYCStatusBadge, OCRComparisonCard } from "@/components/ops/finance";
+import { createServerSupabaseClient, createAdminSupabaseClient } from "@/lib/supabase/server";
+import {
+  KYCStatusBadge,
+  OCRComparisonCard,
+  DocumentsGrid,
+  VerificationResultsCard,
+  PreviousApplicationsCard
+} from "@/components/ops/finance";
 import { KYCActionsButtons } from "./actions-buttons";
 
 // ─────────────────────────────────────────────────────────
@@ -59,8 +51,9 @@ async function getKYCApplicationDetail(applicationId: string) {
     .eq("type", "real")
     .single();
 
-  // Auth user (email için)
-  const { data: authData } = await supabase.auth.admin.getUserById(application.creator_id);
+  // Auth user (email için) - Admin API gerektirir
+  const adminSupabase = createAdminSupabaseClient();
+  const { data: authData } = await adminSupabase.auth.admin.getUserById(application.creator_id);
 
   // Signed URLs
   const signedUrls: Record<string, string> = {};
@@ -97,82 +90,67 @@ async function getKYCApplicationDetail(applicationId: string) {
     reviewer = reviewerData;
   }
 
+  // Aynı creator'ın tüm başvuruları (önceki başvurular için)
+  const { data: allApplications } = await supabase
+    .from("kyc_applications")
+    .select(
+      `
+      id,
+      level,
+      status,
+      first_name,
+      last_name,
+      birth_date,
+      id_number,
+      created_at,
+      reviewed_at,
+      rejection_reason,
+      auto_score,
+      auto_recommendation,
+      ocr_form_match,
+      face_detection_passed,
+      reviewed_by
+    `
+    )
+    .eq("creator_id", application.creator_id)
+    .order("created_at", { ascending: false });
+
+  // Reviewer bilgilerini ekle
+  const applicationsWithReviewer = await Promise.all(
+    (allApplications || []).map(async (app) => {
+      if (app.reviewed_by) {
+        const { data: reviewerData } = await supabase
+          .from("admin_profiles")
+          .select("full_name, email")
+          .eq("id", app.reviewed_by)
+          .single();
+        return { ...app, reviewer: reviewerData };
+      }
+      return { ...app, reviewer: null };
+    })
+  );
+
   return {
     application: { ...application, reviewer },
     creator: profile ? { ...profile, email: authData?.user?.email } : null,
-    signedUrls
+    signedUrls,
+    allApplications: applicationsWithReviewer
   };
 }
 
 // ─────────────────────────────────────────────────────────
-// Components
+// Types for verification result (mobile format)
 // ─────────────────────────────────────────────────────────
 
-function VerificationResultItem({
-  label,
-  passed,
-  score
-}: {
-  label: string;
-  passed?: boolean;
-  score?: number;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm">{label}</span>
-      {passed !== undefined ? (
-        passed ? (
-          <CheckCircle className="h-4 w-4 text-green-500" />
-        ) : (
-          <XCircle className="h-4 w-4 text-red-500" />
-        )
-      ) : score !== undefined ? (
-        <span
-          className={`text-sm font-medium ${
-            score >= 0.8 ? "text-green-600" : score >= 0.5 ? "text-yellow-600" : "text-red-600"
-          }`}
-        >
-          {Math.round(score * 100)}%
-        </span>
-      ) : (
-        <span className="text-sm text-muted-foreground">-</span>
-      )}
-    </div>
-  );
-}
-
-function DocumentImage({ src, alt, label }: { src?: string; alt: string; label: string }) {
-  if (!src) {
-    return (
-      <div className="border rounded-lg p-8 text-center bg-muted">
-        <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">{label} yüklenmemiş</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
-      <div className="relative border rounded-lg overflow-hidden bg-muted">
-        <Image
-          src={src}
-          alt={alt}
-          width={400}
-          height={250}
-          className="w-full h-auto object-contain"
-        />
-        <a
-          href={src}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute top-2 right-2 p-2 bg-black/50 rounded-lg text-white hover:bg-black/70 transition-colors"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </a>
-      </div>
-    </div>
-  );
+interface VerificationResult {
+  ocr?: { status: string; message?: string };
+  faceMatch?: { status: string; message?: string; score?: number };
+  liveness?: { status: string; message?: string };
+  // Legacy format
+  nameMatch?: boolean;
+  birthdateMatch?: boolean;
+  livenessPass?: boolean;
+  faceMatchScore?: number;
 }
 
 async function KYCDetailContent({ applicationId }: { applicationId: string }) {
@@ -182,10 +160,13 @@ async function KYCDetailContent({ applicationId }: { applicationId: string }) {
     notFound();
   }
 
-  const { application, creator, signedUrls } = data;
+  const { application, creator, signedUrls, allApplications } = data;
   const isPending = application.status === "pending";
-  const verificationResult = application.verification_result as Record<string, any> | null;
+  const verificationResult = application.verification_result as VerificationResult | null;
   const ocrData = application.ocr_data as Record<string, any> | null;
+
+  // Face match score'u verification_result'tan çıkar
+  const faceMatchScore = verificationResult?.faceMatch?.score ?? verificationResult?.faceMatchScore;
 
   return (
     <div className="space-y-6">
@@ -275,81 +256,13 @@ async function KYCDetailContent({ applicationId }: { applicationId: string }) {
           </Card>
 
           {/* Otomatik Doğrulama Sonuçları */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5" />
-                Otomatik Doğrulama Sonuçları
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {verificationResult ? (
-                <>
-                  <VerificationResultItem
-                    label="İsim Eşleşmesi (OCR)"
-                    passed={verificationResult.nameMatch}
-                  />
-                  <VerificationResultItem
-                    label="Doğum Tarihi Eşleşmesi"
-                    passed={verificationResult.birthdateMatch}
-                  />
-                  <VerificationResultItem
-                    label="Yüz Eşleşmesi"
-                    passed={verificationResult.faceMatch}
-                    score={verificationResult.faceMatchScore}
-                  />
-                  <VerificationResultItem
-                    label="Canlılık Kontrolü"
-                    passed={verificationResult.livenessPass}
-                  />
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Genel Skor</span>
-                      <span
-                        className={`font-bold ${
-                          application.auto_score >= 0.8
-                            ? "text-green-600"
-                            : application.auto_score >= 0.5
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                        }`}
-                      >
-                        {Math.round((application.auto_score || 0) * 100)}%
-                      </span>
-                    </div>
-                    <Progress value={(application.auto_score || 0) * 100} />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Öneri</span>
-                    <Badge
-                      variant={
-                        application.auto_recommendation === "auto_approve"
-                          ? "default"
-                          : application.auto_recommendation === "auto_reject"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                    >
-                      {application.auto_recommendation === "auto_approve"
-                        ? "Otomatik Onay"
-                        : application.auto_recommendation === "auto_reject"
-                          ? "Otomatik Red"
-                          : "Manuel İnceleme"}
-                    </Badge>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Otomatik doğrulama yapılmamış</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <VerificationResultsCard
+            verificationResult={verificationResult}
+            autoScore={application.auto_score}
+            autoRecommendation={application.auto_recommendation}
+            ocrFormMatch={application.ocr_form_match}
+            faceDetectionPassed={application.face_detection_passed}
+          />
 
           {/* OCR Karşılaştırma */}
           <OCRComparisonCard
@@ -385,50 +298,15 @@ async function KYCDetailContent({ applicationId }: { applicationId: string }) {
 
         {/* Sağ Panel - Belgeler */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Belgeler
-              </CardTitle>
-              <CardDescription>Kimlik ve selfie görüntüleri</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Kimlik ve Selfie yan yana */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <DocumentImage src={signedUrls.idFront} alt="Kimlik Ön Yüz" label="Kimlik Ön Yüz" />
-                <DocumentImage src={signedUrls.selfie} alt="Selfie" label="Selfie" />
-              </div>
+          <DocumentsGrid signedUrls={signedUrls} faceMatchScore={faceMatchScore} />
 
-              {/* Kimlik Arka */}
-              <DocumentImage
-                src={signedUrls.idBack}
-                alt="Kimlik Arka Yüz"
-                label="Kimlik Arka Yüz"
-              />
-
-              {/* Yüz Karşılaştırma */}
-              {verificationResult?.faceMatchScore && (
-                <div className="p-4 rounded-lg bg-muted">
-                  <p className="text-sm font-medium mb-2">Yüz Karşılaştırma Skoru</p>
-                  <div className="flex items-center gap-3">
-                    <Progress value={verificationResult.faceMatchScore * 100} className="flex-1" />
-                    <span
-                      className={`font-bold ${
-                        verificationResult.faceMatchScore >= 0.8
-                          ? "text-green-600"
-                          : verificationResult.faceMatchScore >= 0.5
-                            ? "text-yellow-600"
-                            : "text-red-600"
-                      }`}
-                    >
-                      {Math.round(verificationResult.faceMatchScore * 100)}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Önceki Başvurular */}
+          {allApplications && allApplications.length > 1 && (
+            <PreviousApplicationsCard
+              applications={allApplications}
+              currentApplicationId={application.id}
+            />
+          )}
         </div>
       </div>
     </div>

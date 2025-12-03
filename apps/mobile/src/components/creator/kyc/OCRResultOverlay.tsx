@@ -28,9 +28,14 @@ const CARD_TOP = CARD_CENTER_Y - CARD_HEIGHT / 2;
 interface OCRResultOverlayProps {
   result: OCRResult;
   showDetails?: boolean;
+  variant?: "front" | "back"; // Ön yüz veya arka yüz
 }
 
-export function OCRResultOverlay({ result, showDetails = true }: OCRResultOverlayProps) {
+export function OCRResultOverlay({
+  result,
+  showDetails = true,
+  variant = "front"
+}: OCRResultOverlayProps) {
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -167,7 +172,11 @@ export function OCRResultOverlay({ result, showDetails = true }: OCRResultOverla
 
       {/* Talimat metni */}
       <View style={styles.instructionContainer}>
-        <Text style={styles.instructionText}>Kimlik kartınızı çerçeveye yerleştirin</Text>
+        <Text style={styles.instructionText}>
+          {variant === "back"
+            ? "Kimliğinizin arkasını çerçeveye yerleştirin"
+            : "Kimlik kartınızı çerçeveye yerleştirin"}
+        </Text>
       </View>
 
       {/* OCR sonuçları */}
@@ -195,26 +204,31 @@ export function OCRResultOverlay({ result, showDetails = true }: OCRResultOverla
             <Text style={styles.confidencePercent}>{Math.round(result.confidence * 100)}%</Text>
           </View>
 
-          {/* Algılanan bilgiler */}
+          {/* Algılanan bilgiler - variant'a göre */}
           <View style={styles.dataContainer}>
-            <DataRow label="TC Kimlik No" value={result.data.tcNumber} masked={true} />
-            <DataRow
-              label="Ad Soyad"
-              value={
-                result.data.firstName || result.data.lastName
-                  ? `${result.data.firstName || ""} ${result.data.lastName || ""}`.trim()
-                  : undefined
-              }
-            />
-            <DataRow
-              label="Doğum Tarihi"
-              value={result.data.birthDate ? formatDate(result.data.birthDate) : undefined}
-            />
-            <DataRow
-              label="Geçerlilik"
-              value={result.data.expiryDate ? formatDate(result.data.expiryDate) : undefined}
-              isExpired={result.data.expiryDate ? isExpired(result.data.expiryDate) : false}
-            />
+            {variant === "back" ? (
+              // Arka yüz - Sadece MRZ algılama durumu
+              <>
+                <DataRow label="MRZ Kodu" value={result.data.hasMRZ ? "Algılandı" : undefined} />
+              </>
+            ) : (
+              // Ön yüz - Standart bilgiler
+              <>
+                <DataRow label="TC Kimlik No" value={result.data.tcNumber} masked={true} />
+                <DataRow
+                  label="Ad Soyad"
+                  value={
+                    result.data.firstName || result.data.lastName
+                      ? `${result.data.firstName || ""} ${result.data.lastName || ""}`.trim()
+                      : undefined
+                  }
+                />
+                <DataRow
+                  label="Doğum Tarihi"
+                  value={result.data.birthDate ? formatDate(result.data.birthDate) : undefined}
+                />
+              </>
+            )}
           </View>
 
           {/* Durum mesajı */}
@@ -223,20 +237,24 @@ export function OCRResultOverlay({ result, showDetails = true }: OCRResultOverla
               <>
                 <Check size={18} color="#10B981" />
                 <Text style={[styles.statusText, { color: "#10B981" }]}>
-                  Bilgiler okundu, fotoğraf çekebilirsiniz
+                  {variant === "back"
+                    ? "MRZ okundu, fotoğraf çekebilirsiniz"
+                    : "Bilgiler okundu, fotoğraf çekebilirsiniz"}
                 </Text>
               </>
             ) : result.confidence > 0 ? (
               <>
                 <AlertCircle size={18} color="#F59E0B" />
                 <Text style={[styles.statusText, { color: "#F59E0B" }]}>
-                  Kimliği daha net tutun
+                  {variant === "back" ? "MRZ kodunu çerçeveye hizalayın" : "Kimliği daha net tutun"}
                 </Text>
               </>
             ) : (
               <>
                 <AlertCircle size={18} color="#fff" />
-                <Text style={[styles.statusText, { color: "#fff" }]}>Kimlik kartı algılanmadı</Text>
+                <Text style={[styles.statusText, { color: "#fff" }]}>
+                  {variant === "back" ? "MRZ kodu algılanmadı" : "Kimlik kartı algılanmadı"}
+                </Text>
               </>
             )}
           </View>
@@ -308,7 +326,7 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     position: "absolute",
-    bottom: 120,
+    bottom: 180,
     left: 20,
     right: 20,
     backgroundColor: "rgba(0,0,0,0.85)",
