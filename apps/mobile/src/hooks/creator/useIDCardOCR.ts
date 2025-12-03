@@ -155,7 +155,16 @@ function extractNames(text: string): { firstName?: string; lastName?: string } {
 }
 
 export function useIDCardOCR() {
-  const { scanText } = useTextRecognition({ language: 'latin' });
+  let scanText: any;
+  
+  try {
+    const textRecognition = useTextRecognition({ language: 'latin' });
+    scanText = textRecognition.scanText;
+    console.log('[OCR] useTextRecognition initialized successfully');
+  } catch (error) {
+    console.error('[OCR] useTextRecognition failed:', error);
+    scanText = () => ({ resultText: '' });
+  }
   
   const [lastResult, setLastResult] = useState<OCRResult>({
     data: {},
@@ -173,10 +182,22 @@ export function useIDCardOCR() {
   const parseOCRResult = useCallback((ocrResult: any): IDCardData => {
     const text = ocrResult?.resultText || '';
     
+    if (text && text.length > 10) {
+      console.log('[OCR] Raw text detected:', text.substring(0, 200));
+    }
+    
+    const tcNumber = extractTCNumber(text);
+    const names = extractNames(text);
+    const birthDate = extractDate(text);
+    
+    if (tcNumber || names.firstName || names.lastName || birthDate) {
+      console.log('[OCR] Extracted data:', { tcNumber, ...names, birthDate });
+    }
+    
     return {
-      tcNumber: extractTCNumber(text),
-      ...extractNames(text),
-      birthDate: extractDate(text),
+      tcNumber,
+      ...names,
+      birthDate,
       rawText: text,
     };
   }, []);
@@ -241,6 +262,10 @@ export function useIDCardOCR() {
 
     const confidence = fieldsFound / 4;
     const isComplete = fieldsFound >= 3; // En az 3 alan bulunmalı
+
+    if (isComplete) {
+      console.log('[OCR] Complete result:', { consolidatedData, confidence, fieldsFound });
+    }
 
     return {
       data: consolidatedData,

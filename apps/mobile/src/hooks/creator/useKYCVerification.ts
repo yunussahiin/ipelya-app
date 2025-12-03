@@ -94,33 +94,59 @@ export function useKYCVerification() {
   }, [loadStatus]);
 
   const uploadDocument = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie'): Promise<string | null> => {
+    console.log(`[KYC Upload] Starting upload for ${type}`, { localUri });
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) throw new Error('Not authenticated');
+      if (!session?.user?.id) {
+        console.error('[KYC Upload] Not authenticated');
+        throw new Error('Not authenticated');
+      }
+      console.log('[KYC Upload] User authenticated:', session.user.id);
 
       const timestamp = Date.now();
       const extension = localUri.split('.').pop() || 'jpg';
       const fileName = `${type}-${timestamp}.${extension}`;
       const storagePath = `kyc/${session.user.id}/${fileName}`;
+      console.log('[KYC Upload] Storage path:', storagePath);
+
+      // Fix double file:// prefix if present
+      let cleanUri = localUri;
+      if (localUri.startsWith('file://file://')) {
+        cleanUri = localUri.replace('file://file://', 'file://');
+      }
+      console.log('[KYC Upload] Clean URI:', cleanUri);
 
       // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync(localUri, {
-        encoding: FileSystem.EncodingType.Base64
+      console.log('[KYC Upload] Reading file as base64...');
+      const base64 = await FileSystem.readAsStringAsync(cleanUri, {
+        encoding: 'base64' as any // Workaround for EncodingType issue
       });
+      console.log('[KYC Upload] Base64 length:', base64.length);
+
+      // Convert base64 to Uint8Array
+      console.log('[KYC Upload] Converting to Uint8Array...');
+      const bytes = decodeBase64ToBytes(base64);
+      console.log('[KYC Upload] Bytes length:', bytes.length);
 
       // Upload to Supabase Storage
+      console.log('[KYC Upload] Uploading to Supabase Storage...');
       const { error: uploadError } = await supabase.storage
         .from('kyc-documents')
-        .upload(storagePath, decode(base64), {
+        .upload(storagePath, bytes, {
           contentType: `image/${extension}`,
           upsert: true
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('[KYC Upload] Upload error:', uploadError);
+        throw uploadError;
+      }
 
+      console.log('[KYC Upload] Upload successful:', storagePath);
       return storagePath;
     } catch (err: any) {
-      console.error('[useKYCVerification] Upload error:', err);
+      console.error('[KYC Upload] Error:', err.message, err);
       throw err;
     }
   };
@@ -291,12 +317,40 @@ export function useKYCVerification() {
   };
 }
 
-// Helper: Base64 decode for upload
-function decode(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+/**
+ * Base64 string'i Uint8Array'e çevir
+ * React Native'de atob() yok, bu yüzden manuel decode yapıyoruz
+ */
+function decodeBase64ToBytes(base64: string): Uint8Array {
+  // Base64 karakterlerini binary'ye çevir
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup = new Uint8Array(256);
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
   }
+
+  // Padding karakterlerini kaldır
+  let bufferLength = base64.length * 0.75;
+  if (base64[base64.length - 1] === '=') {
+    bufferLength--;
+    if (base64[base64.length - 2] === '=') {
+      bufferLength--;
+    }
+  }
+
+  const bytes = new Uint8Array(bufferLength);
+  let p = 0;
+
+  for (let i = 0; i < base64.length; i += 4) {
+    const encoded1 = lookup[base64.charCodeAt(i)];
+    const encoded2 = lookup[base64.charCodeAt(i + 1)];
+    const encoded3 = lookup[base64.charCodeAt(i + 2)];
+    const encoded4 = lookup[base64.charCodeAt(i + 3)];
+
+    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+    if (p < bufferLength) bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    if (p < bufferLength) bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+  }
+
   return bytes;
 }

@@ -244,15 +244,27 @@ export function useSyncOnReconnect() {
     }
   }, []);
 
-  // Bağlantı değişikliğini dinle
+  // Bağlantı değişikliğini dinle (periyodik kontrol)
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected) {
-        sync();
-      }
-    });
+    let wasConnected = true;
 
-    return () => unsubscribe();
+    const checkConnection = async () => {
+      try {
+        const networkState = await Network.getNetworkStateAsync();
+        const isConnected = networkState.isConnected ?? false;
+
+        if (isConnected && !wasConnected) {
+          sync();
+        }
+
+        wasConnected = isConnected;
+      } catch (error) {
+        console.warn("[Sync] Network check failed:", error);
+      }
+    };
+
+    const interval = setInterval(checkConnection, 5000);
+    return () => clearInterval(interval);
   }, [sync]);
 
   // App foreground'a geldiğinde sync yap

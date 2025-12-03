@@ -62,6 +62,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-web-browser",
     "expo-iap",
     "expo-system-ui",
+    "expo-asset",
     [
       "expo-local-authentication",
       {
@@ -104,7 +105,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         ios: {
           // VisionCameraFaceDetector (MLKit) requires iOS 16+
-          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "16.0"
+          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "16.0",
+          newArchEnabled: false
+        },
+        android: {
+          newArchEnabled: false
         }
       }
     ]

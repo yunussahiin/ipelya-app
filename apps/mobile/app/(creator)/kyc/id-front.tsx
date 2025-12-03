@@ -41,6 +41,7 @@ export default function KYCIdFrontScreen() {
 
   // Auto-capture when OCR is complete
   const readyCountRef = useRef(0);
+  const frameCountRef = useRef(0);
   const AUTO_CAPTURE_THRESHOLD = 20; // ~0.7 saniye
 
   // Cleanup
@@ -65,7 +66,9 @@ export default function KYCIdFrontScreen() {
         flash: "off"
       });
 
-      const photoPath = `file://${photo.path}`;
+      // photo.path already includes file:// on some platforms
+      const photoPath = photo.path.startsWith("file://") ? photo.path : `file://${photo.path}`;
+      console.log("[ID-Front] Photo captured:", photoPath);
       setCapturedImage(photoPath);
       setShowCamera(false);
 
@@ -89,12 +92,29 @@ export default function KYCIdFrontScreen() {
     }
   }, [isCapturing, lastResult.data, setDocumentPhoto, setOCRData]);
 
-  // Frame processor callback
-  const handleOCRUpdate = Worklets.createRunOnJS((result: OCRResult) => {
+  // Frame processor - OCR sonuçlarını JS'e gönder
+  const handleOCRResult = Worklets.createRunOnJS((ocrResult: any, frameNum: number) => {
+    // Log every 30 frames (~1 second)
+    if (frameNum % 30 === 0) {
+      console.log(
+        "[ID-Front] Frame",
+        frameNum,
+        "OCR result:",
+        ocrResult?.resultText?.substring(0, 100) || "empty"
+      );
+    }
+
+    if (!ocrResult?.resultText) return;
+
+    // processFrame ile sonuçları işle
+    const result = processFrame({ resultText: ocrResult.resultText });
+
     // Auto-capture logic
     if (result.isComplete) {
       readyCountRef.current++;
+      console.log("[ID-Front] Ready count:", readyCountRef.current);
       if (readyCountRef.current >= AUTO_CAPTURE_THRESHOLD && !isCapturing) {
+        console.log("[ID-Front] Auto-capturing...");
         handleManualCapture();
       }
     } else {
@@ -108,11 +128,15 @@ export default function KYCIdFrontScreen() {
       "worklet";
       runAsync(frame, () => {
         "worklet";
-        const ocrResult = scanText(frame);
-        // Note: processFrame is not worklet-safe, so we handle in JS
+        try {
+          const ocrResult = scanText(frame);
+          handleOCRResult(ocrResult, frameCountRef.current++);
+        } catch (error) {
+          console.log("[ID-Front] Frame processor error");
+        }
       });
     },
-    [scanText]
+    [scanText, handleOCRResult]
   );
 
   const handleRetake = () => {
