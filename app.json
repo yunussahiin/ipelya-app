@@ -12,7 +12,8 @@
       ]
     ],
     "ios": {
-      "backgroundColor": "#050505"
+      "backgroundColor": "#050505",
+      "bundleIdentifier": "com.yunussahiin.ipelya"
     },
     "extra": {
       "eas": {

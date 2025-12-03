@@ -198,11 +198,22 @@ export function OCRResultOverlay({ result, showDetails = true }: OCRResultOverla
           {/* Algılanan bilgiler */}
           <View style={styles.dataContainer}>
             <DataRow label="TC Kimlik No" value={result.data.tcNumber} masked={true} />
-            <DataRow label="Ad" value={result.data.firstName} />
-            <DataRow label="Soyad" value={result.data.lastName} />
+            <DataRow
+              label="Ad Soyad"
+              value={
+                result.data.firstName || result.data.lastName
+                  ? `${result.data.firstName || ""} ${result.data.lastName || ""}`.trim()
+                  : undefined
+              }
+            />
             <DataRow
               label="Doğum Tarihi"
               value={result.data.birthDate ? formatDate(result.data.birthDate) : undefined}
+            />
+            <DataRow
+              label="Geçerlilik"
+              value={result.data.expiryDate ? formatDate(result.data.expiryDate) : undefined}
+              isExpired={result.data.expiryDate ? isExpired(result.data.expiryDate) : false}
             />
           </View>
 
@@ -239,21 +250,33 @@ interface DataRowProps {
   label: string;
   value?: string;
   masked?: boolean;
+  isExpired?: boolean;
 }
 
-function DataRow({ label, value, masked }: DataRowProps) {
+function DataRow({ label, value, masked, isExpired }: DataRowProps) {
   const displayValue = value
     ? masked
       ? `${value.slice(0, 3)}****${value.slice(-2)}`
       : value
     : "-";
 
+  const textColor = isExpired ? "#EF4444" : value ? "#fff" : "#6B7280";
+
   return (
     <View style={styles.dataRow}>
       <Text style={styles.dataLabel}>{label}</Text>
       <View style={styles.dataValueContainer}>
-        {value ? <Check size={14} color="#10B981" /> : <X size={14} color="#6B7280" />}
-        <Text style={[styles.dataValue, !value && styles.dataValueEmpty]}>{displayValue}</Text>
+        {isExpired ? (
+          <X size={14} color="#EF4444" />
+        ) : value ? (
+          <Check size={14} color="#10B981" />
+        ) : (
+          <X size={14} color="#6B7280" />
+        )}
+        <Text style={[styles.dataValue, { color: textColor }]}>
+          {displayValue}
+          {isExpired && " (Süresi dolmuş)"}
+        </Text>
       </View>
     </View>
   );
@@ -262,6 +285,11 @@ function DataRow({ label, value, masked }: DataRowProps) {
 function formatDate(isoDate: string): string {
   const [year, month, day] = isoDate.split("-");
   return `${day}.${month}.${year}`;
+}
+
+function isExpired(isoDate: string): boolean {
+  const expiry = new Date(isoDate);
+  return expiry < new Date();
 }
 
 const styles = StyleSheet.create({

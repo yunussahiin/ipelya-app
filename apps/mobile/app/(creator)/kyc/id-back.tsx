@@ -1,17 +1,38 @@
 /**
  * KYC ID Back Screen
- * Kimlik arka yüz fotoğraf çekimi
+ * Kimlik arka yüz fotoğraf çekimi - MRZ okuma
  */
 
-import React, { useMemo, useState, useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, Image, Alert } from "react-native";
+import React, { useMemo, useState, useCallback, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Image,
+  Alert,
+  Vibration,
+  Dimensions
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, RefreshCw, ArrowRight } from "lucide-react-native";
+import { ArrowLeft, RefreshCw, ArrowRight, Camera as CameraIcon, Zap } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useKYCVerification } from "@/hooks/creator";
-import { VisionCamera, type CapturedMedia } from "@/components/camera/VisionCamera";
-import { IDCaptureOverlay } from "@/components/creator/kyc";
+import { Camera, useCameraDevice } from "react-native-vision-camera";
+import { OCRResultOverlay } from "@/components/creator/kyc/OCRResultOverlay";
+import { useIDCardOCR } from "@/hooks/creator/useIDCardOCR";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { addTimestampToImage } from "@/utils/imageUtils";
+import DocumentScanner from "react-native-document-scanner-plugin";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// Kimlik kartı çerçeve boyutları
+const CARD_ASPECT_RATIO = 1.586;
+const CARD_WIDTH = SCREEN_WIDTH * 0.85;
+const CARD_HEIGHT = CARD_WIDTH / CARD_ASPECT_RATIO;
+const CARD_CENTER_Y = SCREEN_HEIGHT * 0.4;
 
 export default function KYCIdBackScreen() {
   const { colors } = useTheme();
@@ -19,34 +40,92 @@ export default function KYCIdBackScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  const { documentPaths, setDocumentPhoto } = useKYCVerification();
+  const { documentPaths, setDocumentPhoto, setOCRData } = useKYCVerification();
 
   const [showCamera, setShowCamera] = useState(!documentPaths.idBackPath);
   const [capturedImage, setCapturedImage] = useState<string | null>(documentPaths.idBackPath);
+  const [captureTime, setCaptureTime] = useState<Date | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [flashOn, setFlashOn] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  // OCR - MRZ okuma için
+  const { lastResult } = useIDCardOCR();
+  const device = useCameraDevice("back");
+  const cameraRef = useRef<Camera>(null);
 
   const handleBack = () => router.back();
 
-  const handleCapture = useCallback(
-    async (media: CapturedMedia) => {
-      if (media.type === "photo") {
-        setCapturedImage(media.path);
-        setShowCamera(false);
+  const toggleFlash = useCallback(() => {
+    setFlashOn((prev) => !prev);
+  }, []);
 
-        setIsUploading(true);
-        const result = await setDocumentPhoto(media.path, "id-back");
-        setIsUploading(false);
+  // Manuel capture - Vision Camera ile çek, sonra Document Scanner ile düzelt
+  const handleManualCapture = useCallback(async () => {
+    if (!cameraRef.current || isCapturing) return;
 
-        if (!result.success) {
-          Alert.alert("Hata", result.error || "Fotoğraf yüklenemedi");
+    setIsCapturing(true);
+    Vibration.vibrate(50);
+
+    try {
+      const photo = await cameraRef.current.takePhoto({
+        qualityPrioritization: "quality",
+        flash: flashOn ? "on" : "off"
+      });
+
+      const photoPath = photo.path.startsWith("file://") ? photo.path : `file://${photo.path}`;
+      const now = new Date();
+      setCaptureTime(now);
+
+      let finalImageUri = photoPath;
+
+      // 1. Document Scanner ile perspektif düzeltme
+      try {
+        const { scannedImages, status } = await DocumentScanner.scanDocument({
+          croppedImageQuality: 100,
+          maxNumDocuments: 1
+        });
+
+        if (status === "success" && scannedImages && scannedImages.length > 0) {
+          finalImageUri = scannedImages[0];
         }
+      } catch (scanError) {
+        console.warn("[ID-Back] Document scan failed, using original:", scanError);
       }
-    },
-    [setDocumentPhoto]
-  );
+
+      // 2. Skia ile tarih damgası ekle
+      try {
+        finalImageUri = await addTimestampToImage(finalImageUri, now);
+      } catch (timestampError) {
+        console.warn("[ID-Back] Timestamp failed:", timestampError);
+      }
+
+      setCapturedImage(finalImageUri);
+      setShowCamera(false);
+
+      // MRZ verilerini kaydet
+      if (lastResult.data.tcNumber || lastResult.data.firstName) {
+        setOCRData?.(lastResult.data);
+      }
+
+      setIsUploading(true);
+      const result = await setDocumentPhoto(finalImageUri, "id-back", now);
+      setIsUploading(false);
+
+      if (!result.success) {
+        Alert.alert("Hata", result.error || "Fotoğraf yüklenemedi");
+      }
+    } catch (error) {
+      console.error("Capture error:", error);
+      Alert.alert("Hata", "Çekim başarısız oldu");
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [isCapturing, flashOn, lastResult.data, setDocumentPhoto, setOCRData]);
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setCaptureTime(null);
     setShowCamera(true);
   };
 
@@ -57,16 +136,63 @@ export default function KYCIdBackScreen() {
   };
 
   if (showCamera) {
+    if (!device) {
+      return (
+        <View style={[styles.cameraContainer, { alignItems: "center", justifyContent: "center" }]}>
+          <Text style={{ color: "#fff" }}>Kamera yükleniyor...</Text>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.cameraContainer}>
-        <VisionCamera
-          mode="photo"
-          initialPosition="back"
-          showControls={true}
-          onCapture={handleCapture}
-          onClose={() => router.back()}
+        {/* Kamera */}
+        <Camera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          device={device}
+          isActive={true}
+          photo={true}
+          torch={flashOn ? "on" : "off"}
         />
-        <IDCaptureOverlay side="back" />
+
+        {/* OCR overlay - MRZ için */}
+        <OCRResultOverlay result={lastResult} />
+
+        {/* Üst bar */}
+        <SafeAreaView style={styles.cameraHeader} edges={["top"]}>
+          <Pressable style={styles.cameraBackButton} onPress={handleBack}>
+            <ArrowLeft size={24} color="#fff" />
+          </Pressable>
+          <Text style={styles.cameraTitle}>Kimlik Arka Yüz</Text>
+          <Pressable style={styles.cameraBackButton} onPress={toggleFlash}>
+            <Zap
+              size={24}
+              color={flashOn ? "#FBBF24" : "#fff"}
+              fill={flashOn ? "#FBBF24" : "none"}
+            />
+          </Pressable>
+        </SafeAreaView>
+
+        {/* Alt bar - Capture butonu */}
+        <SafeAreaView style={styles.cameraBottom} edges={["bottom"]}>
+          <View style={styles.captureContainer}>
+            <Pressable
+              style={[
+                styles.captureButton,
+                {
+                  backgroundColor: "rgba(255,255,255,0.3)",
+                  opacity: isCapturing ? 0.5 : 1
+                }
+              ]}
+              onPress={handleManualCapture}
+              disabled={isCapturing}
+            >
+              <CameraIcon size={32} color="#fff" />
+            </Pressable>
+            <Text style={styles.captureHint}>MRZ kodunu çerçeveye yerleştirin</Text>
+          </View>
+        </SafeAreaView>
       </View>
     );
   }
@@ -103,6 +229,22 @@ export default function KYCIdBackScreen() {
               style={styles.previewImage}
               resizeMode="contain"
             />
+            {/* Tarih/Saat damgası */}
+            {captureTime && (
+              <View style={styles.timestampContainer}>
+                <Text style={styles.timestampText}>
+                  {captureTime.toLocaleDateString("tr-TR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric"
+                  })}{" "}
+                  {captureTime.toLocaleTimeString("tr-TR", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </Text>
+              </View>
+            )}
             {isUploading && (
               <View style={styles.uploadingOverlay}>
                 <Text style={styles.uploadingText}>Yükleniyor...</Text>
@@ -222,6 +364,21 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       fontSize: 16,
       fontWeight: "500"
     },
+    timestampContainer: {
+      position: "absolute",
+      bottom: 12,
+      right: 12,
+      backgroundColor: "rgba(0,0,0,0.7)",
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6
+    },
+    timestampText: {
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: "500",
+      fontVariant: ["tabular-nums"]
+    },
     actions: {
       flexDirection: "row",
       gap: 12,
@@ -254,5 +411,55 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       color: "#fff",
       fontSize: 16,
       fontWeight: "600"
+    },
+    // Camera styles
+    cameraHeader: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12
+    },
+    cameraBackButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(0,0,0,0.3)",
+      borderRadius: 20
+    },
+    cameraTitle: {
+      color: "#fff",
+      fontSize: 17,
+      fontWeight: "600"
+    },
+    cameraBottom: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingBottom: 20
+    },
+    captureContainer: {
+      alignItems: "center",
+      gap: 12
+    },
+    captureButton: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 4,
+      borderColor: "#fff"
+    },
+    captureHint: {
+      color: "#fff",
+      fontSize: 14,
+      textAlign: "center"
     }
   });

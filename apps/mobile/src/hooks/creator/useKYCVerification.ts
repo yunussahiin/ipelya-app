@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 
 export type KYCLevel = 'basic' | 'full';
 export type KYCStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -93,7 +93,7 @@ export function useKYCVerification() {
     loadStatus();
   }, [loadStatus]);
 
-  const uploadDocument = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie'): Promise<string | null> => {
+  const uploadDocument = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie', captureTime?: Date): Promise<string | null> => {
     console.log(`[KYC Upload] Starting upload for ${type}`, { localUri });
     
     try {
@@ -104,11 +104,17 @@ export function useKYCVerification() {
       }
       console.log('[KYC Upload] User authenticated:', session.user.id);
 
-      const timestamp = Date.now();
-      const extension = localUri.split('.').pop() || 'jpg';
-      const fileName = `${type}-${timestamp}.${extension}`;
+      // Tarih damgası - dosya adına ekle
+      const now = captureTime || new Date();
+      const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19); // 2024-12-03T04-39-00
+      const extension = localUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${type}_${dateStr}.${extension}`;
       const storagePath = `kyc/${session.user.id}/${fileName}`;
       console.log('[KYC Upload] Storage path:', storagePath);
+
+      // MIME type - jpg -> jpeg
+      const mimeType = extension === 'jpg' ? 'image/jpeg' : `image/${extension}`;
+      console.log('[KYC Upload] MIME type:', mimeType);
 
       // Fix double file:// prefix if present
       let cleanUri = localUri;
@@ -117,16 +123,10 @@ export function useKYCVerification() {
       }
       console.log('[KYC Upload] Clean URI:', cleanUri);
 
-      // Read file as base64
-      console.log('[KYC Upload] Reading file as base64...');
-      const base64 = await FileSystem.readAsStringAsync(cleanUri, {
-        encoding: 'base64' as any // Workaround for EncodingType issue
-      });
-      console.log('[KYC Upload] Base64 length:', base64.length);
-
-      // Convert base64 to Uint8Array
-      console.log('[KYC Upload] Converting to Uint8Array...');
-      const bytes = decodeBase64ToBytes(base64);
+      // New FileSystem API - read file as bytes directly
+      console.log('[KYC Upload] Reading file bytes...');
+      const file = new File(cleanUri);
+      const bytes = await file.bytes();
       console.log('[KYC Upload] Bytes length:', bytes.length);
 
       // Upload to Supabase Storage
@@ -134,7 +134,7 @@ export function useKYCVerification() {
       const { error: uploadError } = await supabase.storage
         .from('kyc-documents')
         .upload(storagePath, bytes, {
-          contentType: `image/${extension}`,
+          contentType: mimeType,
           upsert: true
         });
 
@@ -151,9 +151,9 @@ export function useKYCVerification() {
     }
   };
 
-  const setDocumentPhoto = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie') => {
+  const setDocumentPhoto = async (localUri: string, type: 'id-front' | 'id-back' | 'selfie', captureTime?: Date) => {
     try {
-      const path = await uploadDocument(localUri, type);
+      const path = await uploadDocument(localUri, type, captureTime);
       
       setDocumentPaths(prev => ({
         ...prev,
@@ -317,40 +317,3 @@ export function useKYCVerification() {
   };
 }
 
-/**
- * Base64 string'i Uint8Array'e çevir
- * React Native'de atob() yok, bu yüzden manuel decode yapıyoruz
- */
-function decodeBase64ToBytes(base64: string): Uint8Array {
-  // Base64 karakterlerini binary'ye çevir
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const lookup = new Uint8Array(256);
-  for (let i = 0; i < chars.length; i++) {
-    lookup[chars.charCodeAt(i)] = i;
-  }
-
-  // Padding karakterlerini kaldır
-  let bufferLength = base64.length * 0.75;
-  if (base64[base64.length - 1] === '=') {
-    bufferLength--;
-    if (base64[base64.length - 2] === '=') {
-      bufferLength--;
-    }
-  }
-
-  const bytes = new Uint8Array(bufferLength);
-  let p = 0;
-
-  for (let i = 0; i < base64.length; i += 4) {
-    const encoded1 = lookup[base64.charCodeAt(i)];
-    const encoded2 = lookup[base64.charCodeAt(i + 1)];
-    const encoded3 = lookup[base64.charCodeAt(i + 2)];
-    const encoded4 = lookup[base64.charCodeAt(i + 3)];
-
-    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
-    if (p < bufferLength) bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
-    if (p < bufferLength) bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
-  }
-
-  return bytes;
-}

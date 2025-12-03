@@ -3,7 +3,7 @@
  * Kişisel bilgi formu
  */
 
-import React, { useMemo, useState, useRef, useCallback } from "react";
+import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -22,10 +22,23 @@ export default function KYCFormScreen() {
 
   const { formData, setFormData } = useKYCVerification();
 
+  // TODO: Test için varsayılan değerler - Production'da kaldır!
+  useEffect(() => {
+    if (!formData.firstName) {
+      setFormData({
+        firstName: "Yunus",
+        lastName: "Şahin",
+        birthDate: "1996-12-29",
+        idNumber: "26087149210" // TC'yi buraya yaz: "12345678901"
+      });
+      setLocalDate(new Date(1996, 11, 29)); // Aralık = 11 (0-indexed)
+    }
+  }, []);
+
   const [localDate, setLocalDate] = useState<Date | null>(
-    formData.birthDate ? new Date(formData.birthDate) : null
+    formData.birthDate ? new Date(formData.birthDate) : new Date(1996, 11, 29)
   );
-  const [tempDate, setTempDate] = useState<Date>(localDate || new Date(2000, 0, 1));
+  const [tempDate, setTempDate] = useState<Date>(localDate || new Date(1996, 11, 29));
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // BottomSheet ref

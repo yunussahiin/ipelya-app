@@ -10,16 +10,36 @@
  */
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Pressable, Image, Alert, Vibration } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Image,
+  Alert,
+  Vibration,
+  Dimensions
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Camera as CameraIcon, RefreshCw, ArrowRight } from "lucide-react-native";
+import { ArrowLeft, Camera as CameraIcon, RefreshCw, ArrowRight, Zap } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import { useKYCVerification } from "@/hooks/creator";
 import { useIDCardOCR, type OCRResult } from "@/hooks/creator/useIDCardOCR";
 import { Camera, useFrameProcessor, runAsync, useCameraDevice } from "react-native-vision-camera";
 import { Worklets } from "react-native-worklets-core";
 import { OCRResultOverlay } from "@/components/creator/kyc/OCRResultOverlay";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { addTimestampToImage } from "@/utils/imageUtils";
+import DocumentScanner from "react-native-document-scanner-plugin";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// Kimlik kartı çerçeve boyutları (OCRResultOverlay ile aynı)
+const CARD_ASPECT_RATIO = 1.586;
+const CARD_WIDTH = SCREEN_WIDTH * 0.85;
+const CARD_HEIGHT = CARD_WIDTH / CARD_ASPECT_RATIO;
+const CARD_CENTER_Y = SCREEN_HEIGHT * 0.4;
 
 export default function KYCIdFrontScreen() {
   const { colors } = useTheme();
@@ -31,7 +51,9 @@ export default function KYCIdFrontScreen() {
 
   const [showCamera, setShowCamera] = useState(!documentPaths.idFrontPath);
   const [capturedImage, setCapturedImage] = useState<string | null>(documentPaths.idFrontPath);
+  const [captureTime, setCaptureTime] = useState<Date | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [flashOn, setFlashOn] = useState(false);
 
   // OCR
   const { scanText, processFrame, lastResult, resetHistory } = useIDCardOCR();
@@ -39,10 +61,17 @@ export default function KYCIdFrontScreen() {
   const cameraRef = useRef<Camera>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
+  // Toggle flash
+  const toggleFlash = useCallback(() => {
+    setFlashOn((prev) => !prev);
+  }, []);
+
   // Auto-capture when OCR is complete
   const readyCountRef = useRef(0);
   const frameCountRef = useRef(0);
-  const AUTO_CAPTURE_THRESHOLD = 20; // ~0.7 saniye
+  const hasAutoCapturedRef = useRef(false);
+  const isCapturingRef = useRef(false);
+  const AUTO_CAPTURE_THRESHOLD = 30; // ~1 saniye
 
   // Cleanup
   useEffect(() => {
@@ -53,23 +82,48 @@ export default function KYCIdFrontScreen() {
 
   const handleBack = () => router.back();
 
-  // Manuel capture
+  // Manuel capture - Vision Camera ile çek, sonra Document Scanner ile düzelt
   const handleManualCapture = useCallback(async () => {
-    if (!cameraRef.current || isCapturing) return;
+    if (!cameraRef.current || isCapturingRef.current) return;
 
+    isCapturingRef.current = true;
     setIsCapturing(true);
     Vibration.vibrate(50);
 
     try {
       const photo = await cameraRef.current.takePhoto({
         qualityPrioritization: "quality",
-        flash: "off"
+        flash: flashOn ? "on" : "off"
       });
 
-      // photo.path already includes file:// on some platforms
       const photoPath = photo.path.startsWith("file://") ? photo.path : `file://${photo.path}`;
-      console.log("[ID-Front] Photo captured:", photoPath);
-      setCapturedImage(photoPath);
+      const now = new Date();
+      setCaptureTime(now);
+
+      let finalImageUri = photoPath;
+
+      // 1. Document Scanner ile perspektif düzeltme
+      try {
+        const { scannedImages, status } = await DocumentScanner.scanDocument({
+          croppedImageQuality: 100,
+          maxNumDocuments: 1
+        });
+
+        if (status === "success" && scannedImages && scannedImages.length > 0) {
+          finalImageUri = scannedImages[0];
+        }
+      } catch (scanError) {
+        console.warn("[ID-Front] Document scan failed, using original:", scanError);
+      }
+
+      // 2. Skia ile tarih damgası ekle
+      try {
+        finalImageUri = await addTimestampToImage(finalImageUri, now);
+      } catch (timestampError) {
+        console.warn("[ID-Front] Timestamp failed:", timestampError);
+      }
+
+      setCapturedImage(finalImageUri);
       setShowCamera(false);
 
       // OCR verilerini kaydet
@@ -78,7 +132,7 @@ export default function KYCIdFrontScreen() {
       }
 
       setIsUploading(true);
-      const result = await setDocumentPhoto(photoPath, "id-front");
+      const result = await setDocumentPhoto(finalImageUri, "id-front", now);
       setIsUploading(false);
 
       if (!result.success) {
@@ -90,34 +144,23 @@ export default function KYCIdFrontScreen() {
     } finally {
       setIsCapturing(false);
     }
-  }, [isCapturing, lastResult.data, setDocumentPhoto, setOCRData]);
+  }, [flashOn, lastResult.data, setDocumentPhoto, setOCRData]);
 
   // Frame processor - OCR sonuçlarını JS'e gönder
   const handleOCRResult = Worklets.createRunOnJS((ocrResult: any, frameNum: number) => {
-    // Log every 30 frames (~1 second)
-    if (frameNum % 30 === 0) {
-      console.log(
-        "[ID-Front] Frame",
-        frameNum,
-        "OCR result:",
-        ocrResult?.resultText?.substring(0, 100) || "empty"
-      );
-    }
-
     if (!ocrResult?.resultText) return;
 
     // processFrame ile sonuçları işle
     const result = processFrame({ resultText: ocrResult.resultText });
 
-    // Auto-capture logic
-    if (result.isComplete) {
+    // Auto-capture logic - sadece bir kez çalışsın
+    if (result.isComplete && !hasAutoCapturedRef.current && !isCapturingRef.current) {
       readyCountRef.current++;
-      console.log("[ID-Front] Ready count:", readyCountRef.current);
-      if (readyCountRef.current >= AUTO_CAPTURE_THRESHOLD && !isCapturing) {
-        console.log("[ID-Front] Auto-capturing...");
+      if (readyCountRef.current >= AUTO_CAPTURE_THRESHOLD) {
+        hasAutoCapturedRef.current = true;
         handleManualCapture();
       }
-    } else {
+    } else if (!result.isComplete) {
       readyCountRef.current = 0;
     }
   });
@@ -132,7 +175,7 @@ export default function KYCIdFrontScreen() {
           const ocrResult = scanText(frame);
           handleOCRResult(ocrResult, frameCountRef.current++);
         } catch (error) {
-          console.log("[ID-Front] Frame processor error");
+          // Frame processor error - silent
         }
       });
     },
@@ -141,6 +184,10 @@ export default function KYCIdFrontScreen() {
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setCaptureTime(null);
+    hasAutoCapturedRef.current = false;
+    isCapturingRef.current = false;
+    readyCountRef.current = 0;
     setShowCamera(true);
   };
 
@@ -168,6 +215,7 @@ export default function KYCIdFrontScreen() {
           device={device}
           isActive={true}
           photo={true}
+          torch={flashOn ? "on" : "off"}
           frameProcessor={frameProcessor}
         />
 
@@ -180,7 +228,13 @@ export default function KYCIdFrontScreen() {
             <ArrowLeft size={24} color="#fff" />
           </Pressable>
           <Text style={styles.cameraTitle}>Kimlik Ön Yüz</Text>
-          <View style={{ width: 40 }} />
+          <Pressable style={styles.cameraBackButton} onPress={toggleFlash}>
+            <Zap
+              size={24}
+              color={flashOn ? "#FBBF24" : "#fff"}
+              fill={flashOn ? "#FBBF24" : "none"}
+            />
+          </Pressable>
         </SafeAreaView>
 
         {/* Alt bar - Capture butonu */}
@@ -242,6 +296,22 @@ export default function KYCIdFrontScreen() {
               style={styles.previewImage}
               resizeMode="contain"
             />
+            {/* Tarih/Saat damgası */}
+            {captureTime && (
+              <View style={styles.timestampContainer}>
+                <Text style={styles.timestampText}>
+                  {captureTime.toLocaleDateString("tr-TR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric"
+                  })}{" "}
+                  {captureTime.toLocaleTimeString("tr-TR", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </Text>
+              </View>
+            )}
             {isUploading && (
               <View style={styles.uploadingOverlay}>
                 <Text style={styles.uploadingText}>Yükleniyor...</Text>
@@ -411,6 +481,21 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       color: "#fff",
       fontSize: 16,
       fontWeight: "500"
+    },
+    timestampContainer: {
+      position: "absolute",
+      bottom: 12,
+      right: 12,
+      backgroundColor: "rgba(0,0,0,0.7)",
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6
+    },
+    timestampText: {
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: "500",
+      fontVariant: ["tabular-nums"]
     },
     actions: {
       flexDirection: "row",

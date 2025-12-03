@@ -61,6 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-secure-store",
     "expo-web-browser",
     "expo-iap",
+    "react-native-document-scanner-plugin",
     "expo-system-ui",
     "expo-asset",
     [
@@ -105,11 +106,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         ios: {
           // VisionCameraFaceDetector (MLKit) requires iOS 16+
-          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "16.0",
-          newArchEnabled: false
-        },
-        android: {
-          newArchEnabled: false
+          deploymentTarget: process.env.IOS_DEPLOYMENT_TARGET || "16.0"
         }
       }
     ]
