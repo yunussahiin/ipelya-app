@@ -224,6 +224,10 @@ const data = {
         {
           title: "Tüm Başvurular",
           url: "/ops/kyc"
+        },
+        {
+          title: "KYC Ayarlar",
+          url: "/ops/kyc/settings"
         }
       ]
     },

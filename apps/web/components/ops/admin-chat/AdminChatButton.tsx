@@ -17,7 +17,7 @@ export function AdminChatButton() {
   const pathname = usePathname();
   const [unreadInfo, setUnreadInfo] = useState<UnreadInfo>({ totalUnread: 0, senders: [] });
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const hasShownToast = useRef(false);
+  const lastToastCount = useRef(0);
   const isOnAdminChatPage = pathname === "/ops/admin-chat";
 
   // Kullanıcı ID'sini al
@@ -142,35 +142,28 @@ export function AdminChatButton() {
     };
   }, [currentUserId]);
 
-  // Toast bildirimi göster (sadece bir kere, admin-chat sayfasında değilse)
+  // Toast bildirimi göster (sadece yeni mesaj geldiğinde, admin-chat sayfasında değilse)
   useEffect(() => {
-    if (
-      !isOnAdminChatPage &&
-      unreadInfo.totalUnread > 0 &&
-      unreadInfo.senders.length > 0 &&
-      !hasShownToast.current
-    ) {
-      const senderNames = unreadInfo.senders.map((s) => s.name).join(", ");
-      toast.info(
-        `💬 ${senderNames} adlı kullanıcıdan ${unreadInfo.totalUnread} okunmamış mesajınız var`,
-        {
-          action: {
-            label: "Görüntüle",
-            onClick: () => router.push("/ops/admin-chat")
-          },
-          duration: 8000
-        }
-      );
-      hasShownToast.current = true;
+    // Admin chat sayfasındaysa veya mesaj yoksa toast gösterme
+    if (isOnAdminChatPage || unreadInfo.totalUnread === 0) {
+      lastToastCount.current = unreadInfo.totalUnread;
+      return;
     }
-  }, [unreadInfo, isOnAdminChatPage, router]);
 
-  // Admin chat sayfasına gittiğinde toast flag'ini sıfırla
-  useEffect(() => {
-    if (isOnAdminChatPage) {
-      hasShownToast.current = false;
+    // Sadece yeni mesaj geldiğinde toast göster (count arttığında)
+    if (unreadInfo.totalUnread > lastToastCount.current && unreadInfo.senders.length > 0) {
+      const senderNames = unreadInfo.senders.map((s) => s.name).join(", ");
+      toast.info(`💬 ${senderNames} size mesaj gönderdi`, {
+        action: {
+          label: "Görüntüle",
+          onClick: () => router.push("/ops/admin-chat")
+        },
+        duration: 5000
+      });
     }
-  }, [isOnAdminChatPage]);
+
+    lastToastCount.current = unreadInfo.totalUnread;
+  }, [unreadInfo, isOnAdminChatPage, router]);
 
   return (
     <Button

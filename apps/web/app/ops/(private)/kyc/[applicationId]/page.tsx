@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User, FileText } from "lucide-react";
+import { ArrowLeft, User, FileText, UserCircle } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createServerSupabaseClient, createAdminSupabaseClient } from "@/lib/supabase/server";
 import {
   KYCStatusBadge,
@@ -16,6 +17,7 @@ import {
   PreviousApplicationsCard
 } from "@/components/ops/finance";
 import { KYCActionsButtons } from "./actions-buttons";
+import { CreatorDetailsTab } from "./creator-details-tab";
 
 // ─────────────────────────────────────────────────────────
 // Types
@@ -23,6 +25,7 @@ import { KYCActionsButtons } from "./actions-buttons";
 
 interface PageProps {
   params: Promise<{ applicationId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -153,7 +156,13 @@ interface VerificationResult {
   faceMatchScore?: number;
 }
 
-async function KYCDetailContent({ applicationId }: { applicationId: string }) {
+async function KYCDetailContent({
+  applicationId,
+  defaultTab = "application"
+}: {
+  applicationId: string;
+  defaultTab?: string;
+}) {
   const data = await getKYCApplicationDetail(applicationId);
 
   if (!data) {
@@ -163,7 +172,7 @@ async function KYCDetailContent({ applicationId }: { applicationId: string }) {
   const { application, creator, signedUrls, allApplications } = data;
   const isPending = application.status === "pending";
   const verificationResult = application.verification_result as VerificationResult | null;
-  const ocrData = application.ocr_data as Record<string, any> | null;
+  const ocrData = application.ocr_data as Record<string, unknown> | null;
 
   // Face match score'u verification_result'tan çıkar
   const faceMatchScore = verificationResult?.faceMatch?.score ?? verificationResult?.faceMatchScore;
@@ -194,121 +203,147 @@ async function KYCDetailContent({ applicationId }: { applicationId: string }) {
         {isPending && <KYCActionsButtons applicationId={application.id} />}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Sol Panel */}
-        <div className="space-y-6">
-          {/* Creator Bilgileri */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Creator Bilgileri
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Username</span>
-                <span className="font-medium">@{creator?.username}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">E-posta</span>
-                <span>{creator?.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Başvuru Tarihi</span>
-                <span>{new Date(application.created_at).toLocaleDateString("tr-TR")}</span>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Tabs */}
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="application" className="gap-2" asChild>
+            <Link href={`/ops/kyc/${application.id}`}>
+              <FileText className="h-4 w-4" />
+              Başvuru Detayları
+            </Link>
+          </TabsTrigger>
+          <TabsTrigger value="creator" className="gap-2" asChild>
+            <Link href={`/ops/kyc/${application.id}?tab=creator`}>
+              <UserCircle className="h-4 w-4" />
+              Creator Bilgileri
+            </Link>
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Form Bilgileri */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Form Bilgileri
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Ad</span>
-                <span className="font-medium">{application.first_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Soyad</span>
-                <span className="font-medium">{application.last_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Doğum Tarihi</span>
-                <span>
-                  {application.birth_date
-                    ? new Date(application.birth_date).toLocaleDateString("tr-TR")
-                    : "-"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">TC Kimlik No</span>
-                <span className="font-mono">
-                  {application.id_number ? `***${application.id_number.slice(-4)}` : "-"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Application Tab */}
+        <TabsContent value="application" className="mt-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Sol Panel */}
+            <div className="space-y-6">
+              {/* Creator Bilgileri */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Başvuran Bilgileri
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Username</span>
+                    <span className="font-medium">@{creator?.username}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">E-posta</span>
+                    <span>{creator?.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Başvuru Tarihi</span>
+                    <span>{new Date(application.created_at).toLocaleDateString("tr-TR")}</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Otomatik Doğrulama Sonuçları */}
-          <VerificationResultsCard
-            verificationResult={verificationResult}
-            autoScore={application.auto_score}
-            autoRecommendation={application.auto_recommendation}
-            ocrFormMatch={application.ocr_form_match}
-            faceDetectionPassed={application.face_detection_passed}
-          />
+              {/* Form Bilgileri */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Form Bilgileri
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Ad</span>
+                    <span className="font-medium">{application.first_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Soyad</span>
+                    <span className="font-medium">{application.last_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Doğum Tarihi</span>
+                    <span>
+                      {application.birth_date
+                        ? new Date(application.birth_date).toLocaleDateString("tr-TR")
+                        : "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">TC Kimlik No</span>
+                    <span className="font-mono">
+                      {application.id_number ? `***${application.id_number.slice(-4)}` : "-"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* OCR Karşılaştırma */}
-          <OCRComparisonCard
-            ocrData={ocrData}
-            formData={{
-              id_number: application.id_number,
-              first_name: application.first_name,
-              last_name: application.last_name,
-              birth_date: application.birth_date
-            }}
-            ocrFormMatch={application.ocr_form_match}
-            faceDetectionPassed={application.face_detection_passed}
-          />
+              {/* Otomatik Doğrulama Sonuçları */}
+              <VerificationResultsCard
+                verificationResult={verificationResult}
+                autoScore={application.auto_score}
+                autoRecommendation={application.auto_recommendation}
+                ocrFormMatch={application.ocr_form_match}
+                faceDetectionPassed={application.face_detection_passed}
+              />
 
-          {/* Red Bilgisi */}
-          {application.status === "rejected" && application.rejection_reason && (
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle className="text-destructive">Reddedilme Sebebi</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{application.rejection_reason}</p>
-                {application.reviewer && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {application.reviewer.full_name || application.reviewer.email} -{" "}
-                    {new Date(application.reviewed_at).toLocaleString("tr-TR")}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              {/* OCR Karşılaştırma */}
+              <OCRComparisonCard
+                ocrData={ocrData}
+                formData={{
+                  id_number: application.id_number,
+                  first_name: application.first_name,
+                  last_name: application.last_name,
+                  birth_date: application.birth_date
+                }}
+                ocrFormMatch={application.ocr_form_match}
+                faceDetectionPassed={application.face_detection_passed}
+              />
 
-        {/* Sağ Panel - Belgeler */}
-        <div className="space-y-6">
-          <DocumentsGrid signedUrls={signedUrls} faceMatchScore={faceMatchScore} />
+              {/* Red Bilgisi */}
+              {application.status === "rejected" && application.rejection_reason && (
+                <Card className="border-destructive">
+                  <CardHeader>
+                    <CardTitle className="text-destructive">Reddedilme Sebebi</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>{application.rejection_reason}</p>
+                    {application.reviewer && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {application.reviewer.full_name || application.reviewer.email} -{" "}
+                        {new Date(application.reviewed_at).toLocaleString("tr-TR")}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-          {/* Önceki Başvurular */}
-          {allApplications && allApplications.length > 1 && (
-            <PreviousApplicationsCard
-              applications={allApplications}
-              currentApplicationId={application.id}
-            />
-          )}
-        </div>
-      </div>
+            {/* Sağ Panel - Belgeler */}
+            <div className="space-y-6">
+              <DocumentsGrid signedUrls={signedUrls} faceMatchScore={faceMatchScore} />
+
+              {/* Önceki Başvurular */}
+              {allApplications && allApplications.length > 1 && (
+                <PreviousApplicationsCard
+                  applications={allApplications}
+                  currentApplicationId={application.id}
+                />
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Creator Details Tab */}
+        <TabsContent value="creator" className="mt-6">
+          <CreatorDetailsTab creatorId={application.creator_id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -344,12 +379,14 @@ function DetailSkeleton() {
 // Page
 // ─────────────────────────────────────────────────────────
 
-export default async function KYCDetailPage({ params }: PageProps) {
+export default async function KYCDetailPage({ params, searchParams }: PageProps) {
   const { applicationId } = await params;
+  const { tab } = await searchParams;
+  const defaultTab = tab === "creator" ? "creator" : "application";
 
   return (
     <Suspense fallback={<DetailSkeleton />}>
-      <KYCDetailContent applicationId={applicationId} />
+      <KYCDetailContent applicationId={applicationId} defaultTab={defaultTab} />
     </Suspense>
   );
 }

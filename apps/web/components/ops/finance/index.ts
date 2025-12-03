@@ -23,3 +23,6 @@ export { DocumentImageModal } from "./kyc/document-image-modal";
 export { DocumentsGrid } from "./kyc/documents-grid";
 export { VerificationResultsCard } from "./kyc/verification-results-card";
 export { PreviousApplicationsCard } from "./kyc/previous-applications-card";
+
+// Creator Details Components
+export * from "./kyc/creator-details";

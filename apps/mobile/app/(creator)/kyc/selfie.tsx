@@ -496,8 +496,7 @@ export default function KYCSelfieScreen() {
             style={[styles.retakeButton, { borderColor: colors.border }]}
             onPress={handleRetake}
           >
-            <RefreshCw size={20} color={colors.textPrimary} />
-            <Text style={[styles.retakeText, { color: colors.textPrimary }]}>Tekrar Çek</Text>
+            <RefreshCw size={24} color={colors.textPrimary} />
           </Pressable>
 
           <Pressable
@@ -511,10 +510,14 @@ export default function KYCSelfieScreen() {
             onPress={handleSubmit}
             disabled={isUploading || isSubmitting || !canSubmit}
           >
-            <Check size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>
-              {isSubmitting ? "Gönderiliyor..." : "Başvuruyu Gönder"}
-            </Text>
+            {isSubmitting ? (
+              <Text style={styles.submitButtonText}>Gönderiliyor...</Text>
+            ) : (
+              <>
+                <Check size={22} color="#fff" />
+                <Text style={styles.submitButtonText}>Başvuruyu Gönder</Text>
+              </>
+            )}
           </Pressable>
         </View>
       </View>
@@ -707,18 +710,12 @@ const createStyles = (colors: ThemeColors, insets: { bottom: number }) =>
       paddingBottom: insets.bottom
     },
     retakeButton: {
-      flex: 1,
-      flexDirection: "row",
+      width: 56,
+      height: 56,
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 16,
-      borderRadius: 14,
-      borderWidth: 1,
-      gap: 8
-    },
-    retakeText: {
-      fontSize: 16,
-      fontWeight: "500"
+      borderRadius: 28,
+      borderWidth: 1.5
     },
     submitButton: {
       flex: 1,

@@ -305,12 +305,14 @@ export function useLivenessDetection() {
   
   /**
    * Sağa çevirme kontrolü
+   * NOT: Front kamera ayna görüntüsü verir, bu yüzden yaw açısı ters çalışır
+   * Kullanıcı sağa çevirince kamera negatif yaw verir
    */
   const checkTurnRight = useCallback((face: Face): boolean => {
     const yaw = face.yawAngle;
     
-    // Sağa çevirme = pozitif yaw açısı
-    if (yaw > THRESHOLDS.turnAngleThreshold) {
+    // Front kamera ayna: Sağa çevirme = negatif yaw açısı
+    if (yaw < -THRESHOLDS.turnAngleThreshold) {
       console.log(`[Liveness] Turn Right: yaw=${yaw.toFixed(1)}° - DETECTED!`);
       return true;
     }
@@ -320,12 +322,14 @@ export function useLivenessDetection() {
   
   /**
    * Sola çevirme kontrolü
+   * NOT: Front kamera ayna görüntüsü verir, bu yüzden yaw açısı ters çalışır
+   * Kullanıcı sola çevirince kamera pozitif yaw verir
    */
   const checkTurnLeft = useCallback((face: Face): boolean => {
     const yaw = face.yawAngle;
     
-    // Sola çevirme = negatif yaw açısı
-    if (yaw < -THRESHOLDS.turnAngleThreshold) {
+    // Front kamera ayna: Sola çevirme = pozitif yaw açısı
+    if (yaw > THRESHOLDS.turnAngleThreshold) {
       console.log(`[Liveness] Turn Left: yaw=${yaw.toFixed(1)}° - DETECTED!`);
       return true;
     }

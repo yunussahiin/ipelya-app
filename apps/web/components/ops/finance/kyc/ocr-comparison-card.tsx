@@ -85,6 +85,38 @@ function compareFields(
   return normalizeString(ocrValue) === normalizeString(formValue);
 }
 
+/**
+ * Doğum tarihlerini karşılaştır
+ * Formatlar: "1996-12-29", "29.12.1996", "29/12/1996" vb.
+ */
+function compareDates(
+  ocrDate: string | null | undefined,
+  formDate: string | null | undefined
+): boolean {
+  if (!ocrDate || !formDate) return false;
+
+  const normalizeDate = (d: string): string => {
+    const cleaned = d.replace(/[.\/]/g, "-").trim();
+    const parts = cleaned.split("-");
+
+    if (parts.length !== 3) return "";
+
+    // DD-MM-YYYY formatını YYYY-MM-DD'ye çevir
+    if (parts[0].length === 2 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    }
+
+    // YYYY-MM-DD formatı
+    if (parts[0].length === 4) {
+      return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+    }
+
+    return cleaned;
+  };
+
+  return normalizeDate(ocrDate) === normalizeDate(formDate);
+}
+
 function getConfidenceColor(score: number): string {
   if (score >= 0.9) return "text-green-600";
   if (score >= 0.7) return "text-yellow-600";
@@ -150,23 +182,49 @@ function ComparisonRow({
   formValue,
   ocrValue,
   fieldScore,
-  highlight
+  highlight,
+  isDate = false
 }: {
   label: string;
   formValue: string | null | undefined;
   ocrValue: string | null | undefined;
   fieldScore?: number;
   highlight: boolean;
+  isDate?: boolean;
 }) {
-  const match = compareFields(ocrValue, formValue);
+  const match = isDate ? compareDates(ocrValue, formValue) : compareFields(ocrValue, formValue);
+
+  // Tarih formatı için helper
+  const formatDateDisplay = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "-";
+    try {
+      // YYYY-MM-DD veya DD.MM.YYYY formatlarını parse et
+      const cleaned = dateStr.replace(/[.\/]/g, "-").trim();
+      const parts = cleaned.split("-");
+      if (parts.length !== 3) return dateStr;
+
+      let year: string, month: string, day: string;
+      if (parts[0].length === 4) {
+        [year, month, day] = parts;
+      } else {
+        [day, month, year] = parts;
+      }
+      return `${day.padStart(2, "0")}.${month.padStart(2, "0")}.${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const displayFormValue = isDate ? formatDateDisplay(formValue) : formValue || "-";
+  const displayOcrValue = isDate ? formatDateDisplay(ocrValue) : ocrValue || "-";
 
   return (
     <TableRow className={cn(!match && highlight && "bg-red-50 dark:bg-red-950/30")}>
       <TableCell className="font-medium">{label}</TableCell>
-      <TableCell>{formValue || "-"}</TableCell>
+      <TableCell>{displayFormValue}</TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <span>{ocrValue || "-"}</span>
+          <span>{displayOcrValue}</span>
           {fieldScore !== undefined && (
             <span className={cn("text-xs", getConfidenceColor(fieldScore))}>
               ({Math.round(fieldScore * 100)}%)
@@ -314,16 +372,11 @@ export function OCRComparisonCard({
             />
             <ComparisonRow
               label="Doğum Tarihi"
-              formValue={
-                formData.birth_date
-                  ? new Date(formData.birth_date).toLocaleDateString("tr-TR")
-                  : null
-              }
-              ocrValue={
-                ocrData.birth_date ? new Date(ocrData.birth_date).toLocaleDateString("tr-TR") : null
-              }
+              formValue={formData.birth_date}
+              ocrValue={ocrData.birth_date}
               fieldScore={fieldScores.birth_date}
               highlight={true}
+              isDate={true}
             />
           </TableBody>
         </Table>

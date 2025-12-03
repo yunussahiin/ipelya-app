@@ -20,20 +20,26 @@ import { useLivenessDetection, type LivenessResult } from "@/hooks/creator";
 import { LivenessProgress } from "./LivenessProgress";
 import { LivenessOverlay } from "./LivenessOverlay";
 import * as Haptics from "expo-haptics";
+import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const successSound = require("../../../../../assets/sound/liveness-true.mp3");
 
 interface LivenessCheckProps {
   onComplete: (result: LivenessResult) => void;
   onCancel: () => void;
-  onSkip?: () => void;
 }
 
-export function LivenessCheck({ onComplete, onCancel, onSkip }: LivenessCheckProps) {
+export function LivenessCheck({ onComplete, onCancel }: LivenessCheckProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets);
 
   const device = useCameraDevice("front");
   const cameraRef = useRef<FaceCamera>(null);
+
+  // Başarı sesi player
+  const successPlayer = useAudioPlayer(successSound);
 
   const [faceValid, setFaceValid] = useState(false);
   const [message, setMessage] = useState("");
@@ -56,13 +62,37 @@ export function LivenessCheck({ onComplete, onCancel, onSkip }: LivenessCheckPro
     stopListeners
   } = useLivenessDetection();
 
-  // Start liveness on mount
+  // Audio mode ayarla ve liveness başlat
   useEffect(() => {
+    const initAudio = async () => {
+      try {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: false
+        });
+      } catch (e) {
+        console.warn("[LivenessCheck] Audio mode setup failed:", e);
+      }
+    };
+
+    initAudio();
     startLiveness();
+
     return () => {
       stopListeners();
     };
-  }, []);
+  }, [startLiveness, stopListeners]);
+
+  // Her adım tamamlandığında ses çal
+  const prevCompletedStepsRef = useRef(0);
+  useEffect(() => {
+    if (completedSteps.length > prevCompletedStepsRef.current) {
+      // Yeni adım tamamlandı - ses çal
+      successPlayer.seekTo(0);
+      successPlayer.play();
+      prevCompletedStepsRef.current = completedSteps.length;
+    }
+  }, [completedSteps.length, successPlayer]);
 
   // Handle completion
   useEffect(() => {
@@ -102,8 +132,9 @@ export function LivenessCheck({ onComplete, onCancel, onSkip }: LivenessCheckPro
     [isProcessing, isComplete, processFrame]
   );
 
-  // Handle retry
+  // Handle retry - ilk adıma dön
   const handleRetry = useCallback(() => {
+    prevCompletedStepsRef.current = 0; // Ses sayacını sıfırla
     resetLiveness();
     startLiveness();
   }, [resetLiveness, startLiveness]);
@@ -140,6 +171,9 @@ export function LivenessCheck({ onComplete, onCancel, onSkip }: LivenessCheckPro
         }}
       />
 
+      {/* Dark overlay for better contrast */}
+      <View style={styles.darkOverlay} />
+
       {/* Overlay */}
       <LivenessOverlay
         stepConfig={currentStepConfig}
@@ -152,32 +186,25 @@ export function LivenessCheck({ onComplete, onCancel, onSkip }: LivenessCheckPro
       {/* Header */}
       <SafeAreaView edges={["top"]} style={styles.header}>
         <Pressable onPress={handleCancel} style={styles.headerButton}>
-          <X size={24} color={colors.textPrimary} />
+          <X size={24} color="#fff" />
         </Pressable>
 
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Canlılık Kontrolü</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Canlılık Kontrolü</Text>
+          <Text style={styles.headerSubtitle}>
+            Adım {Math.min(currentStepIndex + 1, totalSteps)} / {totalSteps}
+          </Text>
+        </View>
 
         <Pressable onPress={handleRetry} style={styles.headerButton}>
-          <RotateCcw size={24} color={colors.textPrimary} />
+          <RotateCcw size={24} color="#fff" />
         </Pressable>
       </SafeAreaView>
 
-      {/* Progress */}
+      {/* Progress Bar - Top */}
       <View style={styles.progressContainer}>
         <LivenessProgress currentStep={currentStepIndex} totalSteps={totalSteps} />
-        <Text style={[styles.stepText, { color: colors.textSecondary }]}>
-          Adım {Math.min(currentStepIndex + 1, totalSteps)} / {totalSteps}
-        </Text>
       </View>
-
-      {/* Skip Button (optional) */}
-      {onSkip && !isComplete && (
-        <SafeAreaView edges={["bottom"]} style={styles.footer}>
-          <Pressable onPress={onSkip} style={styles.skipButton}>
-            <Text style={[styles.skipText, { color: colors.textMuted }]}>Atla</Text>
-          </Pressable>
-        </SafeAreaView>
-      )}
     </View>
   );
 }
@@ -186,7 +213,11 @@ function createStyles(colors: ThemeColors, insets: { top: number; bottom: number
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background
+      backgroundColor: "#000"
+    },
+    darkOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.4)"
     },
     header: {
       position: "absolute",
@@ -198,47 +229,35 @@ function createStyles(colors: ThemeColors, insets: { top: number; bottom: number
       justifyContent: "space-between",
       paddingHorizontal: 16,
       paddingTop: 8,
-      backgroundColor: "rgba(0,0,0,0.3)"
+      paddingBottom: 12
     },
     headerButton: {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: "rgba(255,255,255,0.2)",
+      backgroundColor: "rgba(255,255,255,0.15)",
       justifyContent: "center",
+      alignItems: "center"
+    },
+    headerCenter: {
       alignItems: "center"
     },
     headerTitle: {
       fontSize: 18,
-      fontWeight: "600"
+      fontWeight: "700",
+      color: "#fff"
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontWeight: "500",
+      color: "rgba(255,255,255,0.7)",
+      marginTop: 2
     },
     progressContainer: {
       position: "absolute",
-      top: insets.top + 60,
-      left: 0,
-      right: 0,
-      alignItems: "center",
-      gap: 8
-    },
-    stepText: {
-      fontSize: 14,
-      fontWeight: "500"
-    },
-    footer: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      alignItems: "center",
-      paddingBottom: 20
-    },
-    skipButton: {
-      paddingHorizontal: 24,
-      paddingVertical: 12
-    },
-    skipText: {
-      fontSize: 16,
-      fontWeight: "500"
+      top: insets.top + 70,
+      left: 20,
+      right: 20
     },
     errorText: {
       color: colors.textPrimary,

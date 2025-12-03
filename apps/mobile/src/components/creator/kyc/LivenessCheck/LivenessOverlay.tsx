@@ -18,9 +18,9 @@ import { Eye, EyeOff, Smile, ArrowRight, ArrowLeft, Check } from "lucide-react-n
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 import type { LivenessStep, LivenessStepConfig } from "@/hooks/creator";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const OVAL_WIDTH = SCREEN_WIDTH * 0.7;
-const OVAL_HEIGHT = OVAL_WIDTH * 1.3;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const OVAL_WIDTH = SCREEN_WIDTH * 0.72;
+const OVAL_HEIGHT = OVAL_WIDTH * 1.35;
 
 interface LivenessOverlayProps {
   stepConfig: LivenessStepConfig | null;
@@ -49,27 +49,50 @@ export function LivenessOverlay({
 
   return (
     <View style={styles.container}>
-      {/* Oval Frame */}
+      {/* Oval Frame with glow effect */}
       <View style={styles.frameContainer}>
+        {/* Outer glow */}
+        <View
+          style={[
+            styles.ovalGlow,
+            {
+              borderColor: isComplete
+                ? "rgba(16, 185, 129, 0.3)"
+                : faceValid
+                  ? "rgba(59, 130, 246, 0.3)"
+                  : "rgba(239, 68, 68, 0.3)",
+              shadowColor: borderColor
+            }
+          ]}
+        />
+
+        {/* Main frame */}
         <View style={[styles.ovalFrame, { borderColor }]}>
           {isComplete && (
-            <View style={styles.successIcon}>
-              <Check size={48} color="#10B981" strokeWidth={3} />
-            </View>
+            <Animated.View style={styles.successIcon}>
+              <Check size={56} color="#10B981" strokeWidth={3} />
+            </Animated.View>
           )}
         </View>
+
+        {/* Face position hint */}
+        {!isComplete && !faceValid && (
+          <View style={styles.hintContainer}>
+            <Text style={styles.hintText}>Yüzünüzü çerçeveye yerleştirin</Text>
+          </View>
+        )}
       </View>
 
-      {/* Instruction Area */}
+      {/* Instruction Area - Bottom */}
       <View style={styles.instructionContainer}>
         {isComplete ? (
           <SuccessMessage colors={colors} />
         ) : stepConfig ? (
-          <StepInstruction stepConfig={stepConfig} colors={colors} />
+          <StepInstruction stepConfig={stepConfig} colors={colors} faceValid={faceValid} />
         ) : (
-          <Text style={[styles.message, { color: colors.textSecondary }]}>
-            {message || "Hazırlanıyor..."}
-          </Text>
+          <View style={styles.loadingBox}>
+            <Text style={styles.loadingText}>{message || "Hazırlanıyor..."}</Text>
+          </View>
         )}
       </View>
     </View>
@@ -79,17 +102,17 @@ export function LivenessOverlay({
 interface StepInstructionProps {
   stepConfig: LivenessStepConfig;
   colors: ThemeColors;
+  faceValid: boolean;
 }
 
-function StepInstruction({ stepConfig, colors }: StepInstructionProps) {
+function StepInstruction({ stepConfig, colors, faceValid }: StepInstructionProps) {
   const styles = createStyles(colors);
 
   return (
-    <View style={styles.instructionBox}>
+    <View style={[styles.instructionBox, faceValid && styles.instructionBoxActive]}>
       <AnimatedIcon step={stepConfig.id} colors={colors} />
-      <Text style={[styles.instructionText, { color: colors.textPrimary }]}>
-        {stepConfig.instruction}
-      </Text>
+      <Text style={styles.instructionText}>{stepConfig.instruction}</Text>
+      {faceValid && <Text style={styles.instructionHint}>Hareketi yapın</Text>}
     </View>
   );
 }
@@ -205,23 +228,31 @@ function SuccessMessage({ colors }: SuccessMessageProps) {
       <View style={styles.successIconLarge}>
         <Check size={32} color="#fff" strokeWidth={3} />
       </View>
-      <Text style={[styles.successText, { color: "#10B981" }]}>Canlılık Doğrulandı!</Text>
+      <Text style={styles.successText}>Canlılık Doğrulandı!</Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "rgba(59, 130, 246, 0.4)"
   },
   successContainer: {
-    alignItems: "center"
+    alignItems: "center",
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)"
   },
   successIconLarge: {
     width: 64,
@@ -234,7 +265,8 @@ const styles = StyleSheet.create({
   },
   successText: {
     fontSize: 20,
-    fontWeight: "700"
+    fontWeight: "700",
+    color: "#10B981"
   }
 });
 
@@ -242,13 +274,21 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       ...StyleSheet.absoluteFillObject,
-      justifyContent: "space-between",
-      paddingVertical: 40
-    },
-    frameContainer: {
-      flex: 1,
       justifyContent: "center",
       alignItems: "center"
+    },
+    frameContainer: {
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: -40
+    },
+    ovalGlow: {
+      position: "absolute",
+      width: OVAL_WIDTH + 20,
+      height: OVAL_HEIGHT + 20,
+      borderRadius: (OVAL_WIDTH + 20) / 2,
+      borderWidth: 8,
+      opacity: 0.5
     },
     ovalFrame: {
       width: OVAL_WIDTH,
@@ -260,29 +300,64 @@ function createStyles(colors: ThemeColors) {
     },
     successIcon: {
       backgroundColor: "rgba(16, 185, 129, 0.2)",
-      borderRadius: 40,
-      padding: 12
+      borderRadius: 50,
+      padding: 16
+    },
+    hintContainer: {
+      position: "absolute",
+      bottom: -60,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20
+    },
+    hintText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "500"
     },
     instructionContainer: {
-      alignItems: "center",
-      paddingHorizontal: 20,
-      paddingBottom: 20
+      position: "absolute",
+      bottom: 15,
+      left: 20,
+      right: 20,
+      alignItems: "center"
     },
     instructionBox: {
       alignItems: "center",
-      backgroundColor: colors.surface,
-      paddingHorizontal: 24,
-      paddingVertical: 20,
-      borderRadius: 16,
-      minWidth: 200
+      backgroundColor: "rgba(0,0,0,0.7)",
+      paddingHorizontal: 32,
+      paddingVertical: 24,
+      borderRadius: 20,
+      minWidth: 240,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.1)"
+    },
+    instructionBoxActive: {
+      backgroundColor: "rgba(59, 130, 246, 0.2)",
+      borderColor: "rgba(59, 130, 246, 0.5)"
     },
     instructionText: {
-      fontSize: 18,
-      fontWeight: "600",
-      textAlign: "center"
+      fontSize: 20,
+      fontWeight: "700",
+      textAlign: "center",
+      color: "#fff"
     },
-    message: {
+    instructionHint: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: "rgba(255,255,255,0.6)",
+      marginTop: 8
+    },
+    loadingBox: {
+      backgroundColor: "rgba(0,0,0,0.6)",
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+      borderRadius: 16
+    },
+    loadingText: {
       fontSize: 16,
+      color: "rgba(255,255,255,0.8)",
       textAlign: "center"
     }
   });

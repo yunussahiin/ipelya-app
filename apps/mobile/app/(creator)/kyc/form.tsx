@@ -49,6 +49,7 @@ export default function KYCFormScreen() {
   const snapPoints = useMemo(() => ["45%"], []);
 
   const openDatePicker = useCallback(() => {
+    Keyboard.dismiss(); // Klavyeyi kapat
     setTempDate(localDate || new Date(2000, 0, 1));
     datePickerSheetRef.current?.expand();
   }, [localDate]);

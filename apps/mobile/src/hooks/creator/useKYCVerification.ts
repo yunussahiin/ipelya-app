@@ -17,6 +17,17 @@ const KYC_STORAGE_KEY = 'kyc_wizard_state';
 export type KYCLevel = 'basic' | 'full';
 export type KYCStatus = 'none' | 'pending' | 'approved' | 'rejected';
 
+export interface KYCLimits {
+  basic: number;
+  full: number;
+}
+
+export interface KYCCooldown {
+  enabled: boolean;
+  days: number;
+  until: string | null;
+}
+
 export interface KYCProfile {
   status: KYCStatus;
   level: KYCLevel | null;
@@ -32,6 +43,10 @@ export interface KYCProfile {
     reason: string;
     rejectedAt: string;
   } | null;
+  // Yeni: Mobile için ayarlar
+  canApply: boolean;
+  limits: KYCLimits;
+  cooldown: KYCCooldown;
 }
 
 export interface KYCFormData {
@@ -313,7 +328,10 @@ export function useKYCVerification() {
             first_name: ocrData.firstName,
             last_name: ocrData.lastName,
             birth_date: ocrData.birthDate,
-            confidence_score: ocrData.confidence || 0
+            // Confidence string'den number'a çevir ("95%" -> 0.95)
+            confidence_score: ocrData.confidence && typeof ocrData.confidence === 'string'
+              ? parseFloat(ocrData.confidence.replace('%', '')) / 100 
+              : (typeof ocrData.confidence === 'number' ? ocrData.confidence : 0)
           } : null,
           // Face detection sonucunu ekle
           faceDetectionPassed,

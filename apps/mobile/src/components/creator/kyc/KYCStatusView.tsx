@@ -17,7 +17,8 @@ import {
   Info,
   Calendar,
   User,
-  Wallet
+  Wallet,
+  Timer
 } from "lucide-react-native";
 import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
 
@@ -42,6 +43,17 @@ export interface KYCProfile {
     reason: string;
     rejectedAt: string;
   } | null;
+  // Yeni: Mobile için ayarlar
+  canApply?: boolean;
+  limits?: {
+    basic: number;
+    full: number;
+  };
+  cooldown?: {
+    enabled: boolean;
+    days: number;
+    until: string | null;
+  };
 }
 
 interface KYCStatusViewProps {
@@ -496,15 +508,79 @@ function RejectedView({
           </View>
         </View>
 
+        {/* Cooldown Warning */}
+        {profile.cooldown?.until && new Date(profile.cooldown.until) > new Date() && (
+          <CooldownWarning until={profile.cooldown.until} colors={colors} styles={styles} />
+        )}
+
         {/* Retry Button */}
         <Pressable
-          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+          style={[
+            styles.primaryButton,
+            {
+              backgroundColor: profile.canApply === false ? colors.border : colors.accent,
+              opacity: profile.canApply === false ? 0.6 : 1
+            }
+          ]}
           onPress={onStart}
+          disabled={profile.canApply === false}
         >
           <RefreshCw size={20} color="#fff" />
-          <Text style={styles.primaryButtonText}>Yeniden Başvur</Text>
+          <Text style={styles.primaryButtonText}>
+            {profile.canApply === false ? "Bekleme Süresinde" : "Yeniden Başvur"}
+          </Text>
         </Pressable>
       </Animated.View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Cooldown Warning Component
+// ─────────────────────────────────────────────────────────
+
+function CooldownWarning({
+  until,
+  colors,
+  styles
+}: {
+  until: string;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const cooldownDate = new Date(until);
+  const now = new Date();
+  const diffMs = cooldownDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+  let timeText = "";
+  if (diffDays > 1) {
+    timeText = `${diffDays} gün`;
+  } else if (diffHours > 1) {
+    timeText = `${diffHours} saat`;
+  } else {
+    timeText = "1 saatten az";
+  }
+
+  return (
+    <View style={[styles.cooldownBox, { backgroundColor: "#F59E0B15", borderColor: "#F59E0B30" }]}>
+      <View style={styles.cooldownHeader}>
+        <Timer size={18} color="#F59E0B" />
+        <Text style={[styles.cooldownTitle, { color: "#F59E0B" }]}>Bekleme Süresi</Text>
+      </View>
+      <Text style={[styles.cooldownText, { color: colors.textSecondary }]}>
+        Yeni başvuru yapabilmek için {timeText} beklemeniz gerekiyor.
+      </Text>
+      <Text style={[styles.cooldownDate, { color: colors.textMuted }]}>
+        Başvuru açılış:{" "}
+        {cooldownDate.toLocaleDateString("tr-TR", {
+          day: "numeric",
+          month: "long",
+          hour: "2-digit",
+          minute: "2-digit"
+        })}
+      </Text>
     </View>
   );
 }
@@ -884,5 +960,32 @@ const createStyles = (colors: ThemeColors) =>
     secondaryButtonText: {
       fontSize: 14,
       fontWeight: "500"
+    },
+    // Cooldown styles
+    cooldownBox: {
+      width: "100%",
+      padding: 16,
+      borderRadius: 14,
+      borderWidth: 1,
+      marginBottom: 16
+    },
+    cooldownHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 8
+    },
+    cooldownTitle: {
+      fontSize: 14,
+      fontWeight: "600"
+    },
+    cooldownText: {
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 4
+    },
+    cooldownDate: {
+      fontSize: 12,
+      marginTop: 4
     }
   });

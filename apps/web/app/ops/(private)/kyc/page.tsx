@@ -1,5 +1,7 @@
 import { Suspense } from "react";
-import { ShieldCheck, Clock, Check, X, Users } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Clock, Check, X, Users, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -221,9 +223,17 @@ function KYCApplicationsSkeleton() {
 export default function KYCPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">KYC Yönetimi</h1>
-        <p className="text-muted-foreground">Kimlik doğrulama başvuru onayları</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">KYC Yönetimi</h1>
+          <p className="text-muted-foreground">Kimlik doğrulama başvuru onayları</p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/ops/kyc/settings">
+            <Settings className="h-4 w-4 mr-2" />
+            Ayarlar
+          </Link>
+        </Button>
       </div>
 
       <Suspense fallback={<KYCApplicationsSkeleton />}>
