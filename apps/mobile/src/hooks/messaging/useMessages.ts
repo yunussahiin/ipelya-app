@@ -11,7 +11,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { useMessageStore } from "@/store/messaging";
-import { addReaction, removeReaction } from "@ipelya/api";
 import type {
   CreateMessageRequest,
   UpdateMessageRequest,
@@ -19,6 +18,45 @@ import type {
   Message,
 } from "@ipelya/types";
 import { useAuth } from "@/hooks/useAuth";
+
+// =============================================
+// LOCAL REACTION FUNCTIONS (mobile supabase client kullanır)
+// =============================================
+
+async function addReaction(messageId: string, emoji: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Kullanıcı oturumu bulunamadı");
+
+  // Upsert: Eğer kullanıcının bu mesajda reaksiyonu varsa güncelle, yoksa ekle
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .upsert({
+      message_id: messageId,
+      user_id: user.id,
+      emoji,
+    }, {
+      onConflict: "message_id,user_id",
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function removeReaction(messageId: string, emoji: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Kullanıcı oturumu bulunamadı");
+
+  const { error } = await supabase
+    .from("message_reactions")
+    .delete()
+    .eq("message_id", messageId)
+    .eq("user_id", user.id)
+    .eq("emoji", emoji);
+
+  if (error) throw error;
+}
 
 // =============================================
 // QUERY KEYS
@@ -42,6 +80,8 @@ export function useMessages(conversationId: string) {
   const query = useInfiniteQuery({
     queryKey: messageKeys.list(conversationId),
     queryFn: async ({ pageParam }) => {
+      console.log("[useMessages] queryFn called, pageParam:", pageParam);
+      
       // Session al
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
@@ -54,6 +94,7 @@ export function useMessages(conversationId: string) {
       });
       if (pageParam) params.set("cursor", pageParam);
 
+      console.log("[useMessages] Fetching messages...");
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-messages?${params}`,
         {
@@ -67,6 +108,7 @@ export function useMessages(conversationId: string) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Mesajlar yüklenemedi");
 
+      console.log("[useMessages] Fetched messages count:", result.data?.length || 0);
       return { data: result.data || [], nextCursor: result.nextCursor, isFirstPage: !pageParam };
     },
     initialPageParam: undefined as string | undefined,
@@ -74,6 +116,9 @@ export function useMessages(conversationId: string) {
     enabled: !!conversationId,
     staleTime: 1000 * 60 * 2, // 2 dakika cache
     refetchOnWindowFocus: false,
+    // Prevent unnecessary refetches
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   return query;
@@ -294,6 +339,8 @@ export function useMarkAsRead() {
       conversationId: string;
       messageId: string;
     }) => {
+      console.log("[MarkAsRead] Marking message as read:", messageId);
+      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
 
@@ -313,6 +360,7 @@ export function useMarkAsRead() {
       );
 
       const result = await response.json();
+      console.log("[MarkAsRead] Result:", result);
       if (!response.ok) throw new Error(result.error || "Okundu işaretlenemedi");
       return result;
     },
@@ -323,6 +371,8 @@ export function useMarkAsRead() {
  * Mesaja tepki ekler
  */
 export function useAddReaction() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       messageId,
@@ -332,6 +382,69 @@ export function useAddReaction() {
       emoji: string;
       conversationId: string;
     }) => addReaction(messageId, emoji),
+    onMutate: async ({ messageId, emoji, conversationId }) => {
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: messageKeys.list(conversationId) });
+
+      queryClient.setQueryData(
+        messageKeys.list(conversationId),
+        (oldData: any) => {
+          if (!oldData?.pages) return oldData;
+
+          const newData = {
+            ...oldData,
+            pages: oldData.pages.map((page: any) => ({
+              ...page,
+              data: page.data.map((msg: any) => {
+                if (msg.id !== messageId) return msg;
+
+                const existingReactions = msg.message_reactions || [];
+                
+                // Kullanıcının mevcut reaksiyonunu bul (hasReacted: true olan)
+                const myOldReaction = existingReactions.find((r: any) => r.hasReacted);
+                
+                // Aynı emoji'ye tıkladıysa - değişiklik yok (toggle için removeReaction kullanılır)
+                if (myOldReaction?.emoji === emoji) {
+                  return msg;
+                }
+                
+                // Farklı emoji seçildi - eski reaksiyonu kaldır, yenisini ekle
+                let updatedReactions = existingReactions;
+                
+                // Eski reaksiyonumu kaldır (count azalt veya sil)
+                if (myOldReaction) {
+                  updatedReactions = updatedReactions
+                    .map((r: any) => {
+                      if (r.emoji !== myOldReaction.emoji) return r;
+                      const newCount = r.count - 1;
+                      return newCount > 0 ? { ...r, count: newCount, hasReacted: false } : null;
+                    })
+                    .filter(Boolean);
+                }
+                
+                // Yeni reaksiyonu ekle veya count artır
+                const existingNewReaction = updatedReactions.find((r: any) => r.emoji === emoji);
+                if (existingNewReaction) {
+                  updatedReactions = updatedReactions.map((r: any) =>
+                    r.emoji === emoji ? { ...r, count: r.count + 1, hasReacted: true } : r
+                  );
+                } else {
+                  updatedReactions = [...updatedReactions, { emoji, count: 1, hasReacted: true }];
+                }
+
+                return { ...msg, message_reactions: updatedReactions };
+              }),
+            })),
+          };
+          return newData;
+        }
+      );
+    },
+    onError: (error, variables) => {
+      console.error("[Reaction] onError - failed to save:", error);
+      // Hata durumunda cache'i invalidate et (güncel veriyi çek)
+      queryClient.invalidateQueries({ queryKey: messageKeys.list(variables.conversationId) });
+    },
   });
 }
 
@@ -339,6 +452,8 @@ export function useAddReaction() {
  * Mesajdan tepki kaldırır
  */
 export function useRemoveReaction() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       messageId,
@@ -348,5 +463,42 @@ export function useRemoveReaction() {
       emoji: string;
       conversationId: string;
     }) => removeReaction(messageId, emoji),
+    onMutate: async ({ messageId, emoji, conversationId }) => {
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: messageKeys.list(conversationId) });
+
+      queryClient.setQueryData(
+        messageKeys.list(conversationId),
+        (oldData: any) => {
+          if (!oldData?.pages) return oldData;
+
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page: any) => ({
+              ...page,
+              data: page.data.map((msg: any) => {
+                if (msg.id !== messageId) return msg;
+
+                const existingReactions = msg.message_reactions || [];
+                const updatedReactions = existingReactions
+                  .map((r: any) => {
+                    if (r.emoji !== emoji) return r;
+                    const newCount = r.count - 1;
+                    return newCount > 0
+                      ? { ...r, count: newCount, hasReacted: false }
+                      : null;
+                  })
+                  .filter(Boolean);
+
+                return {
+                  ...msg,
+                  message_reactions: updatedReactions,
+                };
+              }),
+            })),
+          };
+        }
+      );
+    },
   });
 }

@@ -7,7 +7,7 @@
  * Gifted Chat kullanarak mesaj listesi, input alanı ve realtime desteği.
  */
 
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Platform,
@@ -42,8 +42,8 @@ import "dayjs/locale/tr";
 // Dayjs Türkçe locale'i aktif et
 dayjs.locale("tr");
 
-import { useTheme } from "@/theme/ThemeProvider";
-import { getChatTheme } from "@/theme/chatThemes";
+import { useTheme, type ThemeColors } from "@/theme/ThemeProvider";
+import { getChatTheme, type ChatTheme } from "@/theme/chatThemes";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useConversationPresence,
@@ -69,6 +69,8 @@ import { ChatDay, ChatTime } from "./components/ChatDateTime";
 import { ImageViewer, VideoThumbnail, ThemeChangeBanner } from "./components";
 import { AudioRecorder } from "./components/AudioRecorder";
 import { AudioPlayer } from "./components/AudioPlayer";
+import { MessageInfoSheet } from "./components/MessageInfoSheet";
+import { ReactionDetailsSheet } from "./components/ReactionDetailsSheet";
 import { useChatMessages } from "./hooks/useChatMessages";
 import { MediaPicker, type SelectedMedia } from "@/components/messaging/components/MediaPicker";
 import { uploadMedia, queueMediaProcessing } from "@/services/media-upload.service";
@@ -77,11 +79,11 @@ import { uploadMedia, queueMediaProcessing } from "@/services/media-upload.servi
 // COMPONENT
 // =============================================
 
+// Wrapper component to wait for auth
 export function GiftedChatScreen() {
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
-  const insets = useSafeAreaInsets();
 
   // Get conversation from store for theme
   const conversation = useConversationStore((s) =>
@@ -95,16 +97,51 @@ export function GiftedChatScreen() {
     textMuted: colors.textMuted
   });
 
+  // Wait for auth to load before rendering the chat
+  // This prevents double render and flash effect
+  if (isAuthLoading || !user?.id) {
+    return <ChatLoading conversationId={conversationId || ""} chatTheme={chatTheme} />;
+  }
+
+  return (
+    <GiftedChatScreenContent
+      user={user}
+      conversationId={conversationId || ""}
+      chatTheme={chatTheme}
+      colors={colors}
+    />
+  );
+}
+
+// Main chat screen content - only rendered when user is loaded
+function GiftedChatScreenContent({
+  user,
+  conversationId,
+  chatTheme,
+  colors
+}: {
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>;
+  conversationId: string;
+  chatTheme: ChatTheme;
+  colors: ThemeColors;
+}) {
+  const insets = useSafeAreaInsets();
+
   // Theme change listener
   const { themeChanges, dismissChange, dismissAllChanges } = useThemeChangeListener(
-    conversationId || "",
-    user?.id
+    conversationId,
+    user.id
   );
 
-  // Debug: Log theme changes
+  // Debug: Log theme changes and user
   useEffect(() => {
     console.log("[GiftedChatScreen] Theme changes:", themeChanges.length, themeChanges);
   }, [themeChanges]);
+
+  // Debug: Log current user
+  useEffect(() => {
+    console.log("[GiftedChatScreen] Current user ID:", user.id);
+  }, [user.id]);
 
   // Typing indicator - karşı tarafın yazıp yazmadığı
   const typingUserIds = useTypingIndicator(conversationId || "");
@@ -120,13 +157,17 @@ export function GiftedChatScreen() {
     isFetchingNextPage,
     hasNextPage,
     onSend: handleSend,
-    onLoadEarlier
+    onLoadEarlier,
+    // Draft support
+    draft,
+    setDraft,
+    clearDraft
   } = useChatMessages({
-    conversationId: conversationId || "",
-    userId: user?.id,
-    userDisplayName: user?.user_metadata?.display_name,
-    userAvatarUrl: user?.user_metadata?.avatar_url,
-    userUsername: user?.user_metadata?.username
+    conversationId,
+    userId: user.id,
+    userDisplayName: user.user_metadata?.display_name,
+    userAvatarUrl: user.user_metadata?.avatar_url,
+    userUsername: user.user_metadata?.username
   });
 
   // Reply state
@@ -145,6 +186,12 @@ export function GiftedChatScreen() {
 
   // Audio recording state
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+
+  // Message info sheet state
+  const [infoMessage, setInfoMessage] = useState<IMessage | null>(null);
+
+  // Reaction details sheet state
+  const [reactionDetailsMessageId, setReactionDetailsMessageId] = useState<string | null>(null);
 
   // Tüm medya mesajlarını filtrele (image/video)
   const allMediaMessages = useMemo(() => {
@@ -212,10 +259,10 @@ export function GiftedChatScreen() {
       console.log("[Send] Sending with replyToId:", replyToId);
       handleSend(newMessages, replyToId);
       setReplyToMessage(null); // Clear reply after sending
-      // clearDraft(); // TODO: Draft feature disabled
+      clearDraft(); // Clear draft after sending
       stopTyping();
     },
-    [handleSend, stopTyping, replyToMessage]
+    [handleSend, stopTyping, replyToMessage, clearDraft]
   );
 
   // Message actions handlers
@@ -240,7 +287,6 @@ export function GiftedChatScreen() {
   const handleReact = useCallback(
     (messageId: string, emoji: string) => {
       if (!conversationId) return;
-      console.log("[Reaction] Adding:", messageId, emoji);
       addReaction({ messageId, emoji, conversationId });
     },
     [conversationId, addReaction]
@@ -249,11 +295,15 @@ export function GiftedChatScreen() {
   const handleRemoveReaction = useCallback(
     (messageId: string, emoji: string) => {
       if (!conversationId) return;
-      console.log("[Reaction] Removing:", messageId, emoji);
       removeReaction({ messageId, emoji, conversationId });
     },
     [conversationId, removeReaction]
   );
+
+  // Show reaction details sheet
+  const handleShowReactionDetails = useCallback((messageId: string) => {
+    setReactionDetailsMessageId(messageId);
+  }, []);
 
   // Media seçildiğinde - upload et ve gönder
   const handleMediaSelect = useCallback(
@@ -328,6 +378,8 @@ export function GiftedChatScreen() {
         onVideoPress={setViewerMessage}
         onReact={handleReact}
         onRemoveReaction={handleRemoveReaction}
+        onShowInfo={setInfoMessage}
+        onShowReactionDetails={handleShowReactionDetails}
       />
     ),
     [
@@ -338,7 +390,8 @@ export function GiftedChatScreen() {
       handleEdit,
       handleDelete,
       handleReact,
-      handleRemoveReaction
+      handleRemoveReaction,
+      handleShowReactionDetails
     ]
   );
 
@@ -349,9 +402,15 @@ export function GiftedChatScreen() {
     [colors, chatTheme]
   );
 
+  // Ref to track current text for draft saving on unmount
+  const textRef = useRef("");
+
   // Typing handler for composer
   const handleTyping = useCallback(
     (text: string) => {
+      // Store text in ref for draft saving on unmount
+      textRef.current = text;
+      // Typing indicator
       if (text.length > 0) {
         startTyping();
       } else {
@@ -360,6 +419,16 @@ export function GiftedChatScreen() {
     },
     [startTyping, stopTyping]
   );
+
+  // Save draft on unmount (when leaving chat)
+  useEffect(() => {
+    return () => {
+      // Save draft when component unmounts
+      if (textRef.current.trim()) {
+        setDraft(textRef.current);
+      }
+    };
+  }, [setDraft]);
 
   const renderComposer = useCallback(
     (props: ComposerProps) => (
@@ -646,9 +715,9 @@ export function GiftedChatScreen() {
     );
   }, [isOtherTyping, colors, themeChanges, conversationId, dismissChange, dismissAllChanges]);
 
-  // Loading state
+  // Loading state for messages
   if (isLoading) {
-    return <ChatLoading conversationId={conversationId || ""} chatTheme={chatTheme} />;
+    return <ChatLoading conversationId={conversationId} chatTheme={chatTheme} />;
   }
 
   return (
@@ -687,7 +756,9 @@ export function GiftedChatScreen() {
             windowSize: 11,
             // Disable content inset adjustments
             automaticallyAdjustContentInsets: false,
-            contentInsetAdjustmentBehavior: "never"
+            contentInsetAdjustmentBehavior: "never",
+            // Stable key extractor to prevent re-renders
+            keyExtractor: (item: IMessage) => String(item._id)
           }}
           // Customization
           renderBubble={renderBubble}
@@ -718,9 +789,11 @@ export function GiftedChatScreen() {
           // Locale - Türkçe
           locale="tr"
           placeholder="Mesaj yaz..."
-          // Text input style (typing artık ChatComposer'da handle ediliyor)
+          // Text input style
           textInputProps={{
-            placeholderTextColor: colors.textMuted
+            placeholderTextColor: colors.textMuted,
+            // Draft support - set initial value
+            defaultValue: draft
           }}
           // Load earlier
           loadEarlier={hasNextPage}
@@ -796,6 +869,28 @@ export function GiftedChatScreen() {
           />
         </View>
       )}
+
+      {/* Message Info Bottom Sheet */}
+      <MessageInfoSheet
+        visible={!!infoMessage}
+        message={infoMessage}
+        colors={colors}
+        onClose={() => setInfoMessage(null)}
+      />
+
+      {/* Reaction Details Bottom Sheet */}
+      <ReactionDetailsSheet
+        visible={!!reactionDetailsMessageId}
+        messageId={reactionDetailsMessageId}
+        colors={colors}
+        currentUserId={user?.id}
+        onClose={() => setReactionDetailsMessageId(null)}
+        onRemoveReaction={(emoji) => {
+          if (reactionDetailsMessageId && conversationId) {
+            removeReaction({ messageId: reactionDetailsMessageId, emoji, conversationId });
+          }
+        }}
+      />
     </View>
   );
 }

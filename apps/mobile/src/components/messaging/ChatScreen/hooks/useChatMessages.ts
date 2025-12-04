@@ -13,8 +13,10 @@ import {
   useMessages,
   useSendMessage,
   useMessageRealtime,
+  useReactionRealtime,
   useConversation,
   useMarkAsRead,
+  useDraftMessage,
   messageKeys,
 } from "@/hooks/messaging";
 import { useConversationStore } from "@/store/messaging";
@@ -52,12 +54,19 @@ export function useChatMessages({
   // Mark as read mutation
   const { mutate: markAsRead } = useMarkAsRead();
 
-  // Realtime subscription
+  // Realtime subscriptions
   useMessageRealtime(conversationId);
+  useReactionRealtime(conversationId);
+
+  // Draft message support
+  const { draft, setDraft, clearDraft, isLoading: isDraftLoading } = useDraftMessage({
+    conversationId,
+  });
 
   // Convert messages to Gifted Chat format (filter duplicates, prefer messages with reply_to)
   const messages = useMemo(() => {
     if (!data?.pages) return [];
+    
     const allMessages = data.pages.flatMap((page) => page.data);
     
     // Use Map to deduplicate, preferring messages with reply_to
@@ -75,9 +84,7 @@ export function useChatMessages({
     }
     
     const uniqueMessages = Array.from(messageMap.values());
-    const giftedMessages = toGiftedMessages(uniqueMessages);
-    
-    return giftedMessages;
+    return toGiftedMessages(uniqueMessages);
   }, [data?.pages]);
 
   // Set active conversation on mount
@@ -398,5 +405,10 @@ export function useChatMessages({
     addPendingMedia,
     updatePendingMedia,
     removePendingMedia,
+    // Draft support
+    draft,
+    setDraft,
+    clearDraft,
+    isDraftLoading,
   };
 }

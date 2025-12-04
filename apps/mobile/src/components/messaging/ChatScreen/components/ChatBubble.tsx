@@ -2,15 +2,17 @@
  * ChatBubble
  *
  * Custom bubble component for Gifted Chat
- * WhatsApp style with reply preview inside bubble
+ * WhatsApp/Telegram style with:
+ * - Swipe right: Reply
+ * - Swipe left: Message info (own messages only)
+ * - Long press: Action sheet with emoji bar
  */
 
-import { memo } from "react";
-import { View, StyleSheet, Platform, Text, TouchableOpacity } from "react-native";
+import { memo, useState, useCallback } from "react";
+import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { Bubble, type BubbleProps, type IMessage } from "react-native-gifted-chat";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { MenuView, type MenuAction } from "@react-native-menu/menu";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import type { ThemeColors } from "@/theme/ThemeProvider";
@@ -18,6 +20,8 @@ import type { ChatTheme } from "@/theme/chatThemes";
 import type { IMessageWithReply } from "@/utils/giftedChatHelpers";
 import { ReactionBar } from "./ReactionBar";
 import { VideoThumbnail } from "./VideoThumbnail";
+import { SwipeableBubble } from "./SwipeableBubble";
+import { MessageActionSheet } from "./MessageActionSheet";
 
 interface ChatBubbleProps {
   props: BubbleProps<IMessage>;
@@ -31,6 +35,9 @@ interface ChatBubbleProps {
   onVideoPress?: (message: IMessage) => void;
   onReact?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
+  onForward?: (message: IMessage) => void;
+  onShowInfo?: (message: IMessage) => void;
+  onShowReactionDetails?: (messageId: string) => void;
 }
 
 function ChatBubbleComponent({
@@ -44,85 +51,62 @@ function ChatBubbleComponent({
   onImagePress,
   onVideoPress,
   onReact,
-  onRemoveReaction
+  onRemoveReaction,
+  onForward,
+  onShowInfo,
+  onShowReactionDetails
 }: ChatBubbleProps) {
   const message = props.currentMessage;
   const isOwnMessage = message?.user._id === currentUserId;
   const replyTo = (message as IMessageWithReply)?.replyTo;
 
-  const handleCopy = async () => {
-    if (message?.text) {
-      await Clipboard.setStringAsync(message.text);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-  };
+  // Sheet states
+  const [showActionSheet, setShowActionSheet] = useState(false);
 
-  const handleReply = () => {
+  // Handlers
+  const handleReply = useCallback(() => {
     if (message && onReply) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       onReply(message);
     }
-  };
+  }, [message, onReply]);
 
-  const handleEdit = () => {
-    if (message && onEdit) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onEdit(message);
+  const handleCopy = useCallback(async () => {
+    if (message?.text) {
+      await Clipboard.setStringAsync(message.text);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  };
+  }, [message]);
 
-  const handleDelete = () => {
+  const handleInfo = useCallback(() => {
+    if (message && onShowInfo) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onShowInfo(message);
+    }
+  }, [message, onShowInfo]);
+
+  const handleDelete = useCallback(() => {
     if (message && onDelete) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       onDelete(message);
     }
-  };
+  }, [message, onDelete]);
 
-  // Build menu actions
-  const actions: MenuAction[] = [
-    {
-      id: "reply",
-      title: "Yanıtla",
-      image: Platform.select({ ios: "arrowshape.turn.up.left", android: "ic_menu_revert" })
+  const handleForward = useCallback(() => {
+    if (message && onForward) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onForward(message);
+    }
+  }, [message, onForward]);
+
+  const handleReact = useCallback(
+    (emoji: string) => {
+      if (message && onReact) {
+        onReact(String(message._id), emoji);
+      }
     },
-    {
-      id: "copy",
-      title: "Kopyala",
-      image: Platform.select({ ios: "doc.on.doc", android: "ic_menu_agenda" })
-    }
-  ];
-
-  if (isOwnMessage) {
-    actions.push({
-      id: "edit",
-      title: "Düzenle",
-      image: Platform.select({ ios: "pencil", android: "ic_menu_edit" })
-    });
-    actions.push({
-      id: "delete",
-      title: "Sil",
-      attributes: { destructive: true },
-      image: Platform.select({ ios: "trash", android: "ic_menu_delete" })
-    });
-  }
-
-  const handleMenuAction = ({ nativeEvent }: { nativeEvent: { event: string } }) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    switch (nativeEvent.event) {
-      case "reply":
-        handleReply();
-        break;
-      case "copy":
-        handleCopy();
-        break;
-      case "edit":
-        handleEdit();
-        break;
-      case "delete":
-        handleDelete();
-        break;
-    }
-  };
+    [message, onReact]
+  );
 
   // Custom view for reply preview
   const renderCustomView = () => {
@@ -182,6 +166,10 @@ function ChatBubbleComponent({
             borderRadius: 12
           }}
           contentFit="cover"
+          // Prevent flash on re-render
+          cachePolicy="memory-disk"
+          recyclingKey={message.image}
+          transition={0}
         />
       </TouchableOpacity>
     );
@@ -279,44 +267,55 @@ function ChatBubbleComponent({
   // Reactions
   const reactions = (message as IMessageWithReply)?.reactions || [];
 
-  const handleReact = (emoji: string) => {
-    if (message && onReact) {
-      onReact(String(message._id), emoji);
+  const handleShowReactionDetails = useCallback(() => {
+    if (message && onShowReactionDetails) {
+      onShowReactionDetails(String(message._id));
     }
-  };
-
-  const handleRemoveReaction = (emoji: string) => {
-    if (message && onRemoveReaction) {
-      onRemoveReaction(String(message._id), emoji);
-    }
-  };
+  }, [message, onShowReactionDetails]);
 
   // Bubble with reactions
   const bubbleWithReactions = (
     <View>
       {bubbleContent}
-      {(reactions.length > 0 || !hasImage) && (
+      {reactions.length > 0 && (
         <ReactionBar
           reactions={reactions}
           colors={colors}
           isOwnMessage={isOwnMessage}
-          onReact={handleReact}
-          onRemoveReaction={handleRemoveReaction}
+          onShowDetails={handleShowReactionDetails}
         />
       )}
     </View>
   );
 
-  // Image/Video/Audio mesajları için MenuView kullanma - touch event'leri engelliyor
-  if (hasImage || hasVideo || hasAudio) {
-    return bubbleWithReactions;
-  }
-
-  // Text mesajları için MenuView ile context menu
+  // Main render with SwipeableBubble wrapper
   return (
-    <MenuView actions={actions} onPressAction={handleMenuAction} shouldOpenOnLongPress={true}>
-      {bubbleWithReactions}
-    </MenuView>
+    <>
+      <SwipeableBubble
+        colors={colors}
+        isOwnMessage={isOwnMessage}
+        onSwipeReply={handleReply}
+        onSwipeInfo={handleInfo}
+        onLongPress={() => setShowActionSheet(true)}
+      >
+        {bubbleWithReactions}
+      </SwipeableBubble>
+
+      {/* Action Sheet (long press) */}
+      <MessageActionSheet
+        visible={showActionSheet}
+        message={message || null}
+        isOwnMessage={isOwnMessage}
+        colors={colors}
+        onClose={() => setShowActionSheet(false)}
+        onReply={handleReply}
+        onForward={onForward ? handleForward : undefined}
+        onCopy={handleCopy}
+        onInfo={handleInfo}
+        onDelete={isOwnMessage ? handleDelete : undefined}
+        onReact={handleReact}
+      />
+    </>
   );
 }
 

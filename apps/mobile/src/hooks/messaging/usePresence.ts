@@ -31,7 +31,12 @@ export function useGlobalPresence() {
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log("[GlobalPresence] No user, skipping");
+      return;
+    }
+
+    console.log("[GlobalPresence] Subscribing for user:", user.id);
 
     // Presence channel oluştur
     const channel = supabase.channel("presence:global", {
@@ -72,7 +77,9 @@ export function useGlobalPresence() {
 
     // Subscribe ve track
     channel.subscribe(async (status) => {
+      console.log("[GlobalPresence] Channel status:", status);
       if (status === "SUBSCRIBED") {
+        console.log("[GlobalPresence] Tracking presence for:", user.id);
         await channel.track({
           user_id: user.id,
           status: "online" as PresenceStatus,

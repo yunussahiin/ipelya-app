@@ -130,7 +130,7 @@ export function useMessageRealtime(conversationId: string) {
       }
     );
 
-    // UPDATE - Mesaj güncellendi
+    // UPDATE - Mesaj güncellendi (status değişikliği dahil)
     channel.on(
       "postgres_changes",
       {
@@ -148,6 +148,25 @@ export function useMessageRealtime(conversationId: string) {
           msgStore.removeMessage(conversationId, updatedMessage.id);
         } else {
           msgStore.updateMessage(conversationId, updatedMessage.id, updatedMessage);
+          
+          // React Query cache'ini de güncelle (status değişikliği için)
+          queryClient.setQueryData(
+            messageKeys.list(conversationId),
+            (oldData: any) => {
+              if (!oldData?.pages) return oldData;
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                  ...page,
+                  data: page.data.map((msg: any) => 
+                    msg.id === updatedMessage.id 
+                      ? { ...msg, status: updatedMessage.status, read_at: (updatedMessage as any).read_at }
+                      : msg
+                  ),
+                })),
+              };
+            }
+          );
         }
       }
     );
@@ -283,6 +302,8 @@ export function useReactionRealtime(conversationId: string) {
         table: "message_reactions",
       },
       async (payload: MessagePayload) => {
+        console.log("[Realtime] Reaction INSERT payload received:", payload);
+        
         const reaction = payload.new as {
           id: string;
           message_id: string;
@@ -291,7 +312,7 @@ export function useReactionRealtime(conversationId: string) {
           created_at: string;
         };
 
-        console.log("[Realtime] Reaction INSERT received:", reaction);
+        console.log("[Realtime] Reaction INSERT parsed:", reaction);
 
         // Kendi reaction'ımızı skip et (optimistic update ile zaten eklendi)
         if (reaction.user_id === user.id) {
@@ -323,18 +344,32 @@ export function useReactionRealtime(conversationId: string) {
                   data: page.data.map((msg: any) => {
                     if (msg.id !== reaction.message_id) return msg;
                     
-                    // Mevcut reactions array'ine ekle
-                    const existingReactions = msg.reactions || [];
-                    const alreadyExists = existingReactions.some(
-                      (r: any) => r.id === reaction.id
+                    // Mevcut reactions array'ine ekle (message_reactions formatında)
+                    const existingReactions = msg.message_reactions || [];
+                    const existingReaction = existingReactions.find(
+                      (r: any) => r.emoji === reaction.emoji
                     );
                     
-                    if (alreadyExists) return msg;
-                    
-                    return {
-                      ...msg,
-                      reactions: [...existingReactions, reaction],
-                    };
+                    if (existingReaction) {
+                      // Emoji zaten var, count artır
+                      return {
+                        ...msg,
+                        message_reactions: existingReactions.map((r: any) =>
+                          r.emoji === reaction.emoji
+                            ? { ...r, count: (r.count || 1) + 1 }
+                            : r
+                        ),
+                      };
+                    } else {
+                      // Yeni emoji ekle
+                      return {
+                        ...msg,
+                        message_reactions: [
+                          ...existingReactions,
+                          { emoji: reaction.emoji, count: 1, hasReacted: false },
+                        ],
+                      };
+                    }
                   }),
                 })),
               };
@@ -388,13 +423,19 @@ export function useReactionRealtime(conversationId: string) {
                 data: page.data.map((msg: any) => {
                   if (msg.id !== deletedReaction.message_id) return msg;
                   
-                  // Reaction'ı kaldır
-                  const existingReactions = msg.reactions || [];
+                  // Reaction'ı kaldır veya count azalt (message_reactions formatında)
+                  const existingReactions = msg.message_reactions || [];
+                  const updatedReactions = existingReactions
+                    .map((r: any) => {
+                      if (r.emoji !== deletedReaction.emoji) return r;
+                      const newCount = (r.count || 1) - 1;
+                      return newCount > 0 ? { ...r, count: newCount } : null;
+                    })
+                    .filter(Boolean);
+                  
                   return {
                     ...msg,
-                    reactions: existingReactions.filter(
-                      (r: any) => r.id !== deletedReaction.id
-                    ),
+                    message_reactions: updatedReactions,
                   };
                 }),
               })),

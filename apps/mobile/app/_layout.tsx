@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { useDeviceToken } from "@/hooks/useDeviceToken";
 import { useNotificationListener } from "@/hooks/useNotificationListener";
 import { useLoadProfile } from "@/hooks/useLoadProfile";
-import { useGlobalMessageRealtime } from "@/hooks/messaging";
+import { useGlobalMessageRealtime, useGlobalPresence } from "@/hooks/messaging";
 import { createSessionFromUrl } from "@/services/oauth.service";
 import { ToastProvider } from "@/components/ui";
 
@@ -38,6 +38,9 @@ function AppStack() {
 
   // Global message realtime (sohbet listesinde yeni mesaj bildirimi için)
   useGlobalMessageRealtime();
+
+  // Global presence (online durumu için)
+  useGlobalPresence();
 
   // Setup deep linking for OAuth callbacks
   useEffect(() => {

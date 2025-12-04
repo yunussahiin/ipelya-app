@@ -78,7 +78,8 @@ export default function MessagesIndexPage() {
         const { data: profile } = await supabase
           .from("profiles")
           .select("is_creator, type")
-          .eq("id", user.id)
+          .eq("user_id", user.id)
+          .eq("type", "real")
           .single();
 
         setIsCreator(profile?.is_creator === true || profile?.type === "creator");

@@ -225,29 +225,14 @@ export function useOfflineQueue() {
  */
 export function useSyncOnReconnect() {
   const lastSyncRef = useRef<Date | null>(null);
-  const queryClientRef = useRef<ReturnType<typeof useQueryClient> | null>(null);
-
-  // QueryClient'ı lazy olarak al (hook dışında kullanılabilmesi için)
-  const getQueryClient = useCallback(() => {
-    if (!queryClientRef.current) {
-      // Bu hook'u kullanan component'te QueryClientProvider olmalı
-      // Eğer yoksa hata fırlatır
-      try {
-        const { QueryClient } = require("@tanstack/react-query");
-        queryClientRef.current = new QueryClient();
-      } catch {
-        console.warn("[Sync] QueryClient not available");
-      }
-    }
-    return queryClientRef.current;
-  }, []);
+  const queryClient = useQueryClient();
 
   // Senkronizasyon fonksiyonu
   const sync = useCallback(async () => {
     const now = new Date();
     const lastSync = lastSyncRef.current;
 
-    // Son 30 saniye içinde sync yapıldıysa atla (daha kısa süre)
+    // Son 30 saniye içinde sync yapıldıysa atla
     if (lastSync && now.getTime() - lastSync.getTime() < 30 * 1000) {
       console.log("[Sync] Son 30 saniye içinde sync yapıldı, atlanıyor");
       return;
@@ -259,25 +244,20 @@ export function useSyncOnReconnect() {
       const convStore = useConversationStore.getState();
       const activeConversationId = convStore.activeConversationId;
 
-      // 1. Conversation listesini invalidate et (React Query cache'i yenilenecek)
-      // Not: Bu, useConversations hook'unun refetch yapmasını tetikler
-      const queryClient = getQueryClient();
-      if (queryClient) {
-        // Conversation listesini yenile
+      // 1. Conversation listesini invalidate et
+      await queryClient.invalidateQueries({ 
+        queryKey: ["conversations"],
+        refetchType: "active"
+      });
+      console.log("[Sync] Conversation listesi yenilendi");
+
+      // 2. Aktif conversation varsa mesajları yenile
+      if (activeConversationId) {
         await queryClient.invalidateQueries({ 
-          queryKey: ["conversations"],
+          queryKey: ["messages", activeConversationId],
           refetchType: "active"
         });
-        console.log("[Sync] Conversation listesi yenilendi");
-
-        // 2. Aktif conversation varsa mesajları yenile
-        if (activeConversationId) {
-          await queryClient.invalidateQueries({ 
-            queryKey: ["messages", activeConversationId],
-            refetchType: "active"
-          });
-          console.log("[Sync] Aktif conversation mesajları yenilendi:", activeConversationId);
-        }
+        console.log("[Sync] Aktif conversation mesajları yenilendi:", activeConversationId);
       }
 
       // 3. Supabase'den güncel unread count'ları çek
@@ -293,13 +273,13 @@ export function useSyncOnReconnect() {
 
         if (participants) {
           // Store'daki unread count'ları güncelle
-          participants.forEach((p) => {
+          for (const p of participants) {
             if (p.unread_count > 0) {
               convStore.updateConversation(p.conversation_id, {
                 unread_count: p.unread_count,
               });
             }
-          });
+          }
           console.log("[Sync] Unread count'lar güncellendi:", participants.length, "conversation");
         }
       }
@@ -309,7 +289,7 @@ export function useSyncOnReconnect() {
     } catch (error) {
       console.error("[Sync] Senkronizasyon hatası:", error);
     }
-  }, [getQueryClient]);
+  }, [queryClient]);
 
   // Bağlantı değişikliğini dinle (periyodik kontrol)
   useEffect(() => {

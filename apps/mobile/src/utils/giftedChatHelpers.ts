@@ -78,6 +78,12 @@ export function toGiftedMessage(message: Message): IMessageWithReply {
     pending: isPending || message.status === 'sending',
     // Reply
     replyTo,
+    // Reactions - message_reactions tablosundan gelen veriler
+    reactions: (message as any).message_reactions?.map((r: any) => ({
+      emoji: r.emoji,
+      count: r.count || 1,
+      hasReacted: r.hasReacted || false
+    })) || [],
   };
 }
 

@@ -103,7 +103,15 @@ function VideoThumbnailComponent({
     <Container style={[styles.container, { width, height }]} {...containerProps}>
       {/* Thumbnail veya Placeholder */}
       {thumbnail && !error ? (
-        <Image source={thumbnail} style={styles.thumbnail} contentFit="cover" />
+        <Image
+          source={thumbnail}
+          style={styles.thumbnail}
+          contentFit="cover"
+          // Prevent flash on re-render
+          cachePolicy="memory-disk"
+          recyclingKey={uri}
+          transition={0}
+        />
       ) : (
         <View style={[styles.placeholder, { backgroundColor: isLoading ? "#2a2a2a" : "#1a1a1a" }]}>
           {isLoading ? (

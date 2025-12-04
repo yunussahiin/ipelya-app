@@ -29,6 +29,9 @@ export * from "./usePushNotifications";
 // Offline queue & sync
 export * from "./useOfflineQueue";
 
+// Draft messages
+export * from "./useDraftMessage";
+
 // Mentions
 export * from "./useMentions";
 

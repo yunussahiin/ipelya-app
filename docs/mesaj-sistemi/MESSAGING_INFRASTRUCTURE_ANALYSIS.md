@@ -149,8 +149,9 @@ Supabase Realtime'ın çalışması için tabloların `supabase_realtime` public
 
 ### Önemli
 - [ ] **RLS Optimization:** `profiles.shadow_isolation` policy'sinde `auth.uid()` → `(SELECT auth.uid())` değişikliği
-- [ ] **Reply Preview UI:** Görsel yanıtlarında thumbnail gösterimi ekle
-- [ ] **Orphan File Cleanup:** Medya yüklenip mesaj gönderilemezse dosyayı silen bir mekanizma tasarla
+- [x] ~~**Reply Preview UI:** Görsel yanıtlarında thumbnail gösterimi ekle~~ ✅ 2025-12-04
+- [x] ~~**Orphan File Cleanup:** Medya yüklenip mesaj gönderilemezse dosyayı silen bir mekanizma tasarla~~ ✅ 2025-12-04
+- [x] ~~**Draft Mesaj Kaydetme:** Yazılan ama gönderilmemiş mesajları AsyncStorage'da sakla~~ ✅ 2025-12-04
 
 ### İyileştirme
 - [ ] **Performance Review:** `get-messages` Edge Function'ının RLS ile doğrudan okumaya çevrilip çevrilemeyeceğini değerlendir
@@ -330,3 +331,79 @@ DROP POLICY IF EXISTS "Users can add reactions" ON public.message_reactions;
 - ✅ Bağlantı kopması sonrası otomatik senkronizasyon çalışıyor
 - ✅ App foreground'a döndüğünde veriler yenileniyor
 - ✅ RLS policy performansı iyileştirildi
+
+---
+
+### 2025-12-04 - Yeni Özellikler
+
+#### 1. Reply Preview UI - Thumbnail Gösterimi
+
+**Özellik:** Bir mesaja yanıt verirken, yanıtlanan mesaj görsel veya video ise küçük bir thumbnail gösteriliyor.
+
+**Dosya:** `apps/mobile/src/components/messaging/ChatScreen/GiftedChatScreen.tsx`
+
+**Detaylar:**
+- 40x40 boyutunda rounded thumbnail
+- Video için play ikonu overlay
+- Thumbnail'e tıklayınca medya viewer açılıyor
+- Audio mesajları için mikrofon ikonu
+
+---
+
+#### 2. Draft Mesaj Kaydetme
+
+**Özellik:** Kullanıcı bir sohbette mesaj yazıp göndermeden çıkarsa, yazdığı mesaj kaydedilir ve tekrar girdiğinde yüklenir.
+
+**Dosyalar:**
+- `apps/mobile/src/hooks/messaging/useDraftMessage.ts` - Yeni hook
+- `apps/mobile/src/components/messaging/ChatScreen/hooks/useChatMessages.ts` - Hook entegrasyonu
+- `apps/mobile/src/components/messaging/ChatScreen/GiftedChatScreen.tsx` - UI entegrasyonu
+
+**Özellikler:**
+- AsyncStorage'da conversation bazlı draft kaydetme
+- 500ms debounce ile otomatik kaydetme
+- Mesaj gönderilince draft otomatik temizlenir
+- `clearAllDrafts()` utility fonksiyonu (logout için)
+- `hasDraft(conversationId)` utility fonksiyonu
+
+---
+
+#### 3. Orphan File Cleanup Edge Function
+
+**Özellik:** Medya yüklenip mesaj gönderilemezse, dosya Storage'da kalıyor (yetim dosya). Bu Edge Function bu dosyaları temizler.
+
+**Dosya:** `supabase/functions/cleanup-orphan-media/index.ts`
+
+**Özellikler:**
+- 24 saatten eski, hiçbir mesaja bağlı olmayan dosyaları siler
+- `chat-media` bucket'ını tarar
+- Batch delete (100'lük gruplar halinde)
+- Admin auth kontrolü (manuel tetikleme için)
+- Scheduled olarak çalıştırılabilir (günde 1 kez önerilir)
+
+**Kullanım:**
+```bash
+# Manuel tetikleme (admin token ile)
+curl -X POST https://ojkyisyjsbgbfytrmmlz.supabase.co/functions/v1/cleanup-orphan-media \
+  -H "Authorization: Bearer <ADMIN_TOKEN>"
+
+# Scheduled (Supabase Dashboard > Database > Extensions > pg_cron)
+SELECT cron.schedule('cleanup-orphan-media', '0 3 * * *', 
+  $$SELECT net.http_post('https://ojkyisyjsbgbfytrmmlz.supabase.co/functions/v1/cleanup-orphan-media')$$
+);
+```
+
+---
+
+### Özet (Güncellenmiş)
+
+| Değişiklik                         | Tür           | Dosya/Tablo                     |
+| ---------------------------------- | ------------- | ------------------------------- |
+| message_reactions realtime         | Migration     | `supabase_realtime` publication |
+| conversation_participants realtime | Migration     | `supabase_realtime` publication |
+| useReactionRealtime                | Hook          | `useMessageRealtime.ts`         |
+| useSyncOnReconnect                 | Hook          | `useOfflineQueue.ts`            |
+| Duplicate RLS cleanup              | Migration     | `message_reactions` tablosu     |
+| Reply Preview Thumbnail            | UI            | `GiftedChatScreen.tsx`          |
+| Draft Mesaj Kaydetme               | Hook + UI     | `useDraftMessage.ts`            |
+| Orphan File Cleanup                | Edge Function | `cleanup-orphan-media`          |
