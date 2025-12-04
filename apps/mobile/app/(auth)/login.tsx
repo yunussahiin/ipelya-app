@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
-import { AppleButton } from "@invertase/react-native-apple-authentication";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -205,9 +205,10 @@ export default function LoginScreen() {
       {/* Apple Sign-In Button (iOS only) - Native Button */}
       {Platform.OS === "ios" && (
         <View style={styles.appleButtonContainer}>
-          <AppleButton
-            buttonStyle={AppleButton.Style.BLACK}
-            buttonType={AppleButton.Type.SIGN_IN}
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={LAYOUT_CONSTANTS.radiusMedium}
             style={styles.appleButton}
             onPress={handleAppleSignIn}
           />

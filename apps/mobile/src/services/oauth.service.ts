@@ -2,7 +2,8 @@ import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import { Platform } from "react-native";
-import { appleAuth } from "@invertase/react-native-apple-authentication";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import { supabase } from "@/lib/supabaseClient";
 
 // QueryParams helper
@@ -154,7 +155,7 @@ export const signInWithMagicLink = async (email: string) => {
 
 /**
  * Apple ile OAuth giriş yap (iOS only)
- * Apple Sign-In flow'u başlat
+ * expo-apple-authentication kullanarak Apple Sign-In flow'u başlat
  */
 export const signInWithApple = async () => {
   if (Platform.OS !== "ios") {
@@ -164,30 +165,30 @@ export const signInWithApple = async () => {
   try {
     console.log("🍎 Apple Sign-In başlatılıyor...");
 
-    // Apple Sign-In request'i yap
-    const appleAuthRequestResponse = await appleAuth.performRequest({
-      requestedOperation: appleAuth.Operation.LOGIN,
-      requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
-    });
-
-    // Credential state'i kontrol et
-    const credentialState = await appleAuth.getCredentialStateForUser(
-      appleAuthRequestResponse.user
+    // Nonce oluştur (güvenlik için)
+    const rawNonce = Math.random().toString(36).substring(2, 15);
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce
     );
 
-    if (
-      credentialState === appleAuth.State.AUTHORIZED &&
-      appleAuthRequestResponse.identityToken &&
-      appleAuthRequestResponse.authorizationCode
-    ) {
+    // Apple Sign-In request'i yap
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+
+    if (credential.identityToken) {
       console.log("✅ Apple Sign-In başarılı");
 
       // Supabase'e Apple token'ını gönder
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: "apple",
-        token: appleAuthRequestResponse.identityToken,
-        nonce: appleAuthRequestResponse.nonce,
-        access_token: appleAuthRequestResponse.authorizationCode,
+        token: credential.identityToken,
+        nonce: rawNonce, // Raw nonce gönder, Supabase hash'leyecek
       });
 
       if (error) throw error;
@@ -195,9 +196,18 @@ export const signInWithApple = async () => {
       console.log("✅ Apple OAuth session oluşturuldu");
       return data.session;
     } else {
-      throw new Error("Apple Sign-In başarısız oldu");
+      throw new Error("Apple Sign-In: Identity token alınamadı");
     }
-  } catch (error) {
+  } catch (error: unknown) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ERR_REQUEST_CANCELED"
+    ) {
+      console.log("⚠️ Kullanıcı Apple Sign-In'i iptal etti");
+      throw new Error("Apple Sign-In iptal edildi");
+    }
     console.error("❌ Apple Sign-In hatası:", error);
     throw error;
   }
