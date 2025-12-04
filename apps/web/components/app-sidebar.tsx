@@ -359,6 +359,10 @@ const data = {
         {
           title: "Storage Analytics",
           url: "/ops/storage/analytics"
+        },
+        {
+          title: "Auth Logları",
+          url: "/ops/auth-logs"
         }
       ]
     }
@@ -419,7 +423,7 @@ export function AppSidebar({
   };
 }) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="offcanvas" {...props} suppressHydrationWarning>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

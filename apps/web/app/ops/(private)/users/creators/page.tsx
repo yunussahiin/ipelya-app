@@ -18,11 +18,12 @@ export default async function CreatorsPage() {
     redirect("/ops/login");
   }
 
-  // Role check
+  // Role check - type='real' filtresi ekle
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("user_id", session.user.id)
+    .eq("type", "real")
     .single();
 
   if (!profile || profile.role !== "admin") {

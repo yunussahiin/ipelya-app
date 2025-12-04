@@ -14,19 +14,29 @@ export default async function Page() {
     data: { user }
   } = await supabase.auth.getUser();
 
-  // Kullanıcı profil bilgilerini çek (role-based)
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", user?.id)
-    .single();
+  // User yoksa boş değerler döndür
+  let profile = null;
+  let adminMeta = null;
 
-  // Admin metadata'sını çek (opsiyonel)
-  const { data: adminMeta } = await supabase
-    .from("admin_profiles")
-    .select("*")
-    .eq("id", user?.id)
-    .single();
+  if (user?.id) {
+    // Kullanıcı profil bilgilerini çek (role-based)
+    // type='real' filtresi ekle - shadow profil varsa 406 hatası alınır
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("type", "real")
+      .single();
+    profile = profileData;
+
+    // Admin metadata'sını çek (opsiyonel)
+    const { data: adminData } = await supabase
+      .from("admin_profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+    adminMeta = adminData;
+  }
 
   return (
     <>

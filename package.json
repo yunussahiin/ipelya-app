@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.12.3",
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "workspaces": [
     "apps/*",
@@ -23,7 +23,7 @@
     "ios": "expo run:ios"
   },
   "devDependencies": {
-    "@types/node": "^20.11.30",
+    "@types/node": "^22",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.57.0",

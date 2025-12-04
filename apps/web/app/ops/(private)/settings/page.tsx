@@ -30,8 +30,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const params = await searchParams;
   const defaultTab = params.tab || "general";
 
-  // Sistem ayarlarını çek
-  const { data: settings } = await supabase.from("system_settings").select("*").single();
+  // Sistem ayarlarını çek (tablo henüz mevcut değil, placeholder)
+  // TODO: system_settings tablosu oluşturulduğunda aktif et
+  const settings = null;
 
   return (
     <>

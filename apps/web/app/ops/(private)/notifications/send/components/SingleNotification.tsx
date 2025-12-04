@@ -141,6 +141,7 @@ export default function SingleNotification() {
             "id, user_id, username, display_name, avatar_url, gender, is_creator, role, device_token, last_device_info, last_login_at"
           )
           .eq("id", recipientId)
+          .eq("type", "real")
           .single();
 
         if (error) {
