@@ -12,8 +12,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Network from "expo-network";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSendMessage } from "./useMessages";
-import { useMessageStore } from "@/store/messaging";
+import { useMessageStore, useConversationStore } from "@/store/messaging";
 
 // =============================================
 // TYPES
@@ -214,35 +215,101 @@ export function useOfflineQueue() {
 
 /**
  * Bağlantı geri geldiğinde verileri senkronize eder
+ * 
+ * Bu hook şu işlemleri yapar:
+ * 1. Conversation listesini yeniler
+ * 2. Aktif conversation varsa mesajları yeniler
+ * 3. Unread count'ları günceller
+ * 
+ * @updated 2025-12-04 - Tam implementasyon eklendi
  */
 export function useSyncOnReconnect() {
   const lastSyncRef = useRef<Date | null>(null);
+  const queryClientRef = useRef<ReturnType<typeof useQueryClient> | null>(null);
+
+  // QueryClient'ı lazy olarak al (hook dışında kullanılabilmesi için)
+  const getQueryClient = useCallback(() => {
+    if (!queryClientRef.current) {
+      // Bu hook'u kullanan component'te QueryClientProvider olmalı
+      // Eğer yoksa hata fırlatır
+      try {
+        const { QueryClient } = require("@tanstack/react-query");
+        queryClientRef.current = new QueryClient();
+      } catch {
+        console.warn("[Sync] QueryClient not available");
+      }
+    }
+    return queryClientRef.current;
+  }, []);
 
   // Senkronizasyon fonksiyonu
   const sync = useCallback(async () => {
     const now = new Date();
     const lastSync = lastSyncRef.current;
 
-    // Son 5 dakika içinde sync yapıldıysa atla
-    if (lastSync && now.getTime() - lastSync.getTime() < 5 * 60 * 1000) {
-      console.log("[Sync] Son 5 dakika içinde sync yapıldı, atlanıyor");
+    // Son 30 saniye içinde sync yapıldıysa atla (daha kısa süre)
+    if (lastSync && now.getTime() - lastSync.getTime() < 30 * 1000) {
+      console.log("[Sync] Son 30 saniye içinde sync yapıldı, atlanıyor");
       return;
     }
 
     console.log("[Sync] Veriler senkronize ediliyor...");
 
     try {
-      // TODO: Burada gerekli senkronizasyon işlemleri yapılacak
-      // - Okunmamış mesaj sayılarını güncelle
-      // - Yeni mesajları çek
-      // - Conversation listesini güncelle
+      const convStore = useConversationStore.getState();
+      const activeConversationId = convStore.activeConversationId;
+
+      // 1. Conversation listesini invalidate et (React Query cache'i yenilenecek)
+      // Not: Bu, useConversations hook'unun refetch yapmasını tetikler
+      const queryClient = getQueryClient();
+      if (queryClient) {
+        // Conversation listesini yenile
+        await queryClient.invalidateQueries({ 
+          queryKey: ["conversations"],
+          refetchType: "active"
+        });
+        console.log("[Sync] Conversation listesi yenilendi");
+
+        // 2. Aktif conversation varsa mesajları yenile
+        if (activeConversationId) {
+          await queryClient.invalidateQueries({ 
+            queryKey: ["messages", activeConversationId],
+            refetchType: "active"
+          });
+          console.log("[Sync] Aktif conversation mesajları yenilendi:", activeConversationId);
+        }
+      }
+
+      // 3. Supabase'den güncel unread count'ları çek
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: participants } = await supabase
+          .from("conversation_participants")
+          .select("conversation_id, unread_count")
+          .eq("user_id", user.id)
+          .is("left_at", null);
+
+        if (participants) {
+          // Store'daki unread count'ları güncelle
+          participants.forEach((p) => {
+            if (p.unread_count > 0) {
+              convStore.updateConversation(p.conversation_id, {
+                unread_count: p.unread_count,
+              });
+            }
+          });
+          console.log("[Sync] Unread count'lar güncellendi:", participants.length, "conversation");
+        }
+      }
 
       lastSyncRef.current = now;
       console.log("[Sync] Senkronizasyon tamamlandı");
     } catch (error) {
       console.error("[Sync] Senkronizasyon hatası:", error);
     }
-  }, []);
+  }, [getQueryClient]);
 
   // Bağlantı değişikliğini dinle (periyodik kontrol)
   useEffect(() => {
@@ -254,6 +321,7 @@ export function useSyncOnReconnect() {
         const isConnected = networkState.isConnected ?? false;
 
         if (isConnected && !wasConnected) {
+          console.log("[Sync] Bağlantı geri geldi, sync başlatılıyor...");
           sync();
         }
 
@@ -271,6 +339,7 @@ export function useSyncOnReconnect() {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active") {
+        console.log("[Sync] App foreground'a geldi, sync başlatılıyor...");
         sync();
       }
     };
