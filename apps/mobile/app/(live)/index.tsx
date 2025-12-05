@@ -4,7 +4,7 @@ export default function LiveListScreen() {
   return (
     <PlaceholderScreen
       title="Live / Birebir"
-      description="LiveKit odaları, coin başlatma ve video arama listesi burada olacak."
+      description="LiveKit odaları, coin başlatma ve video arama listesi burada olacak. Modüler olarak."
     />
   );
 }

@@ -43,6 +43,7 @@ import {
 } from "lucide-react-native";
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
 import {
   useBroadcastMessages,
   useBroadcastRealtime,
@@ -68,8 +69,9 @@ export function BroadcastChannelScreen() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
 
-  // Current user
-  const [userId, setUserId] = useState<string | undefined>(undefined);
+  // Current user - global auth store'dan al
+  const { user } = useAuth();
+  const userId = user?.id;
 
   // Edit scheduled message state
   const [editingMessage, setEditingMessage] = useState<any>(null);
@@ -90,10 +92,6 @@ export function BroadcastChannelScreen() {
   const scheduledSheetRef = useRef<BottomSheet>(null);
   const analyticsSnapPoints = useMemo(() => ["50%", "80%"], []);
   const scheduledSnapPoints = useMemo(() => ["50%", "85%"], []);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id));
-  }, []);
 
   // Analytics sheet handlers
   const handleOpenAnalytics = useCallback(() => {

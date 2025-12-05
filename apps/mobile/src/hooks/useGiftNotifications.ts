@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from './useAuth';
 
 interface GiftNotification {
   giftId: string;
@@ -19,18 +20,13 @@ interface UseGiftNotificationsOptions {
 }
 
 export function useGiftNotifications(options: UseGiftNotificationsOptions = {}) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  
   const [lastGift, setLastGift] = useState<GiftNotification | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [giftCount, setGiftCount] = useState(0);
 
   const { onGiftReceived } = options;
-
-  // Get user ID on mount
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-    });
-  }, []);
 
   useEffect(() => {
     if (!userId) return;

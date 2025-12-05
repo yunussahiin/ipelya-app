@@ -15,6 +15,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
 import {
   useConversations,
   useBroadcastChannels,
@@ -57,10 +58,12 @@ export default function MessagesIndexPage() {
   const { colors } = useTheme();
   const router = useRouter();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const userId = user?.id || "";
+
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreator, setIsCreator] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
 
   // Mutations
@@ -70,23 +73,19 @@ export default function MessagesIndexPage() {
   // Creator kontrolü
   useEffect(() => {
     const checkCreator = async () => {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_creator, type")
-          .eq("user_id", user.id)
-          .eq("type", "real")
-          .single();
+      if (!userId) return;
 
-        setIsCreator(profile?.is_creator === true || profile?.type === "creator");
-      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_creator, type")
+        .eq("user_id", userId)
+        .eq("type", "real")
+        .single();
+
+      setIsCreator(profile?.is_creator === true || profile?.type === "creator");
     };
     checkCreator();
-  }, []);
+  }, [userId]);
 
   // DM Conversations - React Query ile fetch et
   const { isLoading: conversationsLoading, refetch: refetchConversations } = useConversations();

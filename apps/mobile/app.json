@@ -8,6 +8,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "ipelya",
+    "plugins": ["@livekit/react-native-expo-plugin", "@config-plugins/react-native-webrtc"],
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",

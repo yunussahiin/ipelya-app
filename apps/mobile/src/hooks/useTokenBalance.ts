@@ -3,12 +3,15 @@
  * Kullanıcının coin bakiyesini yönetir
  */
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useEconomyStore } from '@/store/economy.store';
+import { useAuth } from './useAuth';
 
 export function useTokenBalance() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  
   const { 
     balance, 
     lifetimeEarned, 
@@ -19,15 +22,12 @@ export function useTokenBalance() {
     refreshBalance 
   } = useEconomyStore();
 
-  // Get user ID on mount
+  // Refresh balance when user is available
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-      if (session?.user?.id) {
-        refreshBalance();
-      }
-    });
-  }, [refreshBalance]);
+    if (userId) {
+      refreshBalance();
+    }
+  }, [userId, refreshBalance]);
 
   // Realtime bakiye güncellemelerini dinle
   useEffect(() => {

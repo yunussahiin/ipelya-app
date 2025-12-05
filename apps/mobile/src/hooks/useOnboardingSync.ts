@@ -1,25 +1,14 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useOnboardingService } from "./useOnboardingService";
+import { useAuth } from "./useAuth";
 
 /**
  * Custom hook for syncing onboarding progress to database
- * Handles user ID retrieval and sync logic
+ * Uses global auth store for user ID
  */
 export function useOnboardingSync() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const { syncOnboardingProgress } = useOnboardingService();
-
-  // Get current user ID on mount
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data.user?.id) {
-        setUserId(data.user.id);
-      }
-    };
-    getUser();
-  }, []);
 
   /**
    * Sync current step to database

@@ -62,6 +62,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-web-browser",
     "expo-iap",
     "expo-system-ui",
+    "@livekit/react-native-expo-plugin",
+    "@config-plugins/react-native-webrtc",
     "expo-asset",
     [
       "expo-local-authentication",

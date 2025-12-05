@@ -16,6 +16,10 @@ import { useGlobalMessageRealtime, useGlobalPresence } from "@/hooks/messaging";
 import { createSessionFromUrl } from "@/services/oauth.service";
 import { ToastProvider } from "@/components/ui";
 
+// LiveKit WebRTC globals setup
+import { registerGlobals } from "@livekit/react-native";
+registerGlobals();
+
 // React Query client
 const queryClient = new QueryClient({
   defaultOptions: {

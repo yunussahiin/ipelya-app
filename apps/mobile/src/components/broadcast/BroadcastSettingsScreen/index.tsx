@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useBroadcastStore } from "@/store/messaging";
 import { useBroadcastChannels, useLeaveBroadcastChannel } from "@/hooks/messaging";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { Ionicons } from "@expo/vector-icons";
 import { SettingsItem } from "../../messaging/ChatSettingsScreen/components/SettingsItem";
@@ -27,14 +28,9 @@ export function BroadcastSettingsScreen() {
   const insets = useSafeAreaInsets();
   const { channelId } = useLocalSearchParams<{ channelId: string }>();
 
-  // Current user - supabase'den al
-  const [userId, setUserId] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id);
-    });
-  }, []);
+  // Current user - global auth store
+  const { user } = useAuth();
+  const userId = user?.id;
 
   // Edge function ile kanalları çek
   useBroadcastChannels();

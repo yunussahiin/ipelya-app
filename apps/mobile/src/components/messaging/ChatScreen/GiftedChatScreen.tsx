@@ -19,7 +19,7 @@ import {
   Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -54,9 +54,9 @@ import {
 } from "@/hooks/messaging";
 import { useConversationStore } from "@/store/messaging";
 import { ChatHeader } from "./components/ChatHeader";
-import { ChatLoading } from "./components/ChatLoading";
 import { ChatBubble } from "./components/ChatBubble";
 import { ChatBackground } from "./components/ChatBackground";
+import { ChatSkeleton } from "./components/ChatSkeleton";
 import {
   ChatInputToolbar,
   ChatComposer,
@@ -82,7 +82,7 @@ import { uploadMedia, queueMediaProcessing } from "@/services/media-upload.servi
 // Wrapper component to wait for auth
 export function GiftedChatScreen() {
   const { colors, isDark } = useTheme();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
 
   // Get conversation from store for theme
@@ -97,12 +97,6 @@ export function GiftedChatScreen() {
     textMuted: colors.textMuted
   });
 
-  // Wait for auth to load before rendering the chat
-  // This prevents double render and flash effect
-  if (isAuthLoading || !user?.id) {
-    return <ChatLoading conversationId={conversationId || ""} chatTheme={chatTheme} />;
-  }
-
   return (
     <GiftedChatScreenContent
       user={user}
@@ -113,35 +107,28 @@ export function GiftedChatScreen() {
   );
 }
 
-// Main chat screen content - only rendered when user is loaded
+// Main chat screen content
 function GiftedChatScreenContent({
   user,
   conversationId,
   chatTheme,
   colors
 }: {
-  user: NonNullable<ReturnType<typeof useAuth>["user"]>;
+  user: ReturnType<typeof useAuth>["user"];
   conversationId: string;
   chatTheme: ChatTheme;
   colors: ThemeColors;
 }) {
   const insets = useSafeAreaInsets();
+  const userId = user?.id || "";
+
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
 
   // Theme change listener
   const { themeChanges, dismissChange, dismissAllChanges } = useThemeChangeListener(
     conversationId,
-    user.id
+    userId
   );
-
-  // Debug: Log theme changes and user
-  useEffect(() => {
-    console.log("[GiftedChatScreen] Theme changes:", themeChanges.length, themeChanges);
-  }, [themeChanges]);
-
-  // Debug: Log current user
-  useEffect(() => {
-    console.log("[GiftedChatScreen] Current user ID:", user.id);
-  }, [user.id]);
 
   // Typing indicator - karşı tarafın yazıp yazmadığı
   const typingUserIds = useTypingIndicator(conversationId || "");
@@ -164,10 +151,10 @@ function GiftedChatScreenContent({
     clearDraft
   } = useChatMessages({
     conversationId,
-    userId: user.id,
-    userDisplayName: user.user_metadata?.display_name,
-    userAvatarUrl: user.user_metadata?.avatar_url,
-    userUsername: user.user_metadata?.username
+    userId,
+    userDisplayName: user?.user_metadata?.display_name,
+    userAvatarUrl: user?.user_metadata?.avatar_url,
+    userUsername: user?.user_metadata?.username
   });
 
   // Reply state
@@ -192,6 +179,15 @@ function GiftedChatScreenContent({
 
   // Reaction details sheet state
   const [reactionDetailsMessageId, setReactionDetailsMessageId] = useState<string | null>(null);
+
+  // Debug logs
+  useEffect(() => {
+    console.log("[GiftedChatScreen] Theme changes:", themeChanges.length, themeChanges);
+  }, [themeChanges]);
+
+  useEffect(() => {
+    console.log("[GiftedChatScreen] Current user ID:", userId);
+  }, [userId]);
 
   // Tüm medya mesajlarını filtrele (image/video)
   const allMediaMessages = useMemo(() => {
@@ -715,20 +711,18 @@ function GiftedChatScreenContent({
     );
   }, [isOtherTyping, colors, themeChanges, conversationId, dismissChange, dismissAllChanges]);
 
-  // Loading state for messages
-  if (isLoading) {
-    return <ChatLoading conversationId={conversationId} chatTheme={chatTheme} />;
-  }
-
   return (
-    <View style={[styles.container, { backgroundColor: chatTheme.colors.background }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: chatTheme.colors.background, paddingTop: insets.top }
+      ]}
+    >
       {/* Animated background */}
       <ChatBackground theme={chatTheme} />
 
-      {/* Safe area for header */}
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: "transparent" }}>
-        <ChatHeader conversationId={conversationId || ""} />
-      </SafeAreaView>
+      {/* Header */}
+      <ChatHeader conversationId={conversationId || ""} />
 
       {/* Keyboard avoiding wrapper */}
       <KeyboardAvoidingView
@@ -736,11 +730,17 @@ function GiftedChatScreenContent({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
+        {/* Loading skeleton - mesajlar yüklenirken */}
+        {isLoading && messages.length === 0 && (
+          <View style={styles.skeletonContainer}>
+            <ChatSkeleton count={7} />
+          </View>
+        )}
         <GiftedChat
           messages={messages}
           onSend={onSend}
           user={{
-            _id: user?.id || "",
+            _id: userId,
             name: user?.user_metadata?.display_name || "Ben",
             avatar: user?.user_metadata?.avatar_url
           }}
@@ -751,12 +751,18 @@ function GiftedChatScreenContent({
             // Prevent layout animation flash
             removeClippedSubviews: false,
             // Performance optimizations
-            initialNumToRender: 15,
+            initialNumToRender: 20,
             maxToRenderPerBatch: 10,
             windowSize: 11,
-            // Disable content inset adjustments
+            // Disable content inset adjustments - layout jump fix
             automaticallyAdjustContentInsets: false,
             contentInsetAdjustmentBehavior: "never",
+            automaticallyAdjustsScrollIndicatorInsets: false,
+            // Maintain scroll position
+            maintainVisibleContentPosition: {
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 10
+            },
             // Stable key extractor to prevent re-renders
             keyExtractor: (item: IMessage) => String(item._id)
           }}
@@ -778,7 +784,6 @@ function GiftedChatScreenContent({
           timeFormat="HH:mm"
           dateFormat="D MMMM"
           // Behavior
-          alwaysShowSend
           scrollToBottomComponent={renderScrollToBottom}
           // Input toolbar height
           minInputToolbarHeight={56}
@@ -903,8 +908,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1
   },
+  safeArea: {
+    flex: 1
+  },
   chatContainer: {
     flex: 1
+  },
+  skeletonContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 80,
+    paddingHorizontal: 12,
+    justifyContent: "flex-end",
+    gap: 8,
+    zIndex: 1
+  },
+  skeletonBubble: {
+    height: 44,
+    borderRadius: 18
   },
   audioRecorderOverlay: {
     position: "absolute",

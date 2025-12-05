@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { VolumeX, Ban, UserX, Volume2 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useManageBroadcastMember } from "@/hooks/messaging";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui";
 import { useBroadcastStore } from "@/store/messaging";
 import type { BroadcastMemberRole } from "@ipelya/types";
@@ -52,11 +53,9 @@ export function BroadcastMembersScreen() {
   const { channelId } = useLocalSearchParams<{ channelId: string }>();
   const { showToast } = useToast();
 
-  // Current user
-  const [userId, setUserId] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id));
-  }, []);
+  // Current user - global auth store
+  const { user } = useAuth();
+  const userId = user?.id;
 
   // Kanal bilgisi - owner kontrolü için
   const channel = useBroadcastStore((s) =>

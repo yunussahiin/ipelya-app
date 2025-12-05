@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from "react-native";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -32,17 +33,12 @@ interface SubscribersListProps {
 
 export function SubscribersList({ tierId, onSubscriberPress }: SubscribersListProps) {
   const { colors } = useTheme();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id || null;
+
   const [subscribers, setSubscribers] = useState<Subscriber[]>();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Get user ID on mount
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-    });
-  }, []);
 
   const fetchSubscribers = useCallback(async () => {
     if (!userId) return;
