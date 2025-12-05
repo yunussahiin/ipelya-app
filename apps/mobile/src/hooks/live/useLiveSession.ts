@@ -18,6 +18,18 @@ export interface LiveSession {
   giftsEnabled: boolean;
   guestEnabled: boolean;
   maxGuests: number;
+  viewerCount?: number;
+  startedAt?: string;
+  creator?: {
+    id: string;
+    display_name: string;
+    avatar_url?: string;
+    is_verified?: boolean;
+  };
+}
+
+export interface JoinSessionParams {
+  sessionId: string;
 }
 
 export interface CreateSessionParams {
@@ -35,12 +47,13 @@ export interface CreateSessionParams {
 
 export interface UseLiveSessionResult {
   session: LiveSession | null;
+  activeSession: LiveSession | null;
   isLoading: boolean;
   error: Error | null;
   createSession: (params: CreateSessionParams) => Promise<LiveSession | null>;
-  joinSession: (sessionId: string) => Promise<LiveSession | null>;
+  joinSession: (params: JoinSessionParams | string) => Promise<LiveSession | null>;
   endSession: (reason?: string) => Promise<void>;
-  leaveSession: () => Promise<void>;
+  leaveSession: (sessionId?: string) => Promise<void>;
 }
 
 export function useLiveSession(): UseLiveSessionResult {
@@ -103,7 +116,8 @@ export function useLiveSession(): UseLiveSessionResult {
   }, []);
 
   // Mevcut oturuma katıl
-  const joinSession = useCallback(async (sessionId: string): Promise<LiveSession | null> => {
+  const joinSession = useCallback(async (params: JoinSessionParams | string): Promise<LiveSession | null> => {
+    const sessionId = typeof params === 'string' ? params : params.sessionId;
     setIsLoading(true);
     setError(null);
 
@@ -132,13 +146,15 @@ export function useLiveSession(): UseLiveSessionResult {
         roomName: data.session.roomName,
         title: data.session.title,
         sessionType: data.session.sessionType,
-        accessType: 'public', // Join response'dan alınacak
+        accessType: 'public',
         status: 'live',
         creatorId: '',
         chatEnabled: data.session.chatEnabled,
         giftsEnabled: data.session.giftsEnabled,
         guestEnabled: true,
         maxGuests: 3,
+        startedAt: data.session.startedAt,
+        creator: data.session.creator,
       };
 
       setSession(joinedSession);
@@ -183,7 +199,7 @@ export function useLiveSession(): UseLiveSessionResult {
   }, [session]);
 
   // Oturumdan ayrıl (viewer için)
-  const leaveSession = useCallback(async (): Promise<void> => {
+  const leaveSession = useCallback(async (_sessionId?: string): Promise<void> => {
     // Basit cleanup - client tarafında session'ı null yap
     // LiveKit bağlantısını kesme işlemi useLiveKitRoom'da yapılıyor
     setSession(null);
@@ -192,6 +208,7 @@ export function useLiveSession(): UseLiveSessionResult {
 
   return {
     session,
+    activeSession: session, // Alias for compatibility
     isLoading,
     error,
     createSession,

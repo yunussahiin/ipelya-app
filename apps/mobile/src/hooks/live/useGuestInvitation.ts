@@ -12,6 +12,7 @@ export type InvitationStatus = 'idle' | 'pending' | 'accepted' | 'rejected' | 'e
 export type RequestStatus = 'idle' | 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled';
 
 export interface GuestInvitation {
+  id: string;
   sessionId: string;
   hostName: string;
   hostAvatar?: string;
@@ -45,14 +46,16 @@ export interface UseGuestInvitationResult {
   pendingRequests: JoinRequest[];
   
   // Viewer actions
-  requestToJoin: (message?: string) => Promise<boolean>;
+  requestToJoin: (sessionId: string, message?: string) => Promise<boolean>;
   cancelRequest: () => Promise<boolean>;
-  respondToInvitation: (accept: boolean) => Promise<boolean>;
+  respondToInvitation: (invitationId: string, accept: boolean) => Promise<boolean>;
   
   // State
   invitationStatus: InvitationStatus;
   requestStatus: RequestStatus;
   currentInvitation: GuestInvitation | null;
+  pendingInvitation: GuestInvitation | null; // Alias for compatibility
+  hasPendingRequest: boolean;
   isCoHost: boolean;
   canPublish: boolean;
   isLoading: boolean;
@@ -220,7 +223,7 @@ export function useGuestInvitation(options: UseGuestInvitationOptions): UseGuest
   }, [sessionId, isHost]);
 
   // Viewer: Katılma talebi gönder
-  const requestToJoin = useCallback(async (message?: string): Promise<boolean> => {
+  const requestToJoin = useCallback(async (targetSessionId: string, message?: string): Promise<boolean> => {
     if (isHost || requestStatus === 'pending') return false;
     
     setIsLoading(true);
@@ -228,7 +231,7 @@ export function useGuestInvitation(options: UseGuestInvitationOptions): UseGuest
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('request-to-join', {
-        body: { sessionId, message },
+        body: { sessionId: targetSessionId || sessionId, message },
       });
 
       if (fnError) throw new Error(fnError.message);
@@ -256,8 +259,8 @@ export function useGuestInvitation(options: UseGuestInvitationOptions): UseGuest
     return true;
   }, [requestStatus]);
 
-  // Viewer: Davete yanıt ver
-  const respondToInvitation = useCallback(async (accept: boolean): Promise<boolean> => {
+  // Viewer: Daveti yanıtla
+  const respondToInvitation = useCallback(async (_invitationId: string, accept: boolean): Promise<boolean> => {
     if (invitationStatus !== 'pending' || !currentInvitation) return false;
     
     setIsLoading(true);
@@ -307,6 +310,8 @@ export function useGuestInvitation(options: UseGuestInvitationOptions): UseGuest
     invitationStatus,
     requestStatus,
     currentInvitation,
+    pendingInvitation: currentInvitation, // Alias for compatibility
+    hasPendingRequest: requestStatus === 'pending',
     isCoHost,
     canPublish,
     isLoading,

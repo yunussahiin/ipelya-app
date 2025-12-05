@@ -18,6 +18,7 @@ interface LiveVideoViewProps {
   isMuted?: boolean;
   isVideoOff?: boolean;
   showOverlay?: boolean;
+  mirror?: boolean;
   style?: object;
 }
 

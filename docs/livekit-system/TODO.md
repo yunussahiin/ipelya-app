@@ -3,20 +3,27 @@
 > Detaylı görev listesi ve implementasyon durumu
 
 **Son Güncelleme:** 2025-12-05
-**Durum:** 🟡 Devam Ediyor (Faz 1-2 Tamamlandı)
+**Durum:** � Faz 1-4 Tamamlandı (Kritik/Yüksek öncelikli görevler bitti)
+
+## SDK Referans
+
+- **React Native SDK:** `@livekit/react-native` + `@livekit/react-native-webrtc`
+- **Expo Plugin:** `@livekit/react-native-expo-plugin`
+- **GitHub:** https://github.com/livekit/client-sdk-react-native
+- **Docs:** https://docs.livekit.io/home/quickstarts/expo/
 
 ---
 
 ## 🚨 Kritik Öncelikler (ANALYSIS_REPORT'tan)
 
-| #   | Görev                                   | Öncelik  | Referans                                      |
-| --- | --------------------------------------- | -------- | --------------------------------------------- |
-| 1   | VoIP Push + CallKeep entegrasyonu       | 🔴 Kritik | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md#31) |
-| 2   | Background Audio modes (iOS/Android)    | 🔴 Kritik | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md#32) |
-| 3   | Host disconnect handling (30sn bekleme) | 🔴 Kritik | [ERROR_STATES.md](./ERROR_STATES.md#3)        |
-| 4   | Orphaned session cleanup cron           | 🟡 Yüksek | [ERROR_STATES.md](./ERROR_STATES.md#4)        |
-| 5   | Rate limiting (token endpoint)          | 🟡 Yüksek | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md#35) |
-| 6   | **Guest/Co-Host sistemi**               | 🟡 Yüksek | [GUEST_COHOST.md](./GUEST_COHOST.md)          |
+| #   | Görev                                   | Durum | Öncelik | Referans                                  |
+| --- | --------------------------------------- | ----- | ------- | ----------------------------------------- |
+| 1   | VoIP Push + CallKeep entegrasyonu       | 🔴     | Kritik  | Native kod gerekli                        |
+| 2   | Background Audio modes (iOS/Android)    | 🔴     | Kritik  | Native kod gerekli                        |
+| 3   | Host disconnect handling (30sn bekleme) | ✅     | Kritik  | `handle-host-disconnect` edge function    |
+| 4   | Orphaned session cleanup cron           | ✅     | Yüksek  | `cleanup-orphaned-sessions` edge function |
+| 5   | Rate limiting (token endpoint)          | ✅     | Yüksek  | `get-livekit-token` v2 güncellendi        |
+| 6   | **Guest/Co-Host sistemi**               | ✅     | Yüksek  | [GUEST_COHOST.md](./GUEST_COHOST.md)      |
 
 ---
 
@@ -114,8 +121,7 @@
 
 | Görev                           | Durum | Öncelik | Notlar                                         |
 | ------------------------------- | ----- | ------- | ---------------------------------------------- |
-| [ ] `cleanup-orphaned-sessions` | 🔴     | Yüksek  | 30dk stale → ended                             |
-| [ ] `check-session-durations`   | 🔴     | Orta    | Max 4h → uyarı/kapat                           |
+| [x] `cleanup-orphaned-sessions` | ✅     | Yüksek  | Host timeout + orphan + 24h cleanup            |
 | [ ] `check-quota-usage`         | 🔴     | Orta    | %80 → alert → [MONITORING.md](./MONITORING.md) |
 
 ---
@@ -124,14 +130,14 @@
 
 ### 3.1 Paket Kurulumu & Config
 
-| Görev                              | Durum | Öncelik | Notlar                                                    |
-| ---------------------------------- | ----- | ------- | --------------------------------------------------------- |
-| [ ] `@livekit/react-native` kur    | 🔴     | Kritik  | + `@livekit/react-native-expo-plugin`                     |
-| [ ] `app.config.ts` plugin ekle    | 🔴     | Kritik  | Expo plugin yapılandırması                                |
-| [ ] `registerGlobals()` ekle       | 🔴     | Kritik  | `_layout.tsx` içinde                                      |
-| [ ] **iOS Background Modes**       | 🔴     | Kritik  | `audio`, `voip` → [ANALYSIS_REPORT](./ANALYSIS_REPORT.md) |
-| [ ] **Android Foreground Service** | 🔴     | Kritik  | Arka plan ses için                                        |
-| [ ] Development build oluştur      | 🔴     | Kritik  | `eas build --profile development`                         |
+| Görev                              | Durum | Öncelik | Notlar                                        |
+| ---------------------------------- | ----- | ------- | --------------------------------------------- |
+| [x] `@livekit/react-native` kur    | ✅     | Kritik  | v2.9.5 + expo-plugin v1.0.1 + webrtc v137.0.2 |
+| [x] `app.config.ts` plugin ekle    | ✅     | Kritik  | Expo plugin yapılandırması                    |
+| [x] `registerGlobals()` ekle       | ✅     | Kritik  | `_layout.tsx` içinde                          |
+| [ ] **iOS Background Modes**       | 🔴     | Kritik  | `audio`, `voip` → Native config gerekli       |
+| [ ] **Android Foreground Service** | 🔴     | Kritik  | Arka plan ses için → Native config gerekli    |
+| [ ] Development build oluştur      | 🔴     | Kritik  | `eas build --profile development`             |
 
 ### 3.2 VoIP & CallKeep (KRİTİK!)
 
@@ -148,11 +154,12 @@
 | -------------------------- | ----- | ------- | ---------------------------------------------------- |
 | [x] `useLiveKitRoom`       | ✅     | Kritik  | + reconnection handling                              |
 | [x] `useLiveSession`       | ✅     | Kritik  | Create/join/leave                                    |
-| [ ] `useCall`              | 🔴     | Yüksek  | State machine → [ERROR_STATES.md](./ERROR_STATES.md) |
+| [x] `useCall`              | ✅     | Yüksek  | State machine → [ERROR_STATES.md](./ERROR_STATES.md) |
 | [x] `useGuestInvitation`   | ✅     | Yüksek  | Guest/Co-Host → [GUEST_COHOST.md](./GUEST_COHOST.md) |
-| [ ] `useConnectionQuality` | 🔴     | Orta    | Poor signal UI                                       |
-| [ ] `useLiveChat`          | 🔴     | Orta    | Realtime chat                                        |
-| [ ] `useLiveGifts`         | 🔴     | Orta    | Gift animations                                      |
+| [x] `useConnectionQuality` | ✅     | Orta    | Poor signal UI + warning                             |
+| [x] `useLiveChat`          | ✅     | Orta    | Realtime chat                                        |
+| [x] `useLiveGifts`         | ✅     | Orta    | Gift sending + realtime + queue                      |
+| [x] `useHostDisconnect`    | ✅     | Kritik  | 30sn countdown + realtime                            |
 
 ### 3.4 Components
 
@@ -160,26 +167,26 @@
 | -------------------------------- | ----- | ------- | ------------------------------------------------------------- |
 | [x] `LiveVideoView`              | ✅     | Kritik  | RTCView wrapper                                               |
 | [x] `LiveControls`               | ✅     | Kritik  | Mic, cam, end buttons                                         |
-| [ ] `ViewerOverlay`              | 🔴     | Kritik  | State-based UI → [MOBILE_UX_STATES.md](./MOBILE_UX_STATES.md) |
+| [x] `ViewerOverlay`              | ✅     | Kritik  | State-based UI → [MOBILE_UX_STATES.md](./MOBILE_UX_STATES.md) |
 | [x] `GuestInvitationModal`       | ✅     | Yüksek  | Davet popup → [GUEST_COHOST.md](./GUEST_COHOST.md)            |
 | [x] `HostGuestControls`          | ✅     | Yüksek  | Host guest yönetimi panel                                     |
-| [ ] `ConnectionQualityIndicator` | 🔴     | Orta    | Signal bars                                                   |
-| [ ] `IncomingCallScreen`         | 🔴     | Kritik  | Full screen incoming call                                     |
+| [x] `ConnectionQualityIndicator` | ✅     | Orta    | Signal bars                                                   |
+| [x] `IncomingCallScreen`         | ✅     | Kritik  | Full screen incoming call                                     |
 | [x] `ParticipantGrid`            | ✅     | Yüksek  | Multi-participant layout (Guest dahil)                        |
-| [ ] `LiveChat`                   | 🔴     | Orta    | Chat UI with rate limit                                       |
-| [ ] `GiftOverlay`                | 🔴     | Orta    | Lottie animations                                             |
+| [x] `LiveChat`                   | ✅     | Orta    | Chat UI with rate limit                                       |
+| [x] `GiftOverlay`                | ✅     | Orta    | Reanimated particle animations                                |
 
 ### 3.5 Ekranlar
 
-| Görev                        | Durum | Öncelik | Notlar                    |
-| ---------------------------- | ----- | ------- | ------------------------- |
-| [ ] Live Session List        | 🔴     | Kritik  | FlatList + Realtime       |
-| [ ] Creator Broadcast Screen | 🔴     | Kritik  | Camera preview + settings |
-| [ ] Viewer Watch Screen      | 🔴     | Kritik  | All viewer states         |
-| [ ] Audio Room Screen        | 🔴     | Yüksek  | Speaker/listener UI       |
-| [ ] Call Screen              | 🔴     | Yüksek  | In-call UI                |
-| [ ] Incoming Call Screen     | 🔴     | Kritik  | Accept/Reject             |
-| [ ] Missed Call Screen       | 🔴     | Orta    | Call back option          |
+| Görev                        | Durum | Öncelik | Notlar                           |
+| ---------------------------- | ----- | ------- | -------------------------------- |
+| [x] Live Session List        | ✅     | Kritik  | FlatList + Realtime              |
+| [x] Creator Broadcast Screen | ✅     | Kritik  | Camera preview + settings        |
+| [x] Viewer Watch Screen      | ✅     | Kritik  | Hook'lar genişletildi, hazır     |
+| [x] Audio Room Screen        | ✅     | Yüksek  | Speaker/listener UI              |
+| [x] Call Screen              | ✅     | Yüksek  | In-call UI                       |
+| [x] Incoming Call Screen     | ✅     | Kritik  | Accept/Reject (Component olarak) |
+| [x] Missed Call Screen       | ✅     | Orta    | Call back + dismiss + profile    |
 
 ---
 
@@ -189,40 +196,40 @@
 
 | Görev                | Durum | Öncelik | Notlar                          |
 | -------------------- | ----- | ------- | ------------------------------- |
-| [ ] Public erişim    | 🔴     | Kritik  | Direkt token ver                |
-| [ ] Subscribers only | 🔴     | Yüksek  | `creator_subscriptions` check   |
-| [ ] Pay-per-view     | 🔴     | Yüksek  | Coin kesimi + `live_payments`   |
-| [ ] Ban kontrolü     | 🔴     | Orta    | Session ban + Creator ban check |
+| [x] Public erişim    | ✅     | Kritik  | join-live-session'da implement  |
+| [x] Subscribers only | ✅     | Yüksek  | `creator_subscriptions` check   |
+| [x] Pay-per-view     | ✅     | Yüksek  | Coin kesimi + `live_payments`   |
+| [x] Ban kontrolü     | ✅     | Orta    | Session ban + Creator ban check |
 
 ### 4.2 Coin/Ödeme Entegrasyonu
 
-| Görev                     | Durum | Öncelik | Notlar                           |
-| ------------------------- | ----- | ------- | -------------------------------- |
-| [ ] PPV coin kesimi       | 🔴     | Yüksek  | `coin_transactions` entegrasyonu |
-| [ ] Hediye coin transferi | 🔴     | Yüksek  | Creator'a %70-80 pay             |
-| [ ] Creator gelir kaydı   | 🔴     | Orta    | Revenue dashboard için           |
+| Görev                     | Durum | Öncelik | Notlar                         |
+| ------------------------- | ----- | ------- | ------------------------------ |
+| [x] PPV coin kesimi       | ✅     | Yüksek  | join-live-session'da           |
+| [x] Hediye coin transferi | ✅     | Yüksek  | send-live-gift (%70 creator)   |
+| [x] Creator gelir kaydı   | ✅     | Orta    | live_gifts + coin_transactions |
 
 ### 4.3 Bildirimler
 
-| Görev                          | Durum | Öncelik | Notlar                           |
-| ------------------------------ | ----- | ------- | -------------------------------- |
-| [ ] "Creator yayında" push     | 🔴     | Yüksek  | Follower'lara FCM                |
-| [ ] **VoIP Push (Call)**       | 🔴     | Kritik  | PushKit (iOS), High Priority FCM |
-| [ ] Missed call notification   | 🔴     | Orta    | Standard push                    |
-| [ ] Gift received notification | 🔴     | Düşük   | In-app + push                    |
+| Görev                          | Durum | Öncelik | Notlar                         |
+| ------------------------------ | ----- | ------- | ------------------------------ |
+| [x] "Creator yayında" push     | ✅     | Yüksek  | notify-live-started            |
+| [x] **VoIP Push (Call)**       | ✅     | Kritik  | create-call → send-voip-push   |
+| [x] Missed call notification   | ✅     | Orta    | cancel-call/decline-call       |
+| [x] Gift received notification | ✅     | Düşük   | send-live-gift → live_messages |
 
 ### 4.4 Moderasyon UI
 
-| Görev                        | Durum | Öncelik | Notlar              |
-| ---------------------------- | ----- | ------- | ------------------- |
-| [ ] Host: Kick/Ban buttons   | 🔴     | Orta    | Participant list'te |
-| [ ] Host: Delete message     | 🔴     | Orta    | Long press → delete |
-| [ ] Host: Promote to speaker | 🔴     | Orta    | Audio room only     |
-| [ ] Report user flow         | 🔴     | Orta    | → `live_reports`    |
+| Görev                        | Durum | Öncelik | Notlar                              |
+| ---------------------------- | ----- | ------- | ----------------------------------- |
+| [x] Host: Kick/Ban buttons   | ✅     | Orta    | ModerationControls + edge functions |
+| [ ] Host: Delete message     | 🔴     | Orta    | Long press → delete                 |
+| [x] Host: Promote to speaker | ✅     | Orta    | promote-to-speaker edge function    |
+| [x] Report user flow         | ✅     | Orta    | report-live-user edge function      |
 
 ---
 
-## Faz 5: Ops Dashboard
+## Faz 5: Ops Dashboard Bunun İçin ayrı dökümasyon oluşturacaksın, Web ekibi yapacak.
 
 ### 5.1 Live Monitoring → [MONITORING.md](./MONITORING.md)
 
@@ -325,6 +332,66 @@
 | [ ] Runbook tamamla        | 🔴     | Orta    | → [RUNBOOK.md](./RUNBOOK.md) |
 | [ ] Ops training           | 🔴     | Orta    | Dashboard kullanımı          |
 | [ ] Incident response plan | 🔴     | Orta    | Eskalasyon akışı             |
+
+---
+
+## Faz 9: Gelişmiş Özellikler (Yeni)
+
+### 9.1 Creator Yayın Ayarları
+
+| Görev                        | Durum | Öncelik | Notlar                                   |
+| ---------------------------- | ----- | ------- | ---------------------------------------- |
+| [x] Video kalitesi seçimi    | ✅     | Orta    | 360p/540p/720p/1080p presets             |
+| [ ] Kamera seçimi            | 🔴     | Düşük   | Birden fazla kamera varsa                |
+| [x] Noise suppression toggle | ✅     | Orta    | Gürültü bastırma açma/kapama             |
+| [x] Echo cancellation toggle | ✅     | Orta    | Yankı engelleme açma/kapama              |
+| [x] Auto gain control toggle | ✅     | Orta    | Otomatik ses seviyesi                    |
+| [ ] Simulcast açma/kapama    | 🔴     | Düşük   | Farklı kalite katmanları                 |
+| [x] Ayarlar modal UI         | ✅     | Orta    | BroadcastSettings component geliştirildi |
+
+### 9.2 Realtime Text & Data (LiveKit Data Channels)
+
+| Görev                      | Durum | Öncelik | Notlar                               |
+| -------------------------- | ----- | ------- | ------------------------------------ |
+| [ ] Text Streams           | 🔴     | Yüksek  | Chat için `sendText` / `streamText`  |
+| [ ] Byte Streams           | 🔴     | Orta    | Dosya/resim paylaşımı                |
+| [ ] RPC (Remote Procedure) | 🔴     | Orta    | Participant'lar arası method çağrısı |
+| [ ] Data Packets           | 🔴     | Düşük   | Low-level lossy/reliable data        |
+| [ ] Typing indicator       | 🔴     | Düşük   | "X yazıyor..." göstergesi            |
+
+### 9.3 Screen Sharing
+
+| Görev                          | Durum | Öncelik | Notlar                         |
+| ------------------------------ | ----- | ------- | ------------------------------ |
+| [ ] iOS ReplayKit entegrasyonu | 🔴     | Orta    | In-app capture                 |
+| [ ] iOS Broadcast Extension    | 🔴     | Düşük   | Full screen share (background) |
+| [ ] Android MediaProjection    | 🔴     | Orta    | Screen capture permission      |
+| [ ] Screen share UI            | 🔴     | Orta    | Start/stop button + indicator  |
+
+### 9.4 Gelişmiş Audio/Video
+
+| Görev                        | Durum | Öncelik | Notlar                                 |
+| ---------------------------- | ----- | ------- | -------------------------------------- |
+| [x] Active Speaker Detection | ✅     | Yüksek  | `isSpeaking` + `ActiveSpeakersChanged` |
+| [ ] Volume control           | 🔴     | Orta    | `track.setVolume(0-1)`                 |
+| [ ] Video quality selector   | 🔴     | Orta    | İzleyici tarafı LOW/MEDIUM/HIGH        |
+| [ ] Background voice cancel  | 🔴     | Düşük   | LiveKit Cloud BVC model                |
+| [ ] Hi-Fi audio mode         | 🔴     | Düşük   | Müzik yayını için 510kbps stereo       |
+
+### 9.5 Mevcut Implementasyon (Tamamlandı)
+
+| Özellik             | Durum | Değer                                   |
+| ------------------- | ----- | --------------------------------------- |
+| [x] Video Capture   | ✅     | 720p @ 30fps, facingMode: user          |
+| [x] Audio Capture   | ✅     | echoCancellation, noiseSuppression, AGC |
+| [x] Simulcast       | ✅     | h360 + h180 katmanları                  |
+| [x] Adaptive Stream | ✅     | Otomatik kalite ayarı                   |
+| [x] Dynacast        | ✅     | Bant genişliği optimizasyonu            |
+| [x] DTX             | ✅     | Sessizlikte tasarruf                    |
+| [x] Audio RED       | ✅     | Paket kaybına karşı yedekli encoding    |
+| [x] Torch/Flash     | ✅     | Preview modunda arka kamerada flaş      |
+| [x] Camera Flip     | ✅     | Ön/arka kamera değiştirme               |
+
 
 ---
 

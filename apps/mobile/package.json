@@ -104,7 +104,7 @@
   "devDependencies": {
     "@types/react": "19.1.17",
     "babel-plugin-module-resolver": "^5.0.2",
-    "expo-mcp": "^0.1.15",
+    "expo-mcp": "^0.2.3",
     "typescript": "~5.9.3"
   },
   "expo": {

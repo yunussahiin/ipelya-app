@@ -11,38 +11,62 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { GuestInvitation } from "@/hooks/live";
 
 interface GuestInvitationModalProps {
-  invitation: GuestInvitation | null;
+  // Option 1: Pass full invitation object
+  invitation?: GuestInvitation | null;
+  // Option 2: Pass individual props
+  hostName?: string;
+  hostAvatar?: string;
+  sessionTitle?: string;
+  // Common props
   visible: boolean;
   onAccept: () => void;
-  onReject: () => void;
-  onTimeout: () => void;
+  onReject?: () => void;
+  onDecline?: () => void; // Alias for onReject
+  onTimeout?: () => void;
+  timeoutSeconds?: number;
 }
 
 export function GuestInvitationModal({
   invitation,
+  hostName: propHostName,
+  hostAvatar: propHostAvatar,
+  sessionTitle: propSessionTitle,
   visible,
   onAccept,
   onReject,
-  onTimeout
+  onDecline,
+  onTimeout,
+  timeoutSeconds = 60
 }: GuestInvitationModalProps) {
   const { colors } = useTheme();
-  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  const [remainingSeconds, setRemainingSeconds] = useState(timeoutSeconds);
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+  // Get values from invitation or props
+  const hostName = invitation?.hostName || propHostName || "Host";
+  const hostAvatar = invitation?.hostAvatar || propHostAvatar;
+  const sessionTitle = invitation?.sessionTitle || propSessionTitle || "Canlı Yayın";
+  const handleReject = onReject || onDecline || (() => {});
 
   // Countdown timer
   useEffect(() => {
-    if (!visible || !invitation) return;
+    if (!visible) return;
 
-    const expiresAt = new Date(invitation.expiresAt).getTime();
-    const now = Date.now();
-    const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
-    setRemainingSeconds(remaining);
+    // If we have invitation with expiresAt, use that
+    if (invitation?.expiresAt) {
+      const expiresAt = new Date(invitation.expiresAt).getTime();
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+      setRemainingSeconds(remaining);
+    } else {
+      setRemainingSeconds(timeoutSeconds);
+    }
 
     const interval = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          onTimeout();
+          onTimeout?.();
           return 0;
         }
         return prev - 1;
@@ -99,18 +123,16 @@ export function GuestInvitationModal({
 
           {/* Host info */}
           <View style={styles.hostInfo}>
-            {invitation.hostAvatar ? (
-              <Image source={{ uri: invitation.hostAvatar }} style={styles.hostAvatar} />
+            {hostAvatar ? (
+              <Image source={{ uri: hostAvatar }} style={styles.hostAvatar} />
             ) : (
               <View style={[styles.hostAvatarPlaceholder, { backgroundColor: colors.accent }]}>
                 <Ionicons name="person" size={32} color="#fff" />
               </View>
             )}
-            <Text style={[styles.hostName, { color: colors.textPrimary }]}>
-              {invitation.hostName}
-            </Text>
+            <Text style={[styles.hostName, { color: colors.textPrimary }]}>{hostName}</Text>
             <Text style={[styles.sessionTitle, { color: colors.textSecondary }]}>
-              {invitation.sessionTitle}
+              {sessionTitle}
             </Text>
           </View>
 
@@ -136,7 +158,7 @@ export function GuestInvitationModal({
           <View style={styles.actions}>
             <Pressable
               style={[styles.rejectButton, { backgroundColor: colors.surfaceAlt }]}
-              onPress={onReject}
+              onPress={handleReject}
             >
               <Ionicons name="close" size={20} color={colors.textSecondary} />
               <Text style={[styles.rejectButtonText, { color: colors.textSecondary }]}>Reddet</Text>

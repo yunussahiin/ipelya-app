@@ -323,8 +323,8 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2
       expo-mcp:
-        specifier: ^0.1.15
-        version: 0.1.15
+        specifier: ^0.2.3
+        version: 0.2.3
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -1343,13 +1343,8 @@ packages:
   '@expo/json-file@10.0.7':
     resolution: {integrity: sha512-z2OTC0XNO6riZu98EjdNHC05l51ySeTto6GP7oSQrCvQgG9ARBwD1YvMQaVZ9wU7p/4LzSf1O7tckL3B45fPpw==}
 
-  '@expo/mcp-tunnel@0.1.0':
-    resolution: {integrity: sha512-rJ6hl0GnIZj9+ssaJvFsC7fwyrmndcGz+RGFzu+0gnlm78X01957yjtHgjcmnQAgL5hWEOR6pkT0ijY5nU5AWw==}
-    peerDependencies:
-      '@modelcontextprotocol/sdk': ^1.13.2
-    peerDependenciesMeta:
-      '@modelcontextprotocol/sdk':
-        optional: true
+  '@expo/mcp-tunnel@0.2.3':
+    resolution: {integrity: sha512-AUyjAFxrDASPZo95BO8iUi8SqDXi97K9toCl/aT1vAU/1Ap5W7K+1IrMWNJivFdT7/XHvXU5LmoRtg5vXpYc1Q==}
 
   '@expo/metro-config@54.0.10':
     resolution: {integrity: sha512-AkSTwaWbMMDOiV4RRy4Mv6MZEOW5a7BZlgtrWxvzs6qYKRxKLKH/qqAuKe0bwGepF1+ws9oIX5nQjtnXRwezvQ==}
@@ -4454,8 +4449,8 @@ packages:
       react: '*'
       react-native: '*'
 
-  expo-mcp@0.1.15:
-    resolution: {integrity: sha512-lEBv4i76WKEkz+YPMS566rnKCeVjFhdGiQXf1Voeb+fFzrJkHI+2e14I+W7SC8/zWv7kWwf6+atZiRJCmxXXxQ==}
+  expo-mcp@0.2.3:
+    resolution: {integrity: sha512-Hgw4stN2teMDvevZQbP5a/JI6xCerDeUgkeztVEdaYdXVjgiLES4S+woM4FwFEF4lzQ6T35QCVRgASxrjyKn4w==}
     hasBin: true
 
   expo-media-library@18.2.0:
@@ -8676,15 +8671,16 @@ snapshots:
       '@babel/code-frame': 7.10.4
       json5: 2.2.3
 
-  '@expo/mcp-tunnel@0.1.0(@modelcontextprotocol/sdk@1.24.2(zod@3.25.76))':
+  '@expo/mcp-tunnel@0.2.3':
     dependencies:
+      '@modelcontextprotocol/sdk': 1.24.2(zod@3.25.76)
       ws: 8.18.3
       zod: 3.25.76
       zod-to-json-schema: 3.25.0(zod@3.25.76)
-    optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.24.2(zod@3.25.76)
     transitivePeerDependencies:
+      - '@cfworker/json-schema'
       - bufferutil
+      - supports-color
       - utf-8-validate
 
   '@expo/metro-config@54.0.10(expo@54.0.26)':
@@ -12175,13 +12171,14 @@ snapshots:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
 
-  expo-mcp@0.1.15:
+  expo-mcp@0.2.3:
     dependencies:
-      '@expo/mcp-tunnel': 0.1.0(@modelcontextprotocol/sdk@1.24.2(zod@3.25.76))
-      '@modelcontextprotocol/sdk': 1.24.2(zod@3.25.76)
+      '@expo/mcp-tunnel': 0.2.3
+      debug: 4.4.3
       glob: 11.1.0
       jimp-compact: 0.16.1
       resolve-from: 5.0.0
+      ws: 8.18.3
       xml2js: 0.6.2
       zod: 3.25.76
       zx: 8.8.5
