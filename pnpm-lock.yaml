@@ -361,6 +361,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.68.0(react@19.1.0))
+      '@livekit/components-react':
+        specifier: ^2.9.17
+        version: 2.9.17(livekit-client@2.16.0(@types/dom-mediacapture-record@1.0.22))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tslib@2.8.1)
+      '@livekit/components-styles':
+        specifier: ^1.2.0
+        version: 1.2.0
       '@openrouter/ai-sdk-provider':
         specifier: ^1.2.7
         version: 1.3.0(ai@5.0.106(zod@4.1.13))(zod@4.1.13)
@@ -478,6 +484,12 @@ importers:
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      livekit-client:
+        specifier: ^2.16.0
+        version: 2.16.0(@types/dom-mediacapture-record@1.0.22)
+      livekit-server-sdk:
+        specifier: ^2.14.2
+        version: 2.14.2
       lucide-react:
         specifier: ^0.553.0
         version: 0.553.0(react@19.1.0)
@@ -1705,6 +1717,13 @@ packages:
       livekit-client: ^2.15.14
       tslib: ^2.6.2
 
+  '@livekit/components-core@0.12.12':
+    resolution: {integrity: sha512-DQ+lOAMPvum37Ta4lQLETxQe7ZxhivI78ZfE4nnWP0AcnwNByNR2vVLp9VGvw577HmvgHEkbjBbGBJBSZEBEZA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      livekit-client: ^2.15.14
+      tslib: ^2.6.2
+
   '@livekit/components-react@2.9.16':
     resolution: {integrity: sha512-7HqsVxmsIjhnyPGFskO0UL0Vf5WKAnIsukHcRp+hYTA4hIT99Dlcnhm/b0zfNpVaGafP2WV32HLeRMYzBrfMPA==}
     engines: {node: '>=18'}
@@ -1717,6 +1736,23 @@ packages:
     peerDependenciesMeta:
       '@livekit/krisp-noise-filter':
         optional: true
+
+  '@livekit/components-react@2.9.17':
+    resolution: {integrity: sha512-5rEsISFzGIsvC2G6dOq/w1PbHLIH5P7kZBnvNt5OD2TOA3tsW2z/idsFP3y1Pb9VBv7QmobEqPOmQzqHTH64uA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@livekit/krisp-noise-filter': ^0.2.12 || ^0.3.0
+      livekit-client: ^2.15.14
+      react: '>=18'
+      react-dom: '>=18'
+      tslib: ^2.6.2
+    peerDependenciesMeta:
+      '@livekit/krisp-noise-filter':
+        optional: true
+
+  '@livekit/components-styles@1.2.0':
+    resolution: {integrity: sha512-74/rt0lDh6aHmOPmWAeDE9C4OrNW9RIdmhX/YRbovQBVNGNVWojRjl3FgQZ5LPFXO6l1maKB4JhXcBFENVxVvw==}
+    engines: {node: '>=18'}
 
   '@livekit/mutex@1.1.1':
     resolution: {integrity: sha512-EsshAucklmpuUAfkABPxJNhzj9v2sG7JuzFDL4ML1oJQSV14sqrpTYnsaOudMAw9yOaW53NU3QQTlUQoRs4czw==}
@@ -3543,6 +3579,10 @@ packages:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
 
+  camelcase-keys@9.1.3:
+    resolution: {integrity: sha512-Rircqi9ch8AnZscQcsA1C47NFdaO3wukpmIRzYcDOrmvgt78hM/sj5pZhZNec2NM12uk5vTwRHZ4anGcrC4ZTg==}
+    engines: {node: '>=16'}
+
   camelcase@5.3.1:
     resolution: {integrity: sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==}
     engines: {node: '>=6'}
@@ -3550,6 +3590,10 @@ packages:
   camelcase@6.3.0:
     resolution: {integrity: sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==}
     engines: {node: '>=10'}
+
+  camelcase@8.0.0:
+    resolution: {integrity: sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA==}
+    engines: {node: '>=16'}
 
   caniuse-lite@1.0.30001759:
     resolution: {integrity: sha512-Pzfx9fOKoKvevQf8oCXoyNRQ5QyxJj+3O0Rqx2V5oxT61KGx8+n6hV/IUyJeifUci2clnmmKVpvtiqRzgiWjSw==}
@@ -5284,6 +5328,9 @@ packages:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
 
+  jose@5.10.0:
+    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
   jose@6.1.3:
     resolution: {integrity: sha512-0TpaTfihd4QMNwrz/ob2Bp7X04yuxJkjRGi4aKmOqwhov54i6u79oCv7T+C7lo70MKH6BesI3vscD1yb/yzKXQ==}
 
@@ -5441,6 +5488,10 @@ packages:
     peerDependencies:
       '@types/dom-mediacapture-record': ^1
 
+  livekit-server-sdk@2.14.2:
+    resolution: {integrity: sha512-4mvPwxd3mjtB3ISTv6DHADaAPqTEw/zZWLDPTyPOGYR01hbedAhVBAMWSFrnVeQddqCiELfAqDkbFAR+B0CuVw==}
+    engines: {node: '>=18'}
+
   locate-path@3.0.0:
     resolution: {integrity: sha512-7AO748wWnIhNqAuaty2ZWHkQHRSNfPVIsPIfwEOWO22AmaoVrWavlOcMR5nzTLNYvp36X220/maaRsrec1G65A==}
     engines: {node: '>=6'}
@@ -5515,6 +5566,10 @@ packages:
 
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
+
+  map-obj@5.0.0:
+    resolution: {integrity: sha512-2L3MIgJynYrZ3TYMriLDLWocz15okFakV6J12HXvMXDHui2x/zgChzg1u9mFFGbbGWE+GsLpQByt4POb9Or+uA==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
@@ -6281,6 +6336,10 @@ packages:
 
   queue@6.0.2:
     resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
+
+  quick-lru@6.1.2:
+    resolution: {integrity: sha512-AAFUA5O1d83pIHEhJwWCq/RQcRukCkn/NSm2QsTEMle5f2hP0ChI2+3Xb051PZCkLryI/Ir1MVKviT2FIloaTQ==}
+    engines: {node: '>=12'}
 
   range-parser@1.2.1:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
@@ -7238,6 +7297,10 @@ packages:
   type-fest@0.7.1:
     resolution: {integrity: sha512-Ne2YiiGN8bmrmJJEuTWTLJR32nh/JdL1+PSicowtNb0WFpn59GK8/lfD61bVtzguz7b3PBt74nxpv/Pw5po5Rg==}
     engines: {node: '>=8'}
+
+  type-fest@4.41.0:
+    resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
+    engines: {node: '>=16'}
 
   type-is@2.0.1:
     resolution: {integrity: sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw==}
@@ -9105,6 +9168,14 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
 
+  '@livekit/components-core@0.12.12(livekit-client@2.16.0(@types/dom-mediacapture-record@1.0.22))(tslib@2.8.1)':
+    dependencies:
+      '@floating-ui/dom': 1.7.4
+      livekit-client: 2.16.0(@types/dom-mediacapture-record@1.0.22)
+      loglevel: 1.9.1
+      rxjs: 7.8.2
+      tslib: 2.8.1
+
   '@livekit/components-react@2.9.16(livekit-client@2.16.0(@types/dom-mediacapture-record@1.0.22))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tslib@2.8.1)':
     dependencies:
       '@livekit/components-core': 0.12.11(livekit-client@2.16.0(@types/dom-mediacapture-record@1.0.22))(tslib@2.8.1)
@@ -9116,6 +9187,20 @@ snapshots:
       react-dom: 19.1.0(react@19.1.0)
       tslib: 2.8.1
       usehooks-ts: 3.1.1(react@19.1.0)
+
+  '@livekit/components-react@2.9.17(livekit-client@2.16.0(@types/dom-mediacapture-record@1.0.22))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tslib@2.8.1)':
+    dependencies:
+      '@livekit/components-core': 0.12.12(livekit-client@2.16.0(@types/dom-mediacapture-record@1.0.22))(tslib@2.8.1)
+      clsx: 2.1.1
+      events: 3.3.0
+      jose: 6.1.3
+      livekit-client: 2.16.0(@types/dom-mediacapture-record@1.0.22)
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+      tslib: 2.8.1
+      usehooks-ts: 3.1.1(react@19.1.0)
+
+  '@livekit/components-styles@1.2.0': {}
 
   '@livekit/mutex@1.1.1': {}
 
@@ -11127,9 +11212,18 @@ snapshots:
 
   callsites@3.1.0: {}
 
+  camelcase-keys@9.1.3:
+    dependencies:
+      camelcase: 8.0.0
+      map-obj: 5.0.0
+      quick-lru: 6.1.2
+      type-fest: 4.41.0
+
   camelcase@5.3.1: {}
 
   camelcase@6.3.0: {}
+
+  camelcase@8.0.0: {}
 
   caniuse-lite@1.0.30001759: {}
 
@@ -13184,6 +13278,8 @@ snapshots:
 
   jiti@2.6.1: {}
 
+  jose@5.10.0: {}
+
   jose@6.1.3: {}
 
   js-tokens@4.0.0: {}
@@ -13317,6 +13413,13 @@ snapshots:
       typed-emitter: 2.1.0
       webrtc-adapter: 9.0.3
 
+  livekit-server-sdk@2.14.2:
+    dependencies:
+      '@bufbuild/protobuf': 1.10.1
+      '@livekit/protocol': 1.42.2
+      camelcase-keys: 9.1.3
+      jose: 5.10.0
+
   locate-path@3.0.0:
     dependencies:
       p-locate: 3.0.0
@@ -13379,6 +13482,8 @@ snapshots:
   makeerror@1.0.12:
     dependencies:
       tmpl: 1.0.5
+
+  map-obj@5.0.0: {}
 
   markdown-table@3.0.4: {}
 
@@ -14550,6 +14655,8 @@ snapshots:
     dependencies:
       inherits: 2.0.4
 
+  quick-lru@6.1.2: {}
+
   range-parser@1.2.1: {}
 
   raw-body@3.0.2:
@@ -15667,6 +15774,8 @@ snapshots:
   type-fest@0.21.3: {}
 
   type-fest@0.7.1: {}
+
+  type-fest@4.41.0: {}
 
   type-is@2.0.1:
     dependencies:

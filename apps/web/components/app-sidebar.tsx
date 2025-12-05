@@ -339,6 +339,34 @@ const data = {
         }
       ]
     },
+
+    {
+      title: "Canlı Yayın",
+      url: "/ops/live",
+      icon: IconCamera,
+      items: [
+        {
+          title: "Genel Bakış",
+          url: "/ops/live"
+        },
+        {
+          title: "Moderasyon",
+          url: "/ops/live/moderation"
+        },
+        {
+          title: "Analitik",
+          url: "/ops/live/analytics"
+        },
+        {
+          title: "Sistem Logları",
+          url: "/ops/live/logs"
+        },
+        {
+          title: "Kota & Uyarılar",
+          url: "/ops/live/alerts"
+        }
+      ]
+    },
     {
       title: "Sistem",
       url: "/ops/system",
@@ -386,11 +414,6 @@ const data = {
           url: "/ops/dmca/actions"
         }
       ]
-    },
-    {
-      title: "Canlı Oturumlar",
-      url: "/ops/live",
-      icon: IconCamera
     },
     {
       title: "AI Motoru",

@@ -145,6 +145,13 @@ export default function CreatorBroadcastScreen() {
       noiseSuppression: mediaSettings.noiseSuppression,
       echoCancellation: mediaSettings.echoCancellation,
       autoGainControl: mediaSettings.autoGainControl
+    },
+    // Admin tarafından sonlandırılma durumu (nadir ama olabilir)
+    onRoomTerminated: () => {
+      console.log("[Broadcast] Room terminated by admin");
+      Alert.alert("Yayın Sonlandırıldı", "Yayınınız bir yönetici tarafından sonlandırıldı.", [
+        { text: "Tamam", onPress: () => router.back() }
+      ]);
     }
   });
 

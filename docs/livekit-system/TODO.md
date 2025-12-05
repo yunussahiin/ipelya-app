@@ -99,12 +99,23 @@
 
 ### 2.4 Moderasyon Functions
 
-| Görev                     | Durum | Öncelik | Notlar                                                    |
-| ------------------------- | ----- | ------- | --------------------------------------------------------- |
-| [ ] `kick-participant`    | 🔴     | Orta    | RemoveParticipant API                                     |
-| [ ] `ban-participant`     | 🔴     | Orta    | DB + RemoveParticipant → [MODERATION.md](./MODERATION.md) |
-| [ ] `unban-participant`   | 🔴     | Düşük   | DB only                                                   |
-| [ ] `delete-live-message` | 🔴     | Orta    | Soft delete + broadcast                                   |
+| Görev                     | Durum | Öncelik | Notlar                                                   |
+| ------------------------- | ----- | ------- | -------------------------------------------------------- |
+| [x] `kick-participant`    | ✅     | Orta    | Web Ops API ile → `/api/ops/live/participants/[id]/kick` |
+| [x] `ban-participant`     | ✅     | Orta    | Web Ops API ile → `/api/ops/live/participants/[id]/ban`  |
+| [x] `unban-participant`   | ✅     | Düşük   | Web Ops API ile → `/api/ops/live/bans/[id]` DELETE       |
+| [ ] `delete-live-message` | 🔴     | Orta    | Soft delete + broadcast                                  |
+
+### 2.6 Mobile DisconnectReason Handling (YENİ - Web Ops Entegrasyonu) ✅
+
+| Görev                         | Durum | Öncelik | Notlar                                                                                       |
+| ----------------------------- | ----- | ------- | -------------------------------------------------------------------------------------------- |
+| [x] `useLiveKitRoom` güncelle | ✅     | Kritik  | DisconnectReason handling eklendi                                                            |
+| [x] 5 modülde callback kullan | ✅     | Kritik  | broadcast, watch, audio-room (2), call                                                       |
+| [x] `useBanCheck` hook        | ✅     | Yüksek  | Viewer join öncesi ban kontrolü                                                              |
+| [x] `useReport` hook          | ✅     | Yüksek  | Şikayet gönderme (live_reports)                                                              |
+| [x] Admin kick/ban alert UI   | ✅     | Yüksek  | Alert.alert ile                                                                              |
+| **Detaylı Döküman →**         |       |         | [mobile-verilen-gorev.md](./web-ops-yonetim/mobile-verilen-gorevler/mobile-verilen-gorev.md) |
 
 ### 2.5 Webhook Handler
 
@@ -229,9 +240,7 @@
 
 ---
 
-## Faz 5: Ops Dashboard → [WEB_ADMIN_DASHBOARD.md](./WEB_ADMIN_DASHBOARD.md)
-
-> **Web ekibi için detaylı döküman:** [WEB_ADMIN_DASHBOARD.md](./WEB_ADMIN_DASHBOARD.md)
+## Faz 5: Ops Dashboard → [WEB_ADMIN_DASHBOARD.md](./WEB_ADMIN_DASHBOARD.md) Bunu web ops ekibine aktardık! Onun ilgili todo dosyası var docs/livekit-system/web--ops-yonetim içinde check et gerekirse işaretle.
 
 ### 5.1 Live Monitoring → [MONITORING.md](./MONITORING.md)
 

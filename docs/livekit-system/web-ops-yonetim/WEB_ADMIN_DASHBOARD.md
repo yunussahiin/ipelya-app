@@ -629,7 +629,7 @@ serve(async (req) => {
   }).eq('id', sessionId);
 
   // Log kaydet
-  await supabase.from('admin_logs').insert({
+  await supabase.from('admin_livekit_logs').insert({
     admin_id: user.id,
     action: 'terminate_session',
     target_id: sessionId,
@@ -646,10 +646,10 @@ serve(async (req) => {
 
 Dashboard için gerekli ek tablolar:
 
-### admin_logs
+### admin_logs > admin_livekit_logs olarak değiştirdik içeriğe dikkat et
 
 ```sql
-CREATE TABLE public.admin_logs (
+CREATE TABLE public.admin_livekit_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id uuid NOT NULL REFERENCES auth.users(id),
   action text NOT NULL,  -- 'terminate_session', 'kick_user', 'ban_user', etc.

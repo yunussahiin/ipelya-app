@@ -11,8 +11,15 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useProfileStore } from "@/store/profile.store";
-import { useLiveKitRoom, useLiveSession, type LiveSession, type DataMessage } from "@/hooks/live";
+import {
+  useLiveKitRoom,
+  useLiveSession,
+  useBanCheck,
+  type LiveSession,
+  type DataMessage
+} from "@/hooks/live";
 import { useToast } from "@/components/ui";
+import { BanInfoModal, ReportModal } from "@/components/live";
 import { AudioRoomViewer } from "./_components";
 
 export default function AudioRoomViewerScreen() {
@@ -32,6 +39,10 @@ export default function AudioRoomViewerScreen() {
 
   // Konuşma izni modal state
   const [showSpeakPermissionModal, setShowSpeakPermissionModal] = useState(false);
+
+  // Ban/Report modal states
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Toast hook
   const { showToast } = useToast();
@@ -60,6 +71,41 @@ export default function AudioRoomViewerScreen() {
 
   // Hooks
   const { joinSession, leaveSession } = useLiveSession();
+  const { banInfo, checkBan } = useBanCheck();
+
+  // Admin kick/ban handler
+  const handleAdminKick = useCallback(async () => {
+    console.log("[AudioRoomViewer] Admin kick/ban detected");
+
+    // Ban bilgisini kontrol et
+    if (sessionId && sessionData?.creatorId) {
+      const banned = await checkBan(sessionId, sessionData.creatorId);
+      if (banned) {
+        setShowBanModal(true);
+        return;
+      }
+    }
+
+    // Ban değilse sadece kick
+    showToast({
+      type: "warning",
+      message: "Odadan Çıkarıldınız",
+      description: "Bir moderatör tarafından bu odadan çıkarıldınız."
+    });
+    router.back();
+  }, [sessionId, sessionData?.creatorId, checkBan, showToast, router]);
+
+  // Room terminated handler
+  const handleRoomTerminated = useCallback(() => {
+    console.log("[AudioRoomViewer] Room terminated by admin");
+    showToast({
+      type: "error",
+      message: "Oda Kapatıldı",
+      description: "Bu sesli oda bir yönetici tarafından kapatıldı."
+    });
+    router.back();
+  }, [showToast, router]);
+
   const {
     participants,
     isConnected,
@@ -79,7 +125,9 @@ export default function AudioRoomViewerScreen() {
       avatarUrl: profile?.avatarUrl,
       isHost: false
     },
-    onDataMessage: handleDataMessage
+    onDataMessage: handleDataMessage,
+    onAdminKick: handleAdminKick,
+    onRoomTerminated: handleRoomTerminated
   });
   const [handRaiseTimeout, setHandRaiseTimeout] = useState<Date | null>(null); // Söz iste timeout
   const HAND_RAISE_COOLDOWN = 30000; // 30 saniye cooldown
@@ -257,6 +305,30 @@ export default function AudioRoomViewerScreen() {
           </View>
         </BlurView>
       </Modal>
+
+      {/* Ban Info Modal */}
+      <BanInfoModal
+        visible={showBanModal}
+        banInfo={banInfo}
+        onClose={() => setShowBanModal(false)}
+        onDismiss={() => router.back()}
+      />
+
+      {/* Report Modal - Host'u şikayet et */}
+      <ReportModal
+        visible={showReportModal}
+        sessionId={sessionId || ""}
+        reportedUserId={sessionData?.creatorId || ""}
+        reportedUserName={sessionData?.creator?.display_name}
+        onClose={() => setShowReportModal(false)}
+        onSuccess={() => {
+          showToast({
+            type: "success",
+            message: "Şikayet gönderildi",
+            description: "Ekibimiz en kısa sürede inceleyecek."
+          });
+        }}
+      />
     </>
   );
 }

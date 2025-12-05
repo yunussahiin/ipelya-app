@@ -16,3 +16,7 @@ export { IncomingCallScreen, type IncomingCallData } from './IncomingCallScreen'
 export { GiftOverlay, useGiftQueue, type GiftItem } from './GiftOverlay';
 export { MissedCallScreen } from './MissedCallScreen';
 export { ModerationControls } from './ModerationControls';
+
+// Web Ops Dashboard Entegrasyonu - Ban/Report Modal'ları
+export { BanInfoModal } from './BanInfoModal';
+export { ReportModal } from './ReportModal';

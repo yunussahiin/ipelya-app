@@ -542,6 +542,9 @@ function AdminActions({ sessionId, participant }) {
 - [ ] Speaking indicator çalışıyor
 - [ ] Admin aksiyonları (kick, terminate) çalışıyor
 
+
+## Ek Bilgi
+Eğer mobil projede ve mobil ekibin yapması gereken bir özellik geliştirmesi, bizim yaptıgımız bir sistemin mobilde karşılığının yapılması gibi senaryolarda yapılacak işlemi detaylı anlatan dökümasyon oluşturacaksın.
 ---
 
 ## 📚 Referanslar

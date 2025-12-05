@@ -94,7 +94,17 @@ export default function AudioRoomCreateScreen() {
       avatarUrl: profile?.avatarUrl,
       isHost: true
     },
-    onDataMessage: handleDataMessage
+    onDataMessage: handleDataMessage,
+    // Admin tarafından sonlandırılma durumu
+    onRoomTerminated: () => {
+      console.log("[AudioRoom Host] Room terminated by admin");
+      showToast({
+        type: "error",
+        message: "Oda Kapatıldı",
+        description: "Sesli odanız bir yönetici tarafından kapatıldı."
+      });
+      router.back();
+    }
   });
 
   // Dinleyiciye konuşma izni ver

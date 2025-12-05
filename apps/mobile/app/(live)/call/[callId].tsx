@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet, StatusBar } from "react-native";
+import { View, Text, Pressable, StyleSheet, StatusBar, Alert } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,7 +42,14 @@ export default function CallScreen() {
     disconnect
   } = useLiveKitRoom({
     callId: callId || "",
-    autoConnect: true
+    autoConnect: true,
+    // Admin tarafından sonlandırılma durumu (1-1 çağrı için nadir)
+    onRoomTerminated: () => {
+      console.log("[Call] Call terminated by admin");
+      Alert.alert("Çağrı Sonlandırıldı", "Bu çağrı bir yönetici tarafından sonlandırıldı.", [
+        { text: "Tamam", onPress: () => router.back() }
+      ]);
+    }
   });
 
   // Duration timer

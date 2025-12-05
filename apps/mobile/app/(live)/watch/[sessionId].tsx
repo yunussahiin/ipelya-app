@@ -18,8 +18,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet from "@gorhom/bottom-sheet";
-import { useLiveKitRoom, useLiveSession, useLiveChat, useGuestInvitation } from "@/hooks/live";
-import { LiveVideoView, LiveChat, GuestInvitationModal } from "@/components/live";
+import {
+  useLiveKitRoom,
+  useLiveSession,
+  useLiveChat,
+  useGuestInvitation,
+  useBanCheck
+} from "@/hooks/live";
+import {
+  LiveVideoView,
+  LiveChat,
+  GuestInvitationModal,
+  BanInfoModal,
+  ReportModal
+} from "@/components/live";
+import { useToast } from "@/components/ui";
 import { supabase } from "@/lib/supabaseClient";
 
 // Local components
@@ -39,11 +52,49 @@ export default function ViewerWatchScreen() {
   const [viewerCount, setViewerCount] = useState(0);
   const [inputText, setInputText] = useState("");
 
+  // Modal states
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  // Toast
+  const { showToast } = useToast();
+
   // Hooks
   const { joinSession, leaveSession, activeSession } = useLiveSession();
   const { messages, sendMessage, deleteMessage } = useLiveChat({
     sessionId: sessionId || ""
   });
+  // Ban check hook
+  const { banInfo, checkBan } = useBanCheck();
+
+  // Admin kick/ban handler
+  const handleAdminKick = useCallback(async () => {
+    console.log("[Watch] Admin kick/ban detected");
+
+    // Ban bilgisini kontrol et
+    if (sessionId) {
+      const banned = await checkBan(sessionId, activeSession?.creatorId);
+      if (banned) {
+        // Ban modal'ı göster
+        setShowBanModal(true);
+        return;
+      }
+    }
+
+    // Ban değilse sadece kick
+    Alert.alert("⚠️ Yayından Çıkarıldınız", "Bir moderatör tarafından bu yayından çıkarıldınız.", [
+      { text: "Tamam", onPress: () => router.back() }
+    ]);
+  }, [sessionId, activeSession?.creatorId, checkBan, banInfo, router]);
+
+  // Room terminated handler
+  const handleRoomTerminated = useCallback(() => {
+    console.log("[Watch] Room terminated by admin");
+    Alert.alert("🛑 Yayın Sonlandırıldı", "Bu yayın bir yönetici tarafından sonlandırıldı.", [
+      { text: "Tamam", onPress: () => router.back() }
+    ]);
+  }, [router]);
+
   const {
     participants,
     isConnected,
@@ -55,7 +106,9 @@ export default function ViewerWatchScreen() {
   } = useLiveKitRoom({
     roomName: activeSession?.roomName,
     sessionId: sessionId || "",
-    autoConnect: false
+    autoConnect: false,
+    onAdminKick: handleAdminKick,
+    onRoomTerminated: handleRoomTerminated
   });
   const { pendingInvitation, requestToJoin, respondToInvitation, hasPendingRequest } =
     useGuestInvitation({
@@ -324,9 +377,33 @@ export default function ViewerWatchScreen() {
         {/* Settings Bottom Sheet */}
         <WatchSettingsSheet
           ref={settingsSheetRef}
-          onReport={() => console.log("Şikayet")}
+          onReport={() => setShowReportModal(true)}
           onShare={() => console.log("Paylaş")}
           onQuality={() => console.log("Kalite")}
+        />
+
+        {/* Ban Info Modal */}
+        <BanInfoModal
+          visible={showBanModal}
+          banInfo={banInfo}
+          onClose={() => setShowBanModal(false)}
+          onDismiss={() => router.back()}
+        />
+
+        {/* Report Modal */}
+        <ReportModal
+          visible={showReportModal}
+          sessionId={sessionId || ""}
+          reportedUserId={activeSession?.creatorId || ""}
+          reportedUserName={activeSession?.creator?.display_name}
+          onClose={() => setShowReportModal(false)}
+          onSuccess={() => {
+            showToast({
+              type: "success",
+              message: "Şikayet gönderildi",
+              description: "Ekibimiz en kısa sürede inceleyecek."
+            });
+          }}
         />
       </View>
     </>

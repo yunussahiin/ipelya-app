@@ -14,6 +14,7 @@ import {
   LocalParticipant,
   RemoteParticipant,
   VideoPresets,
+  DisconnectReason,
 } from 'livekit-client';
 import { AudioSession, TrackReferenceOrPlaceholder } from '@livekit/react-native';
 import { supabase } from '@/lib/supabaseClient';
@@ -60,7 +61,13 @@ export interface UseLiveKitRoomOptions {
   /** Media ayarları (video kalitesi, ses ayarları) */
   mediaSettings?: MediaSettings;
   onConnected?: () => void;
-  onDisconnected?: () => void;
+  onDisconnected?: (reason?: DisconnectReason) => void;
+  /** Admin tarafından kick/ban edildiğinde (PARTICIPANT_REMOVED) */
+  onAdminKick?: () => void;
+  /** Oda admin tarafından sonlandırıldığında (ROOM_DELETED) */
+  onRoomTerminated?: () => void;
+  /** Başka cihazdan giriş yapıldığında (DUPLICATE_IDENTITY) */
+  onDuplicateSession?: () => void;
   onError?: (error: Error) => void;
   onParticipantJoined?: (participant: RemoteParticipant) => void;
   onParticipantLeft?: (participant: RemoteParticipant) => void;
@@ -164,6 +171,9 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
     mediaSettings = defaultMediaSettings,
     onConnected,
     onDisconnected,
+    onAdminKick,
+    onRoomTerminated,
+    onDuplicateSession,
     onError,
     onParticipantJoined,
     onParticipantLeft,
@@ -352,10 +362,28 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         onConnected?.();
       });
 
-      newRoom.on(RoomEvent.Disconnected, () => {
+      newRoom.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
         setIsConnected(false);
         setConnectionState(ConnectionState.Disconnected);
-        onDisconnected?.();
+        
+        // Admin aksiyonlarını tespit et
+        console.log('[LiveKit] Disconnected, reason:', reason);
+        
+        if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+          // Admin tarafından kick veya ban edildi
+          console.log('[LiveKit] Admin kick/ban detected');
+          onAdminKick?.();
+        } else if (reason === DisconnectReason.ROOM_DELETED) {
+          // Oda silindi (admin terminate)
+          console.log('[LiveKit] Room terminated by admin');
+          onRoomTerminated?.();
+        } else if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+          // Başka cihazdan giriş yapıldı
+          console.log('[LiveKit] Duplicate session detected');
+          onDuplicateSession?.();
+        }
+        
+        onDisconnected?.(reason);
       });
 
       newRoom.on(RoomEvent.Reconnecting, () => {
