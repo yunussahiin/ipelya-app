@@ -32,32 +32,51 @@ export interface ChatMessage {
   giftName?: string;
   giftAmount?: number;
   createdAt: string;
+  /** Mesaj silindi mi */
+  isDeleted?: boolean;
+  /** Silen kişinin adı */
+  deletedBy?: string;
 }
 
 interface LiveChatProps {
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
   onDeleteMessage?: (messageId: string) => void;
+  /** Kullanıcıyı kov */
+  onKickUser?: (userId: string) => void;
+  /** Kullanıcıyı yasakla */
+  onBanUser?: (userId: string) => void;
   isHost?: boolean;
   disabled?: boolean;
   rateLimitSeconds?: number;
   maxHeight?: number;
+  bottomInset?: number;
+  /** Overlay mod - video üzerinde transparan görünüm */
+  isOverlay?: boolean;
+  /** Input alanını gizle - harici input kullanılıyorsa */
+  hideInput?: boolean;
 }
 
 export function LiveChat({
   messages,
   onSendMessage,
   onDeleteMessage,
+  onKickUser,
+  onBanUser,
   isHost = false,
   disabled = false,
   rateLimitSeconds = 3,
-  maxHeight = 300
+  maxHeight = 300,
+  bottomInset = 0,
+  isOverlay = false,
+  hideInput = false
 }: LiveChatProps) {
   const { colors } = useTheme();
   const [inputText, setInputText] = useState("");
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const [selectedMessage, setSelectedMessage] = useState<ChatMessage | null>(null);
 
   // Rate limit countdown
   useEffect(() => {
@@ -95,6 +114,35 @@ export function LiveChat({
     }
   }, [inputText, disabled, isRateLimited, isHost, rateLimitSeconds, onSendMessage]);
 
+  // Moderasyon menüsünü kapat
+  const closeModMenu = useCallback(() => {
+    setSelectedMessage(null);
+  }, []);
+
+  // Mesaj sil
+  const handleDeleteMessage = useCallback(() => {
+    if (selectedMessage && onDeleteMessage) {
+      onDeleteMessage(selectedMessage.id);
+    }
+    closeModMenu();
+  }, [selectedMessage, onDeleteMessage, closeModMenu]);
+
+  // Kullanıcıyı kov
+  const handleKickUser = useCallback(() => {
+    if (selectedMessage && onKickUser) {
+      onKickUser(selectedMessage.userId);
+    }
+    closeModMenu();
+  }, [selectedMessage, onKickUser, closeModMenu]);
+
+  // Kullanıcıyı yasakla
+  const handleBanUser = useCallback(() => {
+    if (selectedMessage && onBanUser) {
+      onBanUser(selectedMessage.userId);
+    }
+    closeModMenu();
+  }, [selectedMessage, onBanUser, closeModMenu]);
+
   // Render message item
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     // Gift message
@@ -113,39 +161,120 @@ export function LiveChat({
       );
     }
 
-    return (
-      <Pressable
-        style={styles.messageItem}
-        onLongPress={() => {
-          if (isHost && onDeleteMessage) {
-            onDeleteMessage(item.id);
-          }
-        }}
-      >
-        {/* Avatar */}
-        {item.userAvatar ? (
-          <Image source={{ uri: item.userAvatar }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: colors.accent }]}>
-            <Text style={styles.avatarText}>{item.userName.charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-
-        {/* Message content */}
-        <View style={styles.messageContent}>
-          <View style={styles.messageHeader}>
-            <Text style={[styles.userName, { color: colors.textPrimary }]}>{item.userName}</Text>
-            {item.isHost && (
-              <View style={[styles.hostBadge, { backgroundColor: colors.accent }]}>
-                <Text style={styles.hostBadgeText}>HOST</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.messageText, { color: colors.textSecondary }]}>{item.text}</Text>
+    // Silinen mesaj
+    if (item.isDeleted) {
+      return (
+        <View style={[styles.messageItem, styles.deletedMessage]}>
+          <Ionicons name="trash-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.deletedText, { color: colors.textMuted }]}>
+            Bu mesaj {item.deletedBy || "yayıncı"} tarafından silindi
+          </Text>
         </View>
-      </Pressable>
+      );
+    }
+
+    const isSelected = selectedMessage?.id === item.id;
+
+    return (
+      <>
+        <Pressable
+          style={[styles.messageItem, isSelected && { backgroundColor: `${colors.accent}10` }]}
+          onPress={() => {
+            // Host ise ve kendi mesajı değilse moderasyon menüsünü aç
+            if (isHost && !item.isHost) {
+              setSelectedMessage(isSelected ? null : item);
+            }
+          }}
+        >
+          {/* Avatar */}
+          {item.userAvatar ? (
+            <Image source={{ uri: item.userAvatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.accent }]}>
+              <Text style={styles.avatarText}>{item.userName.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+
+          {/* Message content */}
+          <View style={styles.messageContent}>
+            <View style={styles.messageHeader}>
+              <Text style={[styles.userName, { color: colors.textPrimary }]}>{item.userName}</Text>
+              {item.isHost && (
+                <View style={[styles.hostBadge, { backgroundColor: colors.accent }]}>
+                  <Text style={styles.hostBadgeText}>HOST</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.messageText, { color: colors.textSecondary }]}>{item.text}</Text>
+          </View>
+        </Pressable>
+
+        {/* Moderasyon menüsü */}
+        {isSelected && isHost && (
+          <Animated.View
+            entering={FadeIn.duration(150)}
+            style={[styles.modMenu, { backgroundColor: colors.surface }]}
+          >
+            <Pressable style={styles.modButton} onPress={handleDeleteMessage}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              <Text style={[styles.modButtonText, { color: "#EF4444" }]}>Mesajı Sil</Text>
+            </Pressable>
+            {onKickUser && (
+              <Pressable style={styles.modButton} onPress={handleKickUser}>
+                <Ionicons name="exit-outline" size={18} color="#F59E0B" />
+                <Text style={[styles.modButtonText, { color: "#F59E0B" }]}>Kov</Text>
+              </Pressable>
+            )}
+            {onBanUser && (
+              <Pressable style={styles.modButton} onPress={handleBanUser}>
+                <Ionicons name="ban-outline" size={18} color="#EF4444" />
+                <Text style={[styles.modButtonText, { color: "#EF4444" }]}>Yasakla</Text>
+              </Pressable>
+            )}
+            <Pressable style={styles.modButton} onPress={closeModMenu}>
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+              <Text style={[styles.modButtonText, { color: colors.textMuted }]}>İptal</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+      </>
     );
   };
+
+  // Overlay modunda sadece mesajları göster (input yok)
+  if (isOverlay) {
+    return (
+      <View style={[styles.overlayContainer, { maxHeight }]}>
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={({ item }) => (
+            <View style={styles.overlayMessageItem}>
+              {item.userAvatar ? (
+                <Image source={{ uri: item.userAvatar }} style={styles.overlayAvatar} />
+              ) : (
+                <View style={[styles.overlayAvatarPlaceholder, { backgroundColor: colors.accent }]}>
+                  <Text style={styles.overlayAvatarText}>
+                    {item.userName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.overlayMessageContent}>
+                <Text style={styles.overlayUserName}>
+                  {item.userName}
+                  {item.isHost && <Text style={styles.overlayHostBadge}> HOST</Text>}
+                </Text>
+                <Text style={styles.overlayMessageText}>{item.text}</Text>
+              </View>
+            </View>
+          )}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.overlayMessagesContent}
+        />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -169,42 +298,51 @@ export function LiveChat({
       />
 
       {/* Input area */}
-      <View style={[styles.inputContainer, { backgroundColor: colors.surface }]}>
-        <TextInput
-          style={[styles.input, { color: colors.textPrimary }]}
-          placeholder={
-            isRateLimited
-              ? `${cooldownSeconds}s bekleyin...`
-              : disabled
-                ? "Chat kapalı"
-                : "Mesaj yaz..."
-          }
-          placeholderTextColor={colors.textMuted}
-          value={inputText}
-          onChangeText={setInputText}
-          editable={!disabled && !isRateLimited}
-          maxLength={200}
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
-        />
-        <Pressable
+      {!hideInput && (
+        <View
           style={[
-            styles.sendButton,
-            {
-              backgroundColor:
-                inputText.trim() && !disabled && !isRateLimited ? colors.accent : colors.surfaceAlt
-            }
+            styles.inputContainer,
+            { backgroundColor: colors.surface, paddingBottom: 8 + bottomInset }
           ]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || disabled || isRateLimited}
         >
-          <Ionicons
-            name="send"
-            size={18}
-            color={inputText.trim() && !disabled && !isRateLimited ? "#fff" : colors.textMuted}
+          <TextInput
+            style={[styles.input, { color: colors.textPrimary }]}
+            placeholder={
+              isRateLimited
+                ? `${cooldownSeconds}s bekleyin...`
+                : disabled
+                  ? "Chat kapalı"
+                  : "Mesaj yaz..."
+            }
+            placeholderTextColor={colors.textMuted}
+            value={inputText}
+            onChangeText={setInputText}
+            editable={!disabled && !isRateLimited}
+            maxLength={200}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
           />
-        </Pressable>
-      </View>
+          <Pressable
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor:
+                  inputText.trim() && !disabled && !isRateLimited
+                    ? colors.accent
+                    : colors.surfaceAlt
+              }
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || disabled || isRateLimited}
+          >
+            <Ionicons
+              name="send"
+              size={18}
+              color={inputText.trim() && !disabled && !isRateLimited ? "#fff" : colors.textMuted}
+            />
+          </Pressable>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -310,6 +448,94 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center"
+  },
+  // Overlay styles - Instagram Live tarzı
+  overlayContainer: {
+    flex: 1
+  },
+  overlayMessagesContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8
+  },
+  overlayMessageItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 16,
+    maxWidth: "95%"
+  },
+  overlayAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12
+  },
+  overlayAvatarPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  overlayAvatarText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600"
+  },
+  overlayMessageContent: {
+    flex: 1
+  },
+  overlayUserName: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  overlayHostBadge: {
+    color: "#F59E0B",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  overlayMessageText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    lineHeight: 17
+  },
+  // Silinen mesaj stili
+  deletedMessage: {
+    opacity: 0.6,
+    paddingVertical: 6
+  },
+  deletedText: {
+    fontSize: 12,
+    fontStyle: "italic",
+    marginLeft: 6
+  },
+  // Moderasyon menüsü
+  modMenu: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginLeft: 36,
+    marginTop: -4,
+    marginBottom: 4,
+    borderRadius: 12,
+    gap: 4
+  },
+  modButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4
+  },
+  modButtonText: {
+    fontSize: 12,
+    fontWeight: "600"
   }
 });
 

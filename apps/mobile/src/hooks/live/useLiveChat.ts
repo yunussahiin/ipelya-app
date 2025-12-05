@@ -73,7 +73,22 @@ export function useLiveChat({
 
         const hostId = session?.creator_id;
 
-        const formattedMessages: ChatMessage[] = (data || []).map((msg: any) => ({
+        interface LiveMessageRow {
+          id: string;
+          sender_id: string;
+          content?: string;
+          message_type?: string;
+          gift_id?: string;
+          gift_quantity?: number;
+          gift_coin_value?: number;
+          created_at: string;
+          profiles?: {
+            display_name?: string;
+            avatar_url?: string;
+          };
+        }
+
+        const formattedMessages: ChatMessage[] = (data as LiveMessageRow[] || []).map((msg) => ({
           id: msg.id,
           userId: msg.sender_id,
           userName: msg.profiles?.display_name || 'Kullanıcı',
@@ -112,13 +127,23 @@ export function useLiveChat({
           filter: `session_id=eq.${sessionId}`,
         },
         async (payload) => {
-          const newMsg = payload.new as any;
+          const newMsg = payload.new as {
+            id: string;
+            sender_id: string;
+            sender_profile_id?: string;
+            content?: string;
+            message_type?: string;
+            gift_id?: string;
+            gift_quantity?: number;
+            gift_coin_value?: number;
+            created_at: string;
+          };
           
           // Kullanıcı bilgilerini al
           const { data: profile } = await supabase
             .from('profiles')
             .select('display_name, avatar_url')
-            .eq('user_id', newMsg.user_id)
+            .eq('user_id', newMsg.sender_id)
             .eq('type', 'real')
             .single();
 
@@ -131,14 +156,14 @@ export function useLiveChat({
 
           const message: ChatMessage = {
             id: newMsg.id,
-            userId: newMsg.user_id,
+            userId: newMsg.sender_id,
             userName: profile?.display_name || 'Kullanıcı',
             userAvatar: profile?.avatar_url,
-            text: newMsg.text || '',
-            isHost: newMsg.user_id === session?.creator_id,
-            isGift: newMsg.is_gift,
-            giftName: newMsg.gift_name,
-            giftAmount: newMsg.gift_amount,
+            text: newMsg.content || '',
+            isHost: newMsg.sender_id === session?.creator_id,
+            isGift: newMsg.message_type === 'gift',
+            giftName: newMsg.gift_id ? `Gift #${newMsg.gift_id}` : undefined,
+            giftAmount: newMsg.gift_coin_value,
             createdAt: newMsg.created_at,
           };
 
@@ -163,7 +188,7 @@ export function useLiveChat({
           filter: `session_id=eq.${sessionId}`,
         },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as { id: string; is_deleted?: boolean };
           if (updated.is_deleted) {
             // Silinen mesajı listeden kaldır
             setMessages((prev) => prev.filter((m) => m.id !== updated.id));
@@ -182,10 +207,20 @@ export function useLiveChat({
     if (!user?.id || !sessionId || !text.trim()) return false;
 
     try {
+      // Önce kullanıcının profile_id'sini al
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('type', 'real')
+        .single();
+
       const { error: insertError } = await supabase.from('live_messages').insert({
         session_id: sessionId,
-        user_id: user.id,
-        text: text.trim(),
+        sender_id: user.id,
+        sender_profile_id: profile?.id,
+        content: text.trim(),
+        message_type: 'text',
       });
 
       if (insertError) throw insertError;

@@ -4,7 +4,7 @@
  * Full screen preview + overlay controls
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -14,9 +14,13 @@ import {
   Alert,
   Modal,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Dimensions
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import Animated, { useAnimatedStyle, withTiming } from "react-native-reanimated";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -25,13 +29,21 @@ import {
   useMicrophonePermission
 } from "react-native-vision-camera";
 import { useTheme } from "@/theme/ThemeProvider";
-import { useLiveSession, useLiveKitRoom, type CreateSessionParams } from "@/hooks/live";
+import { supabase } from "@/lib/supabaseClient";
+import {
+  useLiveSession,
+  useLiveKitRoom,
+  useLiveChat,
+  type CreateSessionParams
+} from "@/hooks/live";
+import { useProfileStore } from "@/store/profile.store";
 
 // Local components
 import {
   BroadcastPreview,
-  AudioPreview,
   BroadcastSettings,
+  BroadcastLiveOverlay,
+  type BroadcastLiveOverlayRef,
   type BroadcastMediaSettings
 } from "./_components";
 
@@ -47,8 +59,10 @@ const defaultMediaSettings: BroadcastMediaSettings = {
 
 export default function CreatorBroadcastScreen() {
   const router = useRouter();
+  const { resumeSessionId } = useLocalSearchParams<{ resumeSessionId?: string }>();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const profile = useProfileStore((s) => s.profile);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -58,11 +72,25 @@ export default function CreatorBroadcastScreen() {
   const [chatEnabled, setChatEnabled] = useState(true);
   const [giftsEnabled, setGiftsEnabled] = useState(true);
   const [guestEnabled, setGuestEnabled] = useState(true);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>(undefined);
   const [mediaSettings, setMediaSettings] = useState<BroadcastMediaSettings>(defaultMediaSettings);
 
   // Screen state
   const [isLive, setIsLive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [videoHeightPercent, setVideoHeightPercent] = useState(1); // 1 = full, 0.5 = half
+
+  // Video alanı animasyonu - sadece canlıda animasyonlu, preview'da full
+  const videoAnimStyle = useAnimatedStyle(() => ({
+    flex: isLive ? 0 : 1,
+    height: isLive ? withTiming(SCREEN_HEIGHT * videoHeightPercent, { duration: 300 }) : undefined
+  }));
+
+  // BroadcastLiveOverlay ref - sheet'leri açmak için
+  const liveOverlayRef = useRef<BroadcastLiveOverlayRef>(null);
+  const handleOpenViewers = useCallback(() => {
+    liveOverlayRef.current?.openViewers();
+  }, []);
 
   // Camera state
   const [isCameraOn, setIsCameraOn] = useState(true);
@@ -78,12 +106,29 @@ export default function CreatorBroadcastScreen() {
   const device = useCameraDevice(cameraPosition);
 
   // Session hooks
-  const { createSession, endSession, session, isLoading } = useLiveSession();
+  const { createSession, endSession, session, isLoading, resumeSession } = useLiveSession();
+  const currentSessionId = session?.id || resumeSessionId || "";
+
+  // Resume existing session if resumeSessionId provided - only once
+  const hasResumedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (resumeSessionId && !session && !hasResumedRef.current) {
+      hasResumedRef.current = true;
+      console.log("[Broadcast] Resuming session:", resumeSessionId);
+      resumeSession(resumeSessionId).then((resumedSession) => {
+        if (resumedSession) {
+          setTitle(resumedSession.title || "");
+          setSessionType(resumedSession.sessionType);
+          setIsLive(true);
+        }
+      });
+    }
+  }, [resumeSessionId, session, resumeSession]);
+
   const {
     connect,
     disconnect,
     isConnected,
-    isConnecting,
     isMicrophoneEnabled,
     isCameraEnabled,
     toggleMicrophone,
@@ -93,7 +138,7 @@ export default function CreatorBroadcastScreen() {
     participants
   } = useLiveKitRoom({
     roomName: session?.roomName,
-    sessionId: session?.id,
+    sessionId: currentSessionId || undefined,
     enableMediaOnConnect: true, // Host için kamera/mic otomatik aktif
     mediaSettings: {
       videoQuality: mediaSettings.videoQuality,
@@ -102,6 +147,109 @@ export default function CreatorBroadcastScreen() {
       autoGainControl: mediaSettings.autoGainControl
     }
   });
+
+  // Chat hook
+  const { messages, sendMessage, deleteMessage } = useLiveChat({
+    sessionId: session?.id || ""
+  });
+
+  // Duration & viewer count state
+  const [duration, setDuration] = React.useState("00:00");
+  const [viewerCount, setViewerCount] = React.useState(0);
+  const [liveStartTime, setLiveStartTime] = React.useState<number | null>(null);
+
+  // Set start time when going live
+  React.useEffect(() => {
+    if (isLive && !liveStartTime) {
+      setLiveStartTime(Date.now());
+    }
+    if (!isLive) {
+      setLiveStartTime(null);
+      setDuration("00:00");
+    }
+  }, [isLive, liveStartTime]);
+
+  // Duration timer
+  React.useEffect(() => {
+    if (!isLive || !liveStartTime) return;
+
+    const updateDuration = () => {
+      const now = Date.now();
+      const diff = Math.floor((now - liveStartTime) / 1000);
+      const hours = Math.floor(diff / 3600);
+      const minutes = Math.floor((diff % 3600) / 60);
+      const seconds = diff % 60;
+
+      if (hours > 0) {
+        setDuration(
+          `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+        );
+      } else {
+        setDuration(`${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`);
+      }
+    };
+
+    updateDuration();
+    const interval = setInterval(updateDuration, 1000);
+    return () => clearInterval(interval);
+  }, [isLive, liveStartTime]);
+
+  // Viewer profiles from Supabase
+  const [viewerProfiles, setViewerProfiles] = React.useState<
+    Record<string, { display_name: string; avatar_url: string | null }>
+  >({});
+
+  // Fetch viewer profiles when participants change
+  React.useEffect(() => {
+    if (!isLive) return;
+
+    const viewerIds = participants
+      .filter((p) => p.identity !== localParticipant?.identity)
+      .map((p) => p.identity);
+
+    if (viewerIds.length === 0) return;
+
+    const fetchProfiles = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, avatar_url")
+        .in("user_id", viewerIds)
+        .eq("type", "real");
+
+      if (data) {
+        const profileMap: Record<string, { display_name: string; avatar_url: string | null }> = {};
+        data.forEach((p) => {
+          profileMap[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url };
+        });
+        setViewerProfiles(profileMap);
+      }
+    };
+
+    fetchProfiles();
+  }, [isLive, participants, localParticipant?.identity]);
+
+  // Viewer count and list from participants (excluding self)
+  const viewersList = React.useMemo(() => {
+    if (!isLive) return [];
+    // Host hariç katılımcılar
+    return participants
+      .filter((p) => p.identity !== localParticipant?.identity)
+      .map((p) => {
+        const profile = viewerProfiles[p.identity];
+        return {
+          id: p.identity,
+          odaId: p.identity,
+          userName: profile?.display_name || p.name || p.identity,
+          userId: p.identity,
+          userAvatar: profile?.avatar_url || undefined,
+          joinedAt: new Date().toISOString()
+        };
+      });
+  }, [isLive, participants, localParticipant?.identity, viewerProfiles]);
+
+  React.useEffect(() => {
+    setViewerCount(viewersList.length);
+  }, [viewersList.length]);
 
   // Local participant'ın video track'i
   const localVideoTrack = participants.find(
@@ -174,6 +322,7 @@ export default function CreatorBroadcastScreen() {
 
     const params: CreateSessionParams = {
       title: title.trim(),
+      thumbnailUrl,
       sessionType,
       accessType,
       ppvCoinPrice: accessType === "pay_per_view" ? parseInt(ppvPrice) || 0 : undefined,
@@ -200,6 +349,7 @@ export default function CreatorBroadcastScreen() {
     }
   }, [
     title,
+    thumbnailUrl,
     sessionType,
     accessType,
     ppvPrice,
@@ -209,13 +359,15 @@ export default function CreatorBroadcastScreen() {
     createSession
   ]);
 
-  // Session oluşturulunca otomatik bağlan
+  // Session oluşturulunca otomatik bağlan - only once
+  const hasConnectedRef = React.useRef(false);
   React.useEffect(() => {
-    if (isLive && session?.roomName && !isConnected && !isConnecting) {
+    if (isLive && session?.roomName && !hasConnectedRef.current) {
+      hasConnectedRef.current = true;
       console.log("[Broadcast] Auto-connecting to room:", session.roomName);
       connect();
     }
-  }, [isLive, session?.roomName, isConnected, isConnecting, connect]);
+  }, [isLive, session?.roomName, connect]);
 
   const handleEndBroadcast = useCallback(async () => {
     Alert.alert("Yayını Sonlandır", "Yayını sonlandırmak istediğinizden emin misiniz?", [
@@ -252,9 +404,9 @@ export default function CreatorBroadcastScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={[styles.container, { backgroundColor: "#000" }]}>
-        {/* Full Screen Preview */}
-        {sessionType === "video_live" ? (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {/* Video Preview - Animasyonlu yükseklik */}
+        <Animated.View style={[styles.videoContainer, videoAnimStyle]}>
           <BroadcastPreview
             device={device}
             hasCameraPermission={hasCameraPermission}
@@ -265,24 +417,37 @@ export default function CreatorBroadcastScreen() {
             isCameraEnabled={isCameraEnabled}
             localVideoTrack={localVideoTrack}
             isTorchOn={isTorchOn}
+            avatarUrl={profile?.avatarUrl}
             onToggleCamera={handleToggleCamera}
             onToggleMic={handleToggleMic}
             onFlipCamera={handleFlipCamera}
             onToggleTorch={handleToggleTorch}
-            onEndBroadcast={handleEndBroadcast}
           />
-        ) : (
-          <AudioPreview isMicOn={isMicOn} onToggleMic={handleToggleMic} />
-        )}
+        </Animated.View>
 
         {/* Header Overlay */}
         <View style={[styles.headerOverlay, { paddingTop: insets.top + 8 }]}>
-          <Pressable style={styles.backButton} onPress={handleBack}>
-            <Ionicons name="chevron-down" size={28} color="#fff" />
-          </Pressable>
+          {/* Sol - Yayın önizlemede geri butonu, canlıda izleyici/süre */}
+          {!isLive ? (
+            <Pressable style={styles.backButton} onPress={handleBack}>
+              <Ionicons name="chevron-down" size={28} color="#fff" />
+            </Pressable>
+          ) : (
+            <View style={styles.liveStats}>
+              <Pressable style={styles.statBadge} onPress={handleOpenViewers}>
+                <Ionicons name="eye" size={14} color="#fff" />
+                <Text style={styles.statText}>{viewerCount}</Text>
+              </Pressable>
+              <View style={styles.statBadge}>
+                <Text style={styles.statText}>{duration}</Text>
+              </View>
+            </View>
+          )}
 
-          <Text style={styles.headerTitle}>{isLive ? "Canlı Yayın" : "Yayın Önizleme"}</Text>
+          {/* Orta - Sadece önizlemede başlık */}
+          {!isLive && <Text style={styles.headerTitle}>Yayın Önizleme</Text>}
 
+          {/* Sağ - Canlı badge */}
           {isLive ? (
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
@@ -292,6 +457,30 @@ export default function CreatorBroadcastScreen() {
             <View style={{ width: 44 }} />
           )}
         </View>
+
+        {/* Live Overlay - Chat, Input, Viewer Count, FAB Controls */}
+        {isLive && (
+          <BroadcastLiveOverlay
+            ref={liveOverlayRef}
+            messages={messages}
+            onSendMessage={sendMessage}
+            onDeleteMessage={deleteMessage}
+            viewerCount={viewerCount}
+            viewers={viewersList}
+            duration={duration}
+            isConnected={isConnected}
+            broadcastTitle={title}
+            broadcastType={sessionType}
+            localVideoTrack={localVideoTrack}
+            isCameraOn={isCameraEnabled}
+            isMicOn={isMicrophoneEnabled}
+            onToggleCamera={handleToggleCamera}
+            onToggleMic={handleToggleMic}
+            onFlipCamera={handleFlipCamera}
+            onEndBroadcast={handleEndBroadcast}
+            onVideoHeightChange={setVideoHeightPercent}
+          />
+        )}
 
         {/* Bottom Actions - Fixed at bottom, not overlay */}
         {!isLive && (
@@ -367,7 +556,15 @@ export default function CreatorBroadcastScreen() {
                   title={title}
                   onTitleChange={setTitle}
                   sessionType={sessionType}
-                  onSessionTypeChange={setSessionType}
+                  onSessionTypeChange={(type) => {
+                    if (type === "audio_room") {
+                      // Audio room için ayrı ekrana yönlendir
+                      setShowSettings(false);
+                      router.replace("/(live)/audio-room");
+                    } else {
+                      setSessionType(type);
+                    }
+                  }}
                   accessType={accessType}
                   onAccessTypeChange={setAccessType}
                   ppvPrice={ppvPrice}
@@ -378,6 +575,9 @@ export default function CreatorBroadcastScreen() {
                   onGiftsEnabledChange={setGiftsEnabled}
                   guestEnabled={guestEnabled}
                   onGuestEnabledChange={setGuestEnabled}
+                  thumbnailUrl={thumbnailUrl}
+                  onThumbnailChange={setThumbnailUrl}
+                  avatarUrl={profile?.avatarUrl}
                   mediaSettings={mediaSettings}
                   onMediaSettingsChange={setMediaSettings}
                 />
@@ -408,6 +608,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1
   },
+  videoContainer: {
+    width: "100%",
+    overflow: "hidden"
+  },
   // Header Overlay
   headerOverlay: {
     position: "absolute",
@@ -419,7 +623,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 12,
-    zIndex: 10
+    zIndex: 100 // BroadcastLiveOverlay'in üstünde olması için yüksek z-index
   },
   backButton: {
     width: 44,
@@ -453,6 +657,25 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "700"
+  },
+  liveStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  statBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 5
+  },
+  statText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600"
   },
   settingsButton: {
     width: 44,

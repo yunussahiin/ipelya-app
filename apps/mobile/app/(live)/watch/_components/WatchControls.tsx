@@ -7,8 +7,6 @@ import { View, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface WatchControlsProps {
-  isChatVisible: boolean;
-  onToggleChat: () => void;
   onSendGift: () => void;
   onRequestToJoin?: () => void;
   canRequestToJoin?: boolean;
@@ -18,8 +16,6 @@ interface WatchControlsProps {
 }
 
 export function WatchControls({
-  isChatVisible,
-  onToggleChat,
   onSendGift,
   onRequestToJoin,
   canRequestToJoin,
@@ -29,15 +25,6 @@ export function WatchControls({
 }: WatchControlsProps) {
   return (
     <View style={[styles.controls, { paddingBottom: bottomInset + 16 }]}>
-      {/* Chat toggle */}
-      <Pressable style={styles.controlButton} onPress={onToggleChat}>
-        <Ionicons
-          name={isChatVisible ? "chatbubble" : "chatbubble-outline"}
-          size={22}
-          color="#fff"
-        />
-      </Pressable>
-
       {/* Gift button */}
       <Pressable style={[styles.controlButton, styles.giftButton]} onPress={onSendGift}>
         <Ionicons name="gift" size={24} color="#fff" />

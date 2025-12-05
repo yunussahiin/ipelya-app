@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { View, StyleSheet, Text, Image } from "react-native";
+import { View, StyleSheet, Text, Image, ActivityIndicator } from "react-native";
 import { VideoTrack, isTrackReference, TrackReferenceOrPlaceholder } from "@livekit/react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -17,9 +17,15 @@ interface LiveVideoViewProps {
   isHost?: boolean;
   isMuted?: boolean;
   isVideoOff?: boolean;
+  /** Video yüklenirken loading göster */
+  isLoading?: boolean;
+  /** Overlay bilgilerini göster (isim, badge vb.) - varsayılan false */
   showOverlay?: boolean;
+  /** Sadece mute ikonu göster */
+  showMuteIndicator?: boolean;
   mirror?: boolean;
   style?: object;
+  bottomInset?: number;
 }
 
 export function LiveVideoView({
@@ -29,13 +35,19 @@ export function LiveVideoView({
   isHost = false,
   isMuted = false,
   isVideoOff = false,
-  showOverlay = true,
-  style
+  isLoading = false,
+  showOverlay = false,
+  showMuteIndicator = true,
+  style,
+  bottomInset = 0
 }: LiveVideoViewProps) {
   const { colors } = useTheme();
 
   // Track reference kontrolü
   const hasVideoTrack = trackRef && isTrackReference(trackRef);
+
+  // Video henüz gelmedi ama kamera açık - loading durumu
+  const showLoading = !hasVideoTrack && !isVideoOff && isLoading;
 
   // Placeholder view (video kapalı veya track yok)
   const renderPlaceholder = () => (
@@ -47,12 +59,17 @@ export function LiveVideoView({
           <Ionicons name="person" size={48} color="#fff" />
         </View>
       )}
-      {isVideoOff && (
-        <View style={[styles.videoOffBadge, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
-          <Ionicons name="videocam-off" size={16} color="#fff" />
-          <Text style={styles.videoOffText}>Kamera Kapalı</Text>
+      {showLoading ? (
+        <View style={styles.loadingBadge}>
+          <ActivityIndicator size="small" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Yayın yükleniyor...</Text>
         </View>
-      )}
+      ) : isVideoOff ? (
+        <View style={styles.videoOffBadge}>
+          <Ionicons name="videocam-off" size={14} color="rgba(255,255,255,0.7)" />
+          <Text style={styles.videoOffText}>Kamera kapalı</Text>
+        </View>
+      ) : null}
     </View>
   );
 
@@ -65,9 +82,9 @@ export function LiveVideoView({
         renderPlaceholder()
       )}
 
-      {/* Overlay bilgileri */}
+      {/* Overlay bilgileri - Opsiyonel */}
       {showOverlay && (
-        <View style={styles.overlay}>
+        <View style={[styles.overlay, { paddingBottom: 12 + bottomInset }]}>
           {/* Sol alt - katılımcı bilgisi */}
           <View style={styles.participantInfo}>
             {isHost && (
@@ -83,14 +100,14 @@ export function LiveVideoView({
               </View>
             )}
           </View>
+        </View>
+      )}
 
-          {/* Sağ alt - durum ikonları */}
-          <View style={styles.statusIcons}>
-            {isMuted && (
-              <View style={[styles.statusIcon, { backgroundColor: "#EF4444" }]}>
-                <Ionicons name="mic-off" size={14} color="#fff" />
-              </View>
-            )}
+      {/* Mute indicator - Sağ alt köşe */}
+      {showMuteIndicator && isMuted && (
+        <View style={[styles.muteIndicator, { bottom: 12 + bottomInset }]}>
+          <View style={[styles.statusIcon, { backgroundColor: "#EF4444" }]}>
+            <Ionicons name="mic-off" size={14} color="#fff" />
           </View>
         </View>
       )}
@@ -126,18 +143,24 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   videoOffBadge: {
-    position: "absolute",
-    bottom: 20,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    marginTop: 16,
     gap: 6
   },
   videoOffText: {
-    color: "#fff",
-    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    fontWeight: "400"
+  },
+  loadingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    gap: 8
+  },
+  loadingText: {
+    fontSize: 14,
     fontWeight: "500"
   },
   overlay: {
@@ -184,6 +207,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center"
+  },
+  muteIndicator: {
+    position: "absolute",
+    right: 12
   }
 });
 

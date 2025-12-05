@@ -7,6 +7,7 @@ import React from "react";
 import { View, Text, TextInput, Pressable, Switch, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/theme/ThemeProvider";
+import { ThumbnailPicker } from "./ThumbnailPicker";
 
 type SessionType = "video_live" | "audio_room";
 type AccessType = "public" | "subscribers_only" | "pay_per_view";
@@ -34,6 +35,11 @@ interface BroadcastSettingsProps {
   onGiftsEnabledChange: (enabled: boolean) => void;
   guestEnabled: boolean;
   onGuestEnabledChange: (enabled: boolean) => void;
+  // Thumbnail
+  thumbnailUrl?: string;
+  onThumbnailChange?: (url: string | undefined) => void;
+  /** Kullanıcının avatar URL'i - thumbnail yoksa gösterilir */
+  avatarUrl?: string;
   // Media settings
   mediaSettings?: BroadcastMediaSettings;
   onMediaSettingsChange?: (settings: BroadcastMediaSettings) => void;
@@ -68,6 +74,9 @@ export function BroadcastSettings({
   onGiftsEnabledChange,
   guestEnabled,
   onGuestEnabledChange,
+  thumbnailUrl,
+  onThumbnailChange,
+  avatarUrl,
   mediaSettings = defaultMediaSettings,
   onMediaSettingsChange
 }: BroadcastSettingsProps) {
@@ -122,6 +131,15 @@ export function BroadcastSettings({
             returnKeyType="done"
           />
         </View>
+
+        {/* Thumbnail Picker */}
+        {onThumbnailChange && (
+          <ThumbnailPicker
+            selectedUrl={thumbnailUrl}
+            onSelect={onThumbnailChange}
+            avatarUrl={avatarUrl}
+          />
+        )}
       </SettingsSection>
 
       {/* Session type */}

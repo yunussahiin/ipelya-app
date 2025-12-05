@@ -4,7 +4,7 @@
  */
 
 import React, { useRef } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Camera, CameraDevice } from "react-native-vision-camera";
@@ -25,11 +25,11 @@ interface BroadcastPreviewProps {
   isCameraEnabled?: boolean;
   localVideoTrack?: TrackReferenceOrPlaceholder | null;
   isTorchOn?: boolean;
+  avatarUrl?: string;
   onToggleCamera: () => void;
   onToggleMic: () => void;
   onFlipCamera: () => void;
   onToggleTorch?: () => void;
-  onEndBroadcast?: () => void;
 }
 
 export function BroadcastPreview({
@@ -42,11 +42,11 @@ export function BroadcastPreview({
   isCameraEnabled = true,
   localVideoTrack,
   isTorchOn = false,
+  avatarUrl,
   onToggleCamera,
   onToggleMic,
   onFlipCamera,
-  onToggleTorch,
-  onEndBroadcast
+  onToggleTorch
 }: BroadcastPreviewProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -92,90 +92,72 @@ export function BroadcastPreview({
       {/* Placeholder - Kamera kapalıysa veya yükleniyor */}
       {!showVisionCamera && !showLiveKitVideo && (
         <View style={[styles.placeholder, { backgroundColor: colors.surfaceAlt }]}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.accent }]}>
-            <Ionicons name="person" size={48} color="#fff" />
-          </View>
+          {/* Avatar */}
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatarCircle, { backgroundColor: colors.accent }]}>
+              <Ionicons name="person" size={48} color="#fff" />
+            </View>
+          )}
+
+          {/* Camera Off Badge - Avatar altında */}
+          {!camActive && (
+            <View style={styles.cameraOffBadge}>
+              <Ionicons name="videocam-off" size={14} color="#fff" />
+              <Text style={styles.cameraOffText}>Kamera Kapalı</Text>
+            </View>
+          )}
         </View>
       )}
 
-      {/* Camera Off Badge - Center */}
-      {!camActive && (
-        <View style={styles.cameraOffBadge}>
-          <Ionicons name="videocam-off" size={16} color="#fff" />
-          <Text style={styles.cameraOffText}>Kamera Kapalı</Text>
-        </View>
-      )}
-
-      {/* Controls - Right Side Vertical */}
-      <View style={[styles.controlsOverlay, { top: insets.top + 80 }]}>
-        {/* Mic toggle */}
-        <Pressable
-          style={[
-            styles.controlButton,
-            { backgroundColor: micActive ? "rgba(255,255,255,0.3)" : "#EF4444" }
-          ]}
-          onPress={() => {
-            console.log("[BroadcastPreview] Mic toggle pressed, current:", micActive);
-            onToggleMic();
-          }}
-        >
-          <Ionicons name={micActive ? "mic" : "mic-off"} size={24} color="#fff" />
-        </Pressable>
-
-        {/* Camera toggle */}
-        <Pressable
-          style={[
-            styles.controlButton,
-            { backgroundColor: camActive ? "rgba(255,255,255,0.3)" : "#EF4444" }
-          ]}
-          onPress={() => {
-            console.log("[BroadcastPreview] Camera toggle pressed, current:", camActive);
-            onToggleCamera();
-          }}
-        >
-          <Ionicons name={camActive ? "videocam" : "videocam-off"} size={24} color="#fff" />
-        </Pressable>
-
-        {/* Flip camera */}
-        <Pressable
-          style={[styles.controlButton, { backgroundColor: "rgba(255,255,255,0.3)" }]}
-          onPress={() => {
-            console.log("[BroadcastPreview] Flip camera pressed");
-            onFlipCamera();
-          }}
-        >
-          <Ionicons name="camera-reverse" size={24} color="#fff" />
-        </Pressable>
-
-        {/* Torch/Flash - Sadece arka kamera ve preview modunda */}
-        {!isLive && device?.hasTorch && onToggleTorch && (
+      {/* Controls - Sadece preview modunda (canlıda FAB kullanılıyor) */}
+      {!isLive && (
+        <View style={[styles.controlsOverlay, { top: insets.top + 80 }]}>
+          {/* Mic toggle */}
           <Pressable
             style={[
               styles.controlButton,
-              { backgroundColor: isTorchOn ? "#FBBF24" : "rgba(255,255,255,0.3)" }
+              { backgroundColor: micActive ? "rgba(255,255,255,0.3)" : "#EF4444" }
             ]}
-            onPress={() => {
-              console.log("[BroadcastPreview] Torch toggle pressed, current:", isTorchOn);
-              onToggleTorch();
-            }}
+            onPress={onToggleMic}
           >
-            <Ionicons name={isTorchOn ? "flash" : "flash-off"} size={24} color="#fff" />
+            <Ionicons name={micActive ? "mic" : "mic-off"} size={24} color="#fff" />
           </Pressable>
-        )}
 
-        {/* End broadcast (only when live) */}
-        {isLive && onEndBroadcast && (
+          {/* Camera toggle */}
           <Pressable
-            style={[styles.controlButton, { backgroundColor: "#EF4444" }]}
-            onPress={() => {
-              console.log("[BroadcastPreview] End broadcast pressed");
-              onEndBroadcast();
-            }}
+            style={[
+              styles.controlButton,
+              { backgroundColor: camActive ? "rgba(255,255,255,0.3)" : "#EF4444" }
+            ]}
+            onPress={onToggleCamera}
           >
-            <Ionicons name="stop" size={24} color="#fff" />
+            <Ionicons name={camActive ? "videocam" : "videocam-off"} size={24} color="#fff" />
           </Pressable>
-        )}
-      </View>
+
+          {/* Flip camera */}
+          <Pressable
+            style={[styles.controlButton, { backgroundColor: "rgba(255,255,255,0.3)" }]}
+            onPress={onFlipCamera}
+          >
+            <Ionicons name="camera-reverse" size={24} color="#fff" />
+          </Pressable>
+
+          {/* Torch/Flash - Sadece arka kamera */}
+          {device?.hasTorch && onToggleTorch && (
+            <Pressable
+              style={[
+                styles.controlButton,
+                { backgroundColor: isTorchOn ? "#FBBF24" : "rgba(255,255,255,0.3)" }
+              ]}
+              onPress={onToggleTorch}
+            >
+              <Ionicons name={isTorchOn ? "flash" : "flash-off"} size={24} color="#fff" />
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -188,19 +170,22 @@ const styles = StyleSheet.create({
   placeholder: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
+    gap: 16
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60
   },
   avatarCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: "center",
     alignItems: "center"
   },
   cameraOffBadge: {
-    position: "absolute",
-    alignSelf: "center",
-    top: "40%",
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -211,7 +196,7 @@ const styles = StyleSheet.create({
   },
   cameraOffText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500"
   },
   // Right side vertical controls

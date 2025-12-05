@@ -3,28 +3,41 @@
  * Canlı yayın izleme ekranı - Modüler yapı
  */
 
-import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, StatusBar, BackHandler, Alert } from "react-native";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  BackHandler,
+  Alert,
+  TextInput,
+  Pressable,
+  Keyboard
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTheme } from "@/theme/ThemeProvider";
+import BottomSheet from "@gorhom/bottom-sheet";
 import { useLiveKitRoom, useLiveSession, useLiveChat, useGuestInvitation } from "@/hooks/live";
 import { LiveVideoView, LiveChat, GuestInvitationModal } from "@/components/live";
 import { supabase } from "@/lib/supabaseClient";
 
 // Local components
-import { WatchHeader, WatchControls } from "./_components";
+import { WatchHeader, WatchControls, WatchSettingsSheet } from "./_components";
 
 export default function ViewerWatchScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const router = useRouter();
-  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  // Refs
+  const settingsSheetRef = useRef<BottomSheet>(null);
+
   // State
-  const [isChatVisible, setIsChatVisible] = useState(true);
   const [duration, setDuration] = useState("00:00");
   const [showGuestModal, setShowGuestModal] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
+  const [inputText, setInputText] = useState("");
 
   // Hooks
   const { joinSession, leaveSession, activeSession } = useLiveSession();
@@ -50,6 +63,19 @@ export default function ViewerWatchScreen() {
       isHost: false
     });
 
+  // Handlers
+  const handleOpenSettings = useCallback(() => {
+    settingsSheetRef.current?.expand();
+  }, []);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!inputText.trim() || !isConnected) return;
+    const text = inputText.trim();
+    setInputText(""); // Önce temizle
+    Keyboard.dismiss();
+    await sendMessage(text);
+  }, [inputText, isConnected, sendMessage]);
+
   // Join session on mount
   useEffect(() => {
     if (sessionId) {
@@ -64,13 +90,19 @@ export default function ViewerWatchScreen() {
     };
   }, [sessionId, joinSession, leaveSession, disconnect]);
 
-  // Session alındıktan sonra LiveKit'e bağlan
+  // Session alındıktan sonra LiveKit'e bağlan ve viewerCount'u başlat - only once
+  const hasConnectedRef = useRef(false);
   useEffect(() => {
-    if (activeSession?.roomName && !isConnected && !isConnecting && !isReconnecting) {
+    if (activeSession?.roomName && !hasConnectedRef.current) {
+      hasConnectedRef.current = true;
       console.log("[Watch] Connecting to LiveKit room:", activeSession.roomName);
       connect();
     }
-  }, [activeSession?.roomName, isConnected, isConnecting, isReconnecting, connect]);
+    // İzleyici sayısını başlat
+    if (activeSession?.viewerCount !== undefined) {
+      setViewerCount(activeSession.viewerCount);
+    }
+  }, [activeSession?.roomName, activeSession?.viewerCount, connect]);
 
   // Duration timer
   useEffect(() => {
@@ -140,11 +172,20 @@ export default function ViewerWatchScreen() {
         },
         (payload) => {
           console.log("[Watch] Session status changed:", payload.new);
-          const newStatus = (payload.new as { status: string }).status;
+          const newData = payload.new as {
+            status: string;
+            total_viewers?: number;
+            peak_viewers?: number;
+          };
 
-          if (newStatus === "ended" || newStatus === "host_disconnected") {
+          // İzleyici sayısını güncelle
+          if (newData.total_viewers !== undefined) {
+            setViewerCount(newData.total_viewers);
+          }
+
+          if (newData.status === "ended" || newData.status === "host_disconnected") {
             const message =
-              newStatus === "ended" ? "Yayın sona erdi" : "Yayıncı bağlantısı kesildi";
+              newData.status === "ended" ? "Yayın sona erdi" : "Yayıncı bağlantısı kesildi";
 
             Alert.alert("Yayın Durumu", message, [{ text: "Tamam", onPress: handleLeave }]);
           }
@@ -184,56 +225,89 @@ export default function ViewerWatchScreen() {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <View style={styles.container}>
-        {/* Video Area - Sadece host'un videosunu göster */}
+        {/* Video - Tam ekran */}
         <View style={styles.videoContainer}>
           <LiveVideoView
             trackRef={hostParticipant?.videoTrack || null}
-            participantName={activeSession?.creator?.display_name || "Host"}
             participantAvatar={activeSession?.creator?.avatar_url}
-            isHost
             isMuted={hostParticipant?.isMuted}
-            isVideoOff={!hostParticipant?.isCameraEnabled}
-          />
-
-          {/* Header */}
-          <WatchHeader
-            sessionTitle={activeSession?.title}
-            hostName={activeSession?.creator?.display_name || "Host"}
-            hostAvatar={activeSession?.creator?.avatar_url}
-            viewerCount={activeSession?.viewerCount || 0}
-            duration={duration}
-            isLive={activeSession?.status === "live"}
-            onLeave={handleLeave}
-            topInset={insets.top}
-          />
-
-          {/* Controls */}
-          <WatchControls
-            isChatVisible={isChatVisible}
-            onToggleChat={() => setIsChatVisible((prev) => !prev)}
-            onSendGift={handleSendGift}
-            onRequestToJoin={handleRequestToJoin}
-            canRequestToJoin={!hasPendingRequest}
-            requestPending={hasPendingRequest}
-            isGuestEnabled={activeSession?.guestEnabled}
-            bottomInset={insets.bottom}
+            isVideoOff={hostParticipant ? !hostParticipant.isCameraEnabled : false}
+            isLoading={isConnecting || isReconnecting || !hostParticipant}
           />
         </View>
 
-        {/* Chat */}
-        {isChatVisible && (
-          <View style={[styles.chatContainer, { backgroundColor: colors.background }]}>
-            <LiveChat
-              messages={messages}
-              onSendMessage={sendMessage}
-              onDeleteMessage={deleteMessage}
-              isHost={false}
-              disabled={!isConnected}
-              rateLimitSeconds={3}
-              maxHeight={250}
+        {/* Header - Üst overlay */}
+        <WatchHeader
+          sessionTitle={activeSession?.title}
+          hostName={activeSession?.creator?.display_name || "Host"}
+          hostAvatar={activeSession?.creator?.avatar_url}
+          viewerCount={viewerCount}
+          duration={duration}
+          isLive={activeSession?.status === "live"}
+          onLeave={handleLeave}
+          topInset={insets.top}
+        />
+
+        {/* Chat Overlay - Video üzerinde sol alt */}
+        <View style={[styles.chatOverlay, { bottom: insets.bottom + 60 }]}>
+          <LiveChat
+            messages={messages}
+            onSendMessage={sendMessage}
+            onDeleteMessage={deleteMessage}
+            isHost={false}
+            disabled={!isConnected}
+            rateLimitSeconds={3}
+            maxHeight={300}
+            isOverlay
+          />
+        </View>
+
+        {/* Controls - Sağ alt */}
+        <WatchControls
+          onSendGift={handleSendGift}
+          onRequestToJoin={handleRequestToJoin}
+          canRequestToJoin={!hasPendingRequest}
+          requestPending={hasPendingRequest}
+          isGuestEnabled={activeSession?.guestEnabled}
+          bottomInset={insets.bottom + 60}
+        />
+
+        {/* Bottom Bar - Input + Actions */}
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+          {/* Input */}
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Bir mesaj yazın"
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              value={inputText}
+              onChangeText={setInputText}
+              editable={isConnected}
+              maxLength={200}
+              returnKeyType="send"
+              onSubmitEditing={handleSendMessage}
             />
+            {/* Send button inside input */}
+            {inputText.trim() && (
+              <Pressable style={styles.inputSendButton} onPress={handleSendMessage}>
+                <Ionicons name="arrow-up" size={18} color="#fff" />
+              </Pressable>
+            )}
           </View>
-        )}
+
+          {/* Settings/More button */}
+          <Pressable style={styles.actionButton} onPress={handleOpenSettings}>
+            <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+          </Pressable>
+
+          {/* Heart/Like button */}
+          <Pressable
+            style={[styles.actionButton, styles.heartButton]}
+            onPress={() => console.log("Send heart")}
+          >
+            <Ionicons name="heart" size={22} color="#fff" />
+          </Pressable>
+        </View>
 
         {/* Guest Invitation Modal */}
         {pendingInvitation && (
@@ -246,6 +320,14 @@ export default function ViewerWatchScreen() {
             timeoutSeconds={60}
           />
         )}
+
+        {/* Settings Bottom Sheet */}
+        <WatchSettingsSheet
+          ref={settingsSheetRef}
+          onReport={() => console.log("Şikayet")}
+          onShare={() => console.log("Paylaş")}
+          onQuality={() => console.log("Kalite")}
+        />
       </View>
     </>
   );
@@ -257,10 +339,57 @@ const styles = StyleSheet.create({
     backgroundColor: "#000"
   },
   videoContainer: {
-    flex: 1,
-    position: "relative"
+    ...StyleSheet.absoluteFillObject
   },
-  chatContainer: {
+  chatOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 80,
     maxHeight: 300
+  },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    gap: 10
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 4
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: "#fff",
+    paddingVertical: 10
+  },
+  inputSendButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#8B5CF6",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  heartButton: {
+    backgroundColor: "#EF4444"
   }
 });

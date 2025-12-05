@@ -229,7 +229,9 @@
 
 ---
 
-## Faz 5: Ops Dashboard Bunun İçin ayrı dökümasyon oluşturacaksın, Web ekibi yapacak.
+## Faz 5: Ops Dashboard → [WEB_ADMIN_DASHBOARD.md](./WEB_ADMIN_DASHBOARD.md)
+
+> **Web ekibi için detaylı döküman:** [WEB_ADMIN_DASHBOARD.md](./WEB_ADMIN_DASHBOARD.md)
 
 ### 5.1 Live Monitoring → [MONITORING.md](./MONITORING.md)
 
@@ -349,7 +351,18 @@
 | [ ] Simulcast açma/kapama    | 🔴     | Düşük   | Farklı kalite katmanları                 |
 | [x] Ayarlar modal UI         | ✅     | Orta    | BroadcastSettings component geliştirildi |
 
-### 9.2 Realtime Text & Data (LiveKit Data Channels)
+### 9.2 Chat Moderasyon
+
+| Görev                         | Durum | Öncelik | Notlar                            |
+| ----------------------------- | ----- | ------- | --------------------------------- |
+| [x] Mesaj silme (Creator)     | ✅     | Yüksek  | Mesaja tıkla → Sil                |
+| [x] Silinen mesaj görünümü    | ✅     | Yüksek  | "Bu mesaj xxx tarafından silindi" |
+| [x] Moderasyon menüsü UI      | ✅     | Yüksek  | Sil / Kov / Yasakla butonları     |
+| [ ] Kullanıcı kovma (Kick)    | 🔴     | Yüksek  | Backend: participant.disconnect() |
+| [ ] Kullanıcı yasaklama (Ban) | 🔴     | Yüksek  | Backend: banned_users tablosu     |
+| [ ] Mesaj filtreleme          | 🔴     | Orta    | Küfür/spam filtresi               |
+
+### 9.3 Realtime Text & Data (LiveKit Data Channels)
 
 | Görev                      | Durum | Öncelik | Notlar                               |
 | -------------------------- | ----- | ------- | ------------------------------------ |
@@ -359,7 +372,7 @@
 | [ ] Data Packets           | 🔴     | Düşük   | Low-level lossy/reliable data        |
 | [ ] Typing indicator       | 🔴     | Düşük   | "X yazıyor..." göstergesi            |
 
-### 9.3 Screen Sharing
+### 9.4 Screen Sharing
 
 | Görev                          | Durum | Öncelik | Notlar                         |
 | ------------------------------ | ----- | ------- | ------------------------------ |
@@ -368,7 +381,7 @@
 | [ ] Android MediaProjection    | 🔴     | Orta    | Screen capture permission      |
 | [ ] Screen share UI            | 🔴     | Orta    | Start/stop button + indicator  |
 
-### 9.4 Gelişmiş Audio/Video
+### 9.5 Gelişmiş Audio/Video
 
 | Görev                        | Durum | Öncelik | Notlar                                 |
 | ---------------------------- | ----- | ------- | -------------------------------------- |
@@ -378,7 +391,7 @@
 | [ ] Background voice cancel  | 🔴     | Düşük   | LiveKit Cloud BVC model                |
 | [ ] Hi-Fi audio mode         | 🔴     | Düşük   | Müzik yayını için 510kbps stereo       |
 
-### 9.5 Mevcut Implementasyon (Tamamlandı)
+### 9.6 Mevcut Implementasyon (Tamamlandı)
 
 | Özellik             | Durum | Değer                                   |
 | ------------------- | ----- | --------------------------------------- |

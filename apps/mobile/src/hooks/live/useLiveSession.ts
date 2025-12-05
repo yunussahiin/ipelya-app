@@ -52,6 +52,7 @@ export interface UseLiveSessionResult {
   error: Error | null;
   createSession: (params: CreateSessionParams) => Promise<LiveSession | null>;
   joinSession: (params: JoinSessionParams | string) => Promise<LiveSession | null>;
+  resumeSession: (sessionId: string) => Promise<LiveSession | null>;
   endSession: (reason?: string) => Promise<void>;
   leaveSession: (sessionId?: string) => Promise<void>;
 }
@@ -206,6 +207,69 @@ export function useLiveSession(): UseLiveSessionResult {
     setError(null);
   }, []);
 
+  // Mevcut oturumu devam ettir (host için - kendi aktif oturumuna geri dönme)
+  const resumeSession = useCallback(async (sessionId: string): Promise<LiveSession | null> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Session bilgilerini database'den al
+      const { data, error: dbError } = await supabase
+        .from('live_sessions')
+        .select(`
+          id,
+          livekit_room_name,
+          title,
+          session_type,
+          access_type,
+          status,
+          creator_id,
+          chat_enabled,
+          gifts_enabled,
+          guest_enabled,
+          max_guests,
+          total_viewers,
+          started_at
+        `)
+        .eq('id', sessionId)
+        .eq('status', 'live')
+        .single();
+
+      if (dbError) {
+        throw new Error(dbError.message);
+      }
+
+      if (!data) {
+        throw new Error('Oturum bulunamadı veya aktif değil');
+      }
+
+      const resumedSession: LiveSession = {
+        id: data.id,
+        roomName: data.livekit_room_name,
+        title: data.title,
+        sessionType: data.session_type,
+        accessType: data.access_type,
+        status: data.status,
+        creatorId: data.creator_id,
+        chatEnabled: data.chat_enabled,
+        giftsEnabled: data.gifts_enabled,
+        guestEnabled: data.guest_enabled,
+        maxGuests: data.max_guests,
+        viewerCount: data.total_viewers || 0,
+        startedAt: data.started_at,
+      };
+
+      setSession(resumedSession);
+      return resumedSession;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Oturum devam ettirme hatası');
+      setError(error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     session,
     activeSession: session, // Alias for compatibility
@@ -213,6 +277,7 @@ export function useLiveSession(): UseLiveSessionResult {
     error,
     createSession,
     joinSession,
+    resumeSession,
     endSession,
     leaveSession,
   };
