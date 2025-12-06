@@ -8,7 +8,18 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "ipelya",
-    "plugins": ["@livekit/react-native-expo-plugin", "@config-plugins/react-native-webrtc"],
+    "plugins": [
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "ipelya-react-native",
+          "organization": "ipelya"
+        }
+      ]
+    ],
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",

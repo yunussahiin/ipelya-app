@@ -42,3 +42,5 @@ yarn-error.*
 
 # Credentials
 credentials.json
+
+.env.local
