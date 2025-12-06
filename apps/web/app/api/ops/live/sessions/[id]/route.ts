@@ -89,14 +89,27 @@ export async function GET(
       ? Math.floor((Date.now() - startedAt.getTime()) / 1000)
       : Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
 
-    // Admin log kaydet
-    await adminSupabase.from('live_admin_logs').insert({
-      admin_id: user.id,
-      action: 'view_session',
-      target_type: 'session',
-      target_id: sessionId,
-      metadata: { session_title: session.title },
-    });
+    // view_session logu - aynı admin + session için son 1 saatte log yoksa kaydet
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: existingLog } = await adminSupabase
+      .from('live_admin_logs')
+      .select('id')
+      .eq('admin_id', user.id)
+      .eq('action', 'view_session')
+      .eq('target_id', sessionId)
+      .gte('created_at', oneHourAgo)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingLog) {
+      await adminSupabase.from('live_admin_logs').insert({
+        admin_id: user.id,
+        action: 'view_session',
+        target_type: 'session',
+        target_id: sessionId,
+        metadata: { session_title: session.title },
+      });
+    }
 
     return NextResponse.json({
       ...session,

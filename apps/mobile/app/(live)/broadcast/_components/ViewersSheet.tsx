@@ -4,14 +4,14 @@
  */
 
 import React, { forwardRef, useCallback } from "react";
-import { View, Text, StyleSheet, Image } from "react-native";
+import { View, Text, StyleSheet, Image, Pressable } from "react-native";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { VideoTrack, isTrackReference, TrackReferenceOrPlaceholder } from "@livekit/react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
 
-interface Viewer {
+export interface Viewer {
   id: string;
   userId: string;
   userName: string;
@@ -30,6 +30,8 @@ interface ViewersSheetProps {
   broadcastType?: "video_live" | "audio_room";
   /** Canlı video track - gerçek zamanlı önizleme için */
   videoTrackRef?: TrackReferenceOrPlaceholder | null;
+  /** İzleyiciyi şikayet et */
+  onReportViewer?: (viewer: Viewer) => void;
 }
 
 export const ViewersSheet = forwardRef<BottomSheet, ViewersSheetProps>(
@@ -42,7 +44,8 @@ export const ViewersSheet = forwardRef<BottomSheet, ViewersSheetProps>(
       broadcastTitle,
       broadcastDuration,
       broadcastType = "video_live",
-      videoTrackRef
+      videoTrackRef,
+      onReportViewer
     },
     ref
   ) => {
@@ -72,9 +75,19 @@ export const ViewersSheet = forwardRef<BottomSheet, ViewersSheetProps>(
               {formatJoinTime(item.joinedAt)}
             </Text>
           </View>
+          {/* Report Button */}
+          {onReportViewer && (
+            <Pressable
+              style={[styles.reportButton, { backgroundColor: colors.surface }]}
+              onPress={() => onReportViewer(item)}
+              hitSlop={8}
+            >
+              <Ionicons name="flag-outline" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
         </View>
       ),
-      [colors]
+      [colors, onReportViewer]
     );
 
     const formatJoinTime = (joinedAt: string) => {
@@ -263,6 +276,13 @@ const styles = StyleSheet.create({
   },
   viewerTime: {
     fontSize: 13
+  },
+  reportButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center"
   },
   emptyContainer: {
     flex: 1,

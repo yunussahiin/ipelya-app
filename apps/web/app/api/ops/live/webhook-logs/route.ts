@@ -82,6 +82,67 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Loglar alınamadı" }, { status: 500 });
     }
 
+    // Participant identity'leri topla ve profil bilgilerini çek
+    // Format: UUID veya admin_UUID
+    // NOT: profiles tablosunda user_id kolonu auth.users.id'ye karşılık gelir
+    const allIdentities = (logs || [])
+      .map(log => log.participant_identity)
+      .filter((id): id is string => !!id);
+
+    // UUID formatında olanlar (direkt user id)
+    const directUserIds = allIdentities.filter(id => 
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    );
+
+    // admin_ prefix'li olanlardan UUID'leri çıkar
+    const adminUserIds = allIdentities
+      .filter(id => id.startsWith("admin_"))
+      .map(id => id.replace("admin_", ""))
+      .filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
+    const allUserIds = [...new Set([...directUserIds, ...adminUserIds])];
+
+    let profilesMap: Record<string, { username: string; avatar_url: string | null }> = {};
+    
+    if (allUserIds.length > 0) {
+      // user_id ile sorgula (id değil!) ve shadow olmayan profilleri al
+      const { data: profiles } = await adminSupabase
+        .from("profiles")
+        .select("user_id, username, avatar_url")
+        .in("user_id", allUserIds)
+        .not("username", "like", "shadow_%");
+      
+      if (profiles) {
+        profilesMap = profiles.reduce((acc, p) => {
+          // İlk bulunan profili kullan (shadow olmayanı tercih ettik zaten)
+          if (!acc[p.user_id]) {
+            acc[p.user_id] = { username: p.username, avatar_url: p.avatar_url };
+          }
+          return acc;
+        }, {} as Record<string, { username: string; avatar_url: string | null }>);
+      }
+    }
+
+    // Loglara profil bilgisi ekle
+    const logsWithProfiles = (logs || []).map(log => {
+      let profile = null;
+      if (log.participant_identity) {
+        // Direkt UUID ise
+        if (profilesMap[log.participant_identity]) {
+          profile = profilesMap[log.participant_identity];
+        }
+        // admin_ prefix'li ise
+        else if (log.participant_identity.startsWith("admin_")) {
+          const userId = log.participant_identity.replace("admin_", "");
+          profile = profilesMap[userId] || null;
+        }
+      }
+      return {
+        ...log,
+        participant_profile: profile
+      };
+    });
+
     // Event type ve status sayıları
     const { data: stats } = await adminSupabase
       .from("live_webhook_logs")
@@ -102,7 +163,7 @@ export async function GET(request: Request) {
       });
 
     return NextResponse.json({
-      logs: logs || [],
+      logs: logsWithProfiles,
       total: count || 0,
       stats: stats || { eventCounts: {}, statusCounts: { success: 0, error: 0, skipped: 0 }, total: 0 },
     });

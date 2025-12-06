@@ -32,6 +32,7 @@ interface AudioRoomViewerProps {
   onPushToTalkStart?: () => void;
   onPushToTalkEnd?: () => void;
   onToggleMicrophone?: () => void;
+  onReport?: () => void; // Şikayet et
   bottomInset: number;
 }
 
@@ -48,6 +49,7 @@ export function AudioRoomViewer({
   onPushToTalkStart,
   onPushToTalkEnd,
   onToggleMicrophone,
+  onReport,
   bottomInset
 }: AudioRoomViewerProps) {
   const { colors, isDark } = useTheme();
@@ -90,9 +92,19 @@ export function AudioRoomViewer({
               <Text style={[styles.statTextSmall, { color: colors.textMuted }]}>{duration}</Text>
             </View>
           </View>
-          <View style={[styles.liveBadgeSmall, { backgroundColor: isDark ? "#374151" : "#fff" }]}>
-            <View style={styles.liveDotSmall} />
-            <Text style={[styles.liveTextSmall, { color: colors.textPrimary }]}>Live</Text>
+          <View style={styles.headerActions}>
+            <View style={[styles.liveBadgeSmall, { backgroundColor: isDark ? "#374151" : "#fff" }]}>
+              <View style={styles.liveDotSmall} />
+              <Text style={[styles.liveTextSmall, { color: colors.textPrimary }]}>Live</Text>
+            </View>
+            {onReport && (
+              <Pressable
+                style={[styles.moreButton, { backgroundColor: isDark ? "#374151" : "#fff" }]}
+                onPress={onReport}
+              >
+                <Ionicons name="flag-outline" size={18} color={colors.textMuted} />
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -299,6 +311,11 @@ const styles = StyleSheet.create({
   statDot: {
     fontSize: 13
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
   liveBadgeSmall: {
     flexDirection: "row",
     alignItems: "center",
@@ -306,6 +323,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     gap: 6
+  },
+  moreButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center"
   },
   liveDotSmall: {
     width: 8,

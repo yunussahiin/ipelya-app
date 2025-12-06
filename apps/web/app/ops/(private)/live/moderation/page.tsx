@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, AlertTriangle, Ban, CheckCircle, XCircle } from "lucide-react";
+import { RefreshCw, AlertTriangle, Ban, CheckCircle, XCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,12 @@ import {
 } from "@/components/ui/dialog";
 import { ReportsQueue } from "@/components/ops/live/reports-queue";
 import { BansTable } from "@/components/ops/live/bans-table";
+import { AdminLogsDataTable, columns as adminLogsColumns, type AdminLog } from "./admin-logs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User } from "lucide-react";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
 
 interface Profile {
   id: string;
@@ -97,6 +103,10 @@ export default function ModerationPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [reportFilter, setReportFilter] = useState("pending");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
+  const [adminLogsLoading, setAdminLogsLoading] = useState(false);
+  const [adminLogsTotalCount, setAdminLogsTotalCount] = useState(0);
+  const [selectedAdminLog, setSelectedAdminLog] = useState<AdminLog | null>(null);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -126,11 +136,26 @@ export default function ModerationPage() {
     }
   }, []);
 
+  const fetchAdminLogs = useCallback(async () => {
+    setAdminLogsLoading(true);
+    try {
+      const response = await fetch("/api/ops/live/admin-logs?limit=100");
+      if (!response.ok) throw new Error("Admin logları alınamadı");
+      const data = await response.json();
+      setAdminLogs(data.logs || []);
+      setAdminLogsTotalCount(data.total || 0);
+    } catch (error) {
+      console.error("Admin logs fetch error:", error);
+    } finally {
+      setAdminLogsLoading(false);
+    }
+  }, []);
+
   const fetchAll = useCallback(async () => {
-    await Promise.all([fetchReports(), fetchBans()]);
+    await Promise.all([fetchReports(), fetchBans(), fetchAdminLogs()]);
     setLoading(false);
     setRefreshing(false);
-  }, [fetchReports, fetchBans]);
+  }, [fetchReports, fetchBans, fetchAdminLogs]);
 
   useEffect(() => {
     fetchAll();
@@ -281,6 +306,15 @@ export default function ModerationPage() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Admin Logları
+            {adminLogsTotalCount > 0 && (
+              <Badge variant="outline" className="ml-1">
+                {adminLogsTotalCount}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="reports" className="space-y-4">
@@ -326,7 +360,99 @@ export default function ModerationPage() {
         <TabsContent value="bans">
           <BansTable bans={bans} onLiftBan={handleLiftBan} />
         </TabsContent>
+
+        <TabsContent value="logs">
+          <AdminLogsDataTable
+            columns={adminLogsColumns}
+            data={adminLogs}
+            isLoading={adminLogsLoading}
+            onRefresh={fetchAdminLogs}
+            onRowClick={setSelectedAdminLog}
+            meta={{ onViewDetail: setSelectedAdminLog }}
+          />
+        </TabsContent>
       </Tabs>
+
+      {/* Admin Log Detail Dialog */}
+      <Dialog open={!!selectedAdminLog} onOpenChange={() => setSelectedAdminLog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Log Detayı</DialogTitle>
+            <DialogDescription>
+              {selectedAdminLog &&
+                format(new Date(selectedAdminLog.created_at), "d MMMM yyyy HH:mm:ss", {
+                  locale: tr
+                })}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAdminLog && (
+            <div className="space-y-4">
+              {/* Admin Info */}
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={selectedAdminLog.admin?.avatar_url || undefined} />
+                  <AvatarFallback>
+                    {selectedAdminLog.admin?.full_name?.[0] || <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{selectedAdminLog.admin?.full_name || "Bilinmiyor"}</p>
+                  <p className="text-sm text-muted-foreground">{selectedAdminLog.admin?.email}</p>
+                </div>
+              </div>
+
+              {/* Metadata */}
+              {selectedAdminLog.metadata && Object.keys(selectedAdminLog.metadata).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">İşlem Detayları</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {Object.entries(selectedAdminLog.metadata).map(([key, value]) => (
+                      <div key={key} className="p-2 bg-muted rounded">
+                        <p className="text-xs text-muted-foreground">
+                          {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </p>
+                        <p className="font-medium truncate">
+                          {value === null ? "-" : String(value)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Technical Info */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Teknik Bilgiler</p>
+                <div className="text-xs space-y-1 p-3 bg-muted rounded-lg font-mono overflow-hidden">
+                  <p>
+                    <span className="text-muted-foreground">IP:</span>{" "}
+                    {selectedAdminLog.ip_address || "-"}
+                  </p>
+                  <p className="break-all">
+                    <span className="text-muted-foreground">User Agent:</span>{" "}
+                    {selectedAdminLog.user_agent || "-"}
+                  </p>
+                  <p className="break-all">
+                    <span className="text-muted-foreground">Target ID:</span>{" "}
+                    {selectedAdminLog.target_id || "-"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Raw Metadata */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Ham Veri</p>
+                <ScrollArea className="h-[120px] rounded-lg border bg-muted">
+                  <pre className="text-xs font-mono p-3">
+                    {JSON.stringify(selectedAdminLog.metadata, null, 2)}
+                  </pre>
+                </ScrollArea>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Report Detail Dialog */}
       <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>

@@ -23,14 +23,16 @@ import {
   useLiveSession,
   useLiveChat,
   useGuestInvitation,
-  useBanCheck
+  useBanCheck,
+  useHostDisconnect
 } from "@/hooks/live";
 import {
   LiveVideoView,
   LiveChat,
   GuestInvitationModal,
   BanInfoModal,
-  ReportModal
+  ReportModal,
+  HostDisconnectOverlay
 } from "@/components/live";
 import { useToast } from "@/components/ui";
 import { supabase } from "@/lib/supabaseClient";
@@ -66,6 +68,27 @@ export default function ViewerWatchScreen() {
   });
   // Ban check hook
   const { banInfo, checkBan } = useBanCheck();
+
+  // Host disconnect hook - telefon kilitlendiğinde overlay göster
+  const {
+    isHostDisconnected,
+    remainingSeconds,
+    message: disconnectMessage
+  } = useHostDisconnect({
+    sessionId: sessionId || null,
+    onHostReconnected: () => {
+      console.log("[Watch] Host reconnected");
+      showToast({ type: "success", message: "Yayıncı geri bağlandı" });
+    },
+    onSessionEnded: (reason) => {
+      console.log("[Watch] Session ended:", reason);
+      if (reason === "host_timeout") {
+        Alert.alert("Yayın Sonlandı", "Yayıncı bağlantısı zaman aşımına uğradı.", [
+          { text: "Tamam", onPress: () => router.back() }
+        ]);
+      }
+    }
+  });
 
   // Admin kick/ban handler
   const handleAdminKick = useCallback(async () => {
@@ -129,22 +152,28 @@ export default function ViewerWatchScreen() {
     await sendMessage(text);
   }, [inputText, isConnected, sendMessage]);
 
-  // Join session on mount
+  // Refs for preventing double execution in Strict Mode
+  const hasJoinedRef = useRef(false);
+  const hasConnectedRef = useRef(false);
+
+  // Join session on mount - only once
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && !hasJoinedRef.current) {
+      hasJoinedRef.current = true;
       console.log("[Watch] Joining session:", sessionId);
       joinSession({ sessionId });
     }
     return () => {
-      if (sessionId) {
+      if (sessionId && hasJoinedRef.current) {
+        hasJoinedRef.current = false;
+        hasConnectedRef.current = false;
         leaveSession(sessionId);
         disconnect();
       }
     };
-  }, [sessionId, joinSession, leaveSession, disconnect]);
+  }, [sessionId]); // joinSession, leaveSession, disconnect are stable
 
-  // Session alındıktan sonra LiveKit'e bağlan ve viewerCount'u başlat - only once
-  const hasConnectedRef = useRef(false);
+  // Session alındıktan sonra LiveKit'e bağlan - only once
   useEffect(() => {
     if (activeSession?.roomName && !hasConnectedRef.current) {
       hasConnectedRef.current = true;
@@ -155,7 +184,7 @@ export default function ViewerWatchScreen() {
     if (activeSession?.viewerCount !== undefined) {
       setViewerCount(activeSession.viewerCount);
     }
-  }, [activeSession?.roomName, activeSession?.viewerCount, connect]);
+  }, [activeSession?.roomName, activeSession?.viewerCount]); // connect is stable
 
   // Duration timer
   useEffect(() => {
@@ -286,6 +315,15 @@ export default function ViewerWatchScreen() {
             isMuted={hostParticipant?.isMuted}
             isVideoOff={hostParticipant ? !hostParticipant.isCameraEnabled : false}
             isLoading={isConnecting || isReconnecting || !hostParticipant}
+            showMuteIndicator={false}
+          />
+
+          {/* Host Disconnect Overlay - Yayıncı bağlantısı kesildiğinde */}
+          <HostDisconnectOverlay
+            visible={isHostDisconnected}
+            remainingSeconds={remainingSeconds}
+            message={disconnectMessage || undefined}
+            hostName={activeSession?.creator?.display_name}
           />
         </View>
 
@@ -297,6 +335,7 @@ export default function ViewerWatchScreen() {
           viewerCount={viewerCount}
           duration={duration}
           isLive={activeSession?.status === "live"}
+          isHostMuted={hostParticipant?.isMuted}
           onLeave={handleLeave}
           topInset={insets.top}
         />

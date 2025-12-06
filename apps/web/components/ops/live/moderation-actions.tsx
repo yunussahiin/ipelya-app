@@ -27,12 +27,12 @@ interface ModerationActionsProps {
 export function ModerationActions({ sessionId, sessionTitle, onRefresh }: ModerationActionsProps) {
   const [showTerminate, setShowTerminate] = useState(false);
 
-  const handleTerminate = async (reason: string) => {
+  const handleTerminate = async (reason: string, adminNote?: string) => {
     try {
       const response = await fetch(`/api/ops/live/sessions/${sessionId}/terminate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason })
+        body: JSON.stringify({ reason, adminNote })
       });
 
       if (!response.ok) {

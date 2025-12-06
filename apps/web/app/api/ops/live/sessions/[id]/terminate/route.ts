@@ -15,7 +15,7 @@ export async function POST(
   try {
     const { id: sessionId } = await params;
     const body = await request.json();
-    const { reason } = body;
+    const { reason, adminNote } = body;
 
     // Auth kontrolü
     const serverSupabase = await createServerSupabaseClient();
@@ -95,6 +95,7 @@ export async function POST(
       metadata: { 
         session_title: session.title,
         reason: reason || 'Admin tarafından sonlandırıldı',
+        admin_note: adminNote || null, // Yönetici notu (sadece ops'ta görünür)
       },
       ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       user_agent: request.headers.get('user-agent'),

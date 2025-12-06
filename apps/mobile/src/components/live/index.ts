@@ -20,3 +20,6 @@ export { ModerationControls } from './ModerationControls';
 // Web Ops Dashboard Entegrasyonu - Ban/Report Modal'ları
 export { BanInfoModal } from './BanInfoModal';
 export { ReportModal } from './ReportModal';
+
+// Host Disconnect Overlay
+export { HostDisconnectOverlay } from './HostDisconnectOverlay';

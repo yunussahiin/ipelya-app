@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SystemBars } from "react-native-edge-to-edge";
-import { View } from "react-native";
+import { View, LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as Linking from "expo-linking";
@@ -19,6 +19,9 @@ import { ToastProvider } from "@/components/ui";
 // LiveKit WebRTC globals setup
 import { registerGlobals } from "@livekit/react-native";
 registerGlobals();
+
+// WebRTC PeerConnection uyarılarını gizle (eski bağlantı referansları)
+LogBox.ignoreLogs(["PeerConnection", "not found in receiverGetStats"]);
 
 // React Query client
 const queryClient = new QueryClient({

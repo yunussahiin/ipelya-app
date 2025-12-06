@@ -4,7 +4,7 @@
  * Full screen preview + overlay controls
  */
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   ScrollView,
@@ -15,7 +15,9 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  Dimensions
+  Dimensions,
+  AppState,
+  type AppStateStatus
 } from "react-native";
 import Animated, { useAnimatedStyle, withTiming } from "react-native-reanimated";
 
@@ -37,6 +39,8 @@ import {
   type CreateSessionParams
 } from "@/hooks/live";
 import { useProfileStore } from "@/store/profile.store";
+import { ReportModal } from "@/components/live";
+import { useToast } from "@/components/ui";
 
 // Local components
 import {
@@ -79,6 +83,13 @@ export default function CreatorBroadcastScreen() {
   const [isLive, setIsLive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [videoHeightPercent, setVideoHeightPercent] = useState(1); // 1 = full, 0.5 = half
+
+  // Report modal state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTargetUser, setReportTargetUser] = useState<{ id: string; name: string } | null>(
+    null
+  );
+  const { showToast } = useToast();
 
   // Video alanı animasyonu - sadece canlıda animasyonlu, preview'da full
   const videoAnimStyle = useAnimatedStyle(() => ({
@@ -159,6 +170,51 @@ export default function CreatorBroadcastScreen() {
   const { messages, sendMessage, deleteMessage } = useLiveChat({
     sessionId: session?.id || ""
   });
+
+  // AppState listener - telefon kilitlendiğinde izleyicilere bildir
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    if (!isLive || !session?.id) return;
+
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextAppState: AppStateStatus) => {
+        const prevState = appStateRef.current;
+        appStateRef.current = nextAppState;
+
+        // Arka plana geçti (telefon kilitlendi veya uygulama minimize edildi)
+        if (prevState === "active" && nextAppState.match(/inactive|background/)) {
+          console.log("[Broadcast] App went to background, notifying viewers");
+
+          // Realtime broadcast ile izleyicilere bildir
+          await supabase.channel(`live:${session.id}`).send({
+            type: "broadcast",
+            event: "host_disconnected",
+            payload: {
+              message: "Yayıncı bağlantısı kesildi...",
+              reconnectDeadline: Date.now() + 30000 // 30 saniye
+            }
+          });
+        }
+
+        // Tekrar aktif oldu
+        if (prevState.match(/inactive|background/) && nextAppState === "active") {
+          console.log("[Broadcast] App came to foreground, notifying viewers");
+
+          // İzleyicilere geri bağlandığını bildir
+          await supabase.channel(`live:${session.id}`).send({
+            type: "broadcast",
+            event: "host_reconnected",
+            payload: {}
+          });
+        }
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isLive, session?.id]);
 
   // Duration & viewer count state
   const [duration, setDuration] = React.useState("00:00");
@@ -486,8 +542,31 @@ export default function CreatorBroadcastScreen() {
             onFlipCamera={handleFlipCamera}
             onEndBroadcast={handleEndBroadcast}
             onVideoHeightChange={setVideoHeightPercent}
+            onReportViewer={(viewer) => {
+              setReportTargetUser({ id: viewer.userId, name: viewer.userName });
+              setShowReportModal(true);
+            }}
           />
         )}
+
+        {/* Report Modal - İzleyici Şikayeti */}
+        <ReportModal
+          visible={showReportModal}
+          sessionId={session?.id || ""}
+          reportedUserId={reportTargetUser?.id || ""}
+          reportedUserName={reportTargetUser?.name}
+          onClose={() => {
+            setShowReportModal(false);
+            setReportTargetUser(null);
+          }}
+          onSuccess={() => {
+            showToast({
+              type: "success",
+              message: "Şikayet gönderildi",
+              description: "Ekibimiz en kısa sürede inceleyecek."
+            });
+          }}
+        />
 
         {/* Bottom Actions - Fixed at bottom, not overlay */}
         {!isLive && (

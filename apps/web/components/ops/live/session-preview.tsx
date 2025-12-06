@@ -145,6 +145,7 @@ function VideoPreviewContent({
 }: VideoPreviewContentProps) {
   const participants = useParticipants();
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   // Host'un video track'ini bul
   const hostVideoTrack = tracks.find(
@@ -155,14 +156,65 @@ function VideoPreviewContent({
 
   const displayTrack = screenShareTrack || hostVideoTrack;
 
+  // Track dimensions'dan aspect ratio belirle - dimensions değiştiğinde güncelle
+  const [videoAspect, setVideoAspect] = useState<"landscape" | "portrait">("landscape");
+
+  useEffect(() => {
+    if (!displayTrack) return;
+
+    // Dimensions'ı kontrol et
+    const checkDimensions = () => {
+      const trackDims = displayTrack.publication?.dimensions;
+      if (trackDims && trackDims.width > 0 && trackDims.height > 0) {
+        const isPortrait = trackDims.height > trackDims.width;
+        setVideoAspect(isPortrait ? "portrait" : "landscape");
+      }
+    };
+
+    // İlk kontrol
+    checkDimensions();
+
+    // Track değişikliklerini dinle
+    const interval = setInterval(checkDimensions, 1000);
+    return () => clearInterval(interval);
+  }, [displayTrack]);
+
+  // Loading timeout - track yokken 5 saniye bekle
+  useEffect(() => {
+    if (displayTrack) {
+      setLoadingTimeout(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!displayTrack]);
+
+  // Loading durumu: track yoksa ve timeout geçmediyse loading göster
+  const isVideoLoading = !displayTrack && !loadingTimeout;
+
   return (
     <div className="relative">
-      {/* Video Area */}
-      <div className="aspect-video bg-black relative">
+      {/* Video Area - Portrait/Landscape dinamik */}
+      <div
+        className={`bg-black relative flex items-center justify-center ${
+          videoAspect === "portrait"
+            ? "aspect-[9/16] max-h-[600px] mx-auto max-w-[340px]"
+            : "aspect-video"
+        }`}
+      >
         {displayTrack ? (
           <VideoTrack trackRef={displayTrack} className="w-full h-full object-contain" />
+        ) : isVideoLoading ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+            <p className="text-white/50">Video yükleniyor...</p>
+          </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-white">
+          <div className="flex items-center justify-center h-full">
             <p className="text-muted-foreground">Video yok</p>
           </div>
         )}

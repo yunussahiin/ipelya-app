@@ -6,39 +6,37 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
-  RefreshCw,
   Webhook,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Clock,
-  Users,
   Video,
-  Filter,
-  Search
+  Users,
+  Unplug,
+  Radio,
+  MonitorPlay,
+  Upload,
+  Download,
+  Mic,
+  MicOff,
+  Camera,
+  CameraOff,
+  RefreshCw
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
+} from "@/components/ui/carousel";
 import {
   Dialog,
   DialogContent,
@@ -48,21 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface WebhookLog {
-  id: string;
-  event_type: string;
-  room_name: string | null;
-  room_sid: string | null;
-  participant_identity: string | null;
-  participant_sid: string | null;
-  session_id: string | null;
-  call_id: string | null;
-  raw_payload: Record<string, unknown>;
-  processing_status: string;
-  error_message: string | null;
-  processing_time_ms: number | null;
-  created_at: string;
-}
+import { DataTable, columns, type WebhookLog } from "./components";
 
 interface Stats {
   eventCounts: Record<string, number>;
@@ -70,29 +54,167 @@ interface Stats {
   total: number;
 }
 
-const EVENT_ICONS: Record<string, React.ReactNode> = {
-  room_started: <Video className="h-4 w-4 text-green-500" />,
-  room_finished: <Video className="h-4 w-4 text-red-500" />,
-  participant_joined: <Users className="h-4 w-4 text-blue-500" />,
-  participant_left: <Users className="h-4 w-4 text-orange-500" />,
-  track_published: <Webhook className="h-4 w-4 text-purple-500" />,
-  track_unpublished: <Webhook className="h-4 w-4 text-gray-500" />
-};
+// İkon bileşenleri map'i
+const ICON_COMPONENTS = {
+  Video,
+  Users,
+  Radio,
+  Unplug,
+  Upload,
+  Download,
+  MicOff,
+  Mic,
+  MonitorPlay,
+  RefreshCw,
+  Camera,
+  CameraOff,
+  Webhook
+} as const;
 
-const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
-  success: {
-    icon: <CheckCircle className="h-4 w-4" />,
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+type IconName = keyof typeof ICON_COMPONENTS;
+
+// Event konfigürasyonu - ikon adı, isim ve açıklama
+const EVENT_CONFIG: Record<
+  string,
+  { iconName: IconName; name: string; description: string; color: string }
+> = {
+  room_started: {
+    iconName: "Video",
+    name: "Oda Başlatıldı",
+    description: "Yeni bir canlı yayın odası oluşturuldu",
+    color: "text-green-500"
   },
-  error: {
-    icon: <XCircle className="h-4 w-4" />,
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+  room_finished: {
+    iconName: "Video",
+    name: "Oda Sonlandırıldı",
+    description: "Canlı yayın odası kapatıldı",
+    color: "text-red-500"
   },
-  skipped: {
-    icon: <AlertTriangle className="h-4 w-4" />,
-    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+  participant_joined: {
+    iconName: "Users",
+    name: "Katılımcı Katıldı",
+    description: "Bir kullanıcı odaya katıldı",
+    color: "text-blue-500"
+  },
+  participant_left: {
+    iconName: "Users",
+    name: "Katılımcı Ayrıldı",
+    description: "Bir kullanıcı odadan ayrıldı",
+    color: "text-orange-500"
+  },
+  participant_active: {
+    iconName: "Radio",
+    name: "Katılımcı Aktif",
+    description: "Katılımcı aktif duruma geçti",
+    color: "text-green-500"
+  },
+  participant_connection_aborted: {
+    iconName: "Unplug",
+    name: "Bağlantı Kesildi",
+    description: "Katılımcının bağlantısı beklenmedik şekilde kesildi",
+    color: "text-red-500"
+  },
+  track_published: {
+    iconName: "Upload",
+    name: "Track Yayınlandı",
+    description: "Ses veya video track'i yayına başladı",
+    color: "text-purple-500"
+  },
+  track_unpublished: {
+    iconName: "Download",
+    name: "Track Kaldırıldı",
+    description: "Ses veya video track'i yayından kaldırıldı",
+    color: "text-gray-500"
+  },
+  track_subscribed: {
+    iconName: "Radio",
+    name: "Track Abone Olundu",
+    description: "Bir katılımcı track'e abone oldu",
+    color: "text-blue-500"
+  },
+  track_unsubscribed: {
+    iconName: "Radio",
+    name: "Track Abonelik İptal",
+    description: "Track aboneliği iptal edildi",
+    color: "text-gray-500"
+  },
+  track_muted: {
+    iconName: "MicOff",
+    name: "Track Susturuldu",
+    description: "Ses veya video track'i susturuldu",
+    color: "text-yellow-500"
+  },
+  track_unmuted: {
+    iconName: "Mic",
+    name: "Track Açıldı",
+    description: "Ses veya video track'i açıldı",
+    color: "text-green-500"
+  },
+  egress_started: {
+    iconName: "MonitorPlay",
+    name: "Kayıt Başladı",
+    description: "Oda kaydı başlatıldı",
+    color: "text-red-500"
+  },
+  egress_updated: {
+    iconName: "RefreshCw",
+    name: "Kayıt Güncellendi",
+    description: "Kayıt durumu güncellendi",
+    color: "text-blue-500"
+  },
+  egress_ended: {
+    iconName: "MonitorPlay",
+    name: "Kayıt Bitti",
+    description: "Oda kaydı tamamlandı",
+    color: "text-green-500"
+  },
+  ingress_started: {
+    iconName: "Camera",
+    name: "Giriş Başladı",
+    description: "Harici kaynak girişi başladı (RTMP vb.)",
+    color: "text-purple-500"
+  },
+  ingress_ended: {
+    iconName: "CameraOff",
+    name: "Giriş Bitti",
+    description: "Harici kaynak girişi sonlandı",
+    color: "text-gray-500"
   }
 };
+
+// Event config'i al ve ikonu renderla
+function getEventConfig(eventType: string) {
+  const config = EVENT_CONFIG[eventType];
+  if (config) {
+    const IconComponent = ICON_COMPONENTS[config.iconName];
+    return {
+      ...config,
+      icon: <IconComponent className="h-5 w-5" />
+    };
+  }
+  return {
+    iconName: "Webhook" as IconName,
+    name: eventType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+    description: `LiveKit ${eventType} event'i`,
+    color: "text-muted-foreground",
+    icon: <Webhook className="h-5 w-5" />
+  };
+}
+
+// Geriye uyumluluk için
+const EVENT_NAMES_TR: Record<string, string> = Object.fromEntries(
+  Object.entries(EVENT_CONFIG).map(([key, val]) => [key, val.name])
+);
+
+const EVENT_ICONS: Record<string, React.ReactNode> = {};
+Object.entries(EVENT_CONFIG).forEach(([key, val]) => {
+  const IconComponent = ICON_COMPONENTS[val.iconName];
+  EVENT_ICONS[key] = (
+    <span className={val.color}>
+      <IconComponent className="h-5 w-5" />
+    </span>
+  );
+});
 
 export default function WebhookLogsPage() {
   const [logs, setLogs] = useState<WebhookLog[]>([]);
@@ -102,20 +224,11 @@ export default function WebhookLogsPage() {
     total: 0
   });
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [eventFilter, setEventFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedLog, setSelectedLog] = useState<WebhookLog | null>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
-      const params = new URLSearchParams();
-      if (eventFilter) params.set("event_type", eventFilter);
-      if (statusFilter) params.set("status", statusFilter);
-      if (searchQuery) params.set("room_name", searchQuery);
-
-      const response = await fetch(`/api/ops/live/webhook-logs?${params}`);
+      const response = await fetch(`/api/ops/live/webhook-logs?limit=500`);
       if (!response.ok) throw new Error("Loglar alınamadı");
 
       const data = await response.json();
@@ -131,9 +244,8 @@ export default function WebhookLogsPage() {
       console.error("Logs fetch error:", error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, [eventFilter, statusFilter, searchQuery]);
+  }, []);
 
   useEffect(() => {
     fetchLogs();
@@ -146,33 +258,18 @@ export default function WebhookLogsPage() {
   }, [fetchLogs]);
 
   const handleRefresh = () => {
-    setRefreshing(true);
     fetchLogs();
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Webhook className="h-6 w-6" />
-            Webhook Logları
-          </h1>
-          <p className="text-muted-foreground">LiveKit webhook event&apos;leri ve durumları</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-          Yenile
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Webhook className="h-6 w-6" />
+          Webhook Logları
+        </h1>
+        <p className="text-muted-foreground">LiveKit webhook event&apos;leri ve durumları</p>
       </div>
 
       {/* Stats Cards */}
@@ -222,193 +319,121 @@ export default function WebhookLogsPage() {
         </Card>
       </div>
 
-      {/* Event Type Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Event Dağılımı (Son 24 Saat)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(stats.eventCounts).map(([event, count]) => (
-              <Badge key={event} variant="outline" className="flex items-center gap-1">
-                {EVENT_ICONS[event] || <Webhook className="h-3 w-3" />}
-                {event}: {count}
-              </Badge>
-            ))}
-            {Object.keys(stats.eventCounts).length === 0 && (
-              <span className="text-muted-foreground text-sm">Henüz event yok</span>
-            )}
+      {/* Event Type Distribution - Carousel */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium text-muted-foreground">Event Dağılımı (Son 24 Saat)</h3>
+        {Object.keys(stats.eventCounts).length === 0 ? (
+          <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
+            Henüz event yok
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filtreler
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Room adı ara..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <Select
-              value={eventFilter || "all"}
-              onValueChange={(v) => setEventFilter(v === "all" ? "" : v)}
+        ) : (
+          <TooltipProvider delayDuration={100}>
+            <Carousel
+              opts={{
+                align: "start",
+                loop: false
+              }}
+              className="w-full"
             >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Event tipi" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tümü</SelectItem>
-                <SelectItem value="room_started">room_started</SelectItem>
-                <SelectItem value="room_finished">room_finished</SelectItem>
-                <SelectItem value="participant_joined">participant_joined</SelectItem>
-                <SelectItem value="participant_left">participant_left</SelectItem>
-                <SelectItem value="track_published">track_published</SelectItem>
-                <SelectItem value="track_unpublished">track_unpublished</SelectItem>
-              </SelectContent>
-            </Select>
+              <CarouselContent className="-ml-2 md:-ml-3">
+                {Object.entries(stats.eventCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([event, count]) => {
+                    const total = stats.total || 1;
+                    const percentage = Math.round((count / total) * 100);
+                    const config = getEventConfig(event);
+                    return (
+                      <CarouselItem
+                        key={event}
+                        className="pl-2 md:pl-3 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6"
+                      >
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="relative flex flex-col items-center p-4 rounded-xl border bg-card hover:bg-accent/50 hover:border-primary/50 transition-all cursor-default h-full">
+                              <div
+                                className={`flex items-center justify-center w-11 h-11 rounded-full bg-muted/80 mb-2.5 ${config.color}`}
+                              >
+                                {config.icon}
+                              </div>
+                              <span className="text-2xl font-bold">{count}</span>
+                              <span className="text-xs text-muted-foreground text-center mt-1 line-clamp-2 min-h-8">
+                                {config.name}
+                              </span>
+                              <div className="w-full mt-2.5 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary/70 rounded-full transition-all"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] text-muted-foreground mt-1 font-medium">
+                                {percentage}%
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="bottom"
+                            className="max-w-[280px] p-0 overflow-hidden"
+                          >
+                            <div className="p-3 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`flex items-center justify-center w-8 h-8 rounded-full bg-muted ${config.color}`}
+                                >
+                                  {config.icon}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-sm">{config.name}</p>
+                                  <p className="text-[10px] font-mono text-muted-foreground">
+                                    {event}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {config.description}
+                              </p>
+                              <div className="flex items-center justify-between pt-2 border-t text-xs">
+                                <span className="text-muted-foreground">Toplam</span>
+                                <span className="font-bold">
+                                  {count} event ({percentage}%)
+                                </span>
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </CarouselItem>
+                    );
+                  })}
+              </CarouselContent>
+              <CarouselPrevious className="hidden sm:flex -left-4" />
+              <CarouselNext className="hidden sm:flex -right-4" />
+            </Carousel>
+          </TooltipProvider>
+        )}
+      </div>
 
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
-            >
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Durum" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tümü</SelectItem>
-                <SelectItem value="success">Başarılı</SelectItem>
-                <SelectItem value="error">Hatalı</SelectItem>
-                <SelectItem value="skipped">Atlanan</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {(eventFilter || statusFilter || searchQuery) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setEventFilter("");
-                  setStatusFilter("");
-                  setSearchQuery("");
-                }}
-              >
-                Temizle
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Logs Table */}
+      {/* DataTable */}
       <Card>
-        <CardHeader>
-          <CardTitle>Event Logları</CardTitle>
-          <CardDescription>Son {logs.length} webhook event</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Zaman</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Room</TableHead>
-                <TableHead>Participant</TableHead>
-                <TableHead>Durum</TableHead>
-                <TableHead>Süre</TableHead>
-                <TableHead className="text-right">İşlem</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    Webhook logu bulunamadı
-                  </TableCell>
-                </TableRow>
-              ) : (
-                logs.map((log) => {
-                  const statusConfig =
-                    STATUS_CONFIG[log.processing_status] || STATUS_CONFIG.success;
-
-                  return (
-                    <TableRow
-                      key={log.id}
-                      className={
-                        log.processing_status === "error" ? "bg-red-50 dark:bg-red-950/20" : ""
-                      }
-                    >
-                      <TableCell>
-                        <div className="text-sm">
-                          {format(new Date(log.created_at), "HH:mm:ss")}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(log.created_at), {
-                            addSuffix: true,
-                            locale: tr
-                          })}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {EVENT_ICONS[log.event_type] || <Webhook className="h-4 w-4" />}
-                          <span className="font-mono text-sm">{log.event_type}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-xs">{log.room_name || "-"}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{log.participant_identity || "-"}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusConfig.color}>
-                          {statusConfig.icon}
-                          <span className="ml-1">{log.processing_status}</span>
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {log.processing_time_ms ? (
-                          <span className="text-sm">{log.processing_time_ms}ms</span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
-                          Detay
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+        <CardContent className="pt-6">
+          <DataTable
+            columns={columns}
+            data={logs}
+            isLoading={loading}
+            onRefresh={handleRefresh}
+            onRowClick={(log) => setSelectedLog(log)}
+            meta={{
+              onViewDetail: (log: WebhookLog) => setSelectedLog(log)
+            }}
+          />
         </CardContent>
       </Card>
 
       {/* Log Detail Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedLog && EVENT_ICONS[selectedLog.event_type]}
-              {selectedLog?.event_type}
+              {selectedLog && (EVENT_NAMES_TR[selectedLog.event_type] || selectedLog.event_type)}
             </DialogTitle>
             <DialogDescription>
               {selectedLog &&
@@ -417,24 +442,38 @@ export default function WebhookLogsPage() {
           </DialogHeader>
 
           {selectedLog && (
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
               {/* Meta Info */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Room Name</p>
-                  <p className="font-mono">{selectedLog.room_name || "-"}</p>
+                  <p className="text-muted-foreground text-xs">Oda Adı</p>
+                  <p className="font-mono text-sm truncate">{selectedLog.room_name || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Room SID</p>
-                  <p className="font-mono text-xs">{selectedLog.room_sid || "-"}</p>
+                  <p className="text-muted-foreground text-xs">Oda SID</p>
+                  <p className="font-mono text-xs truncate">{selectedLog.room_sid || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Participant</p>
-                  <p className="font-mono">{selectedLog.participant_identity || "-"}</p>
+                  <p className="text-muted-foreground text-xs">Katılımcı</p>
+                  {selectedLog.participant_profile ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage
+                          src={selectedLog.participant_profile.avatar_url || undefined}
+                        />
+                        <AvatarFallback className="text-[10px]">
+                          {selectedLog.participant_profile.username[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">@{selectedLog.participant_profile.username}</span>
+                    </div>
+                  ) : (
+                    <p className="font-mono text-sm">{selectedLog.participant_identity || "-"}</p>
+                  )}
                 </div>
                 <div>
-                  <p className="text-muted-foreground">İşlem Süresi</p>
-                  <p>
+                  <p className="text-muted-foreground text-xs">İşlem Süresi</p>
+                  <p className="text-sm">
                     {selectedLog.processing_time_ms ? `${selectedLog.processing_time_ms}ms` : "-"}
                   </p>
                 </div>
@@ -444,20 +483,22 @@ export default function WebhookLogsPage() {
               {selectedLog.error_message && (
                 <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
                   <p className="text-sm font-medium text-red-800 dark:text-red-200">Hata Mesajı</p>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1 break-all">
                     {selectedLog.error_message}
                   </p>
                 </div>
               )}
 
               {/* Raw Payload */}
-              <div>
-                <p className="text-sm font-medium mb-2">Raw Payload</p>
-                <ScrollArea className="h-[200px] rounded-lg border bg-muted p-3">
-                  <pre className="text-xs font-mono">
-                    {JSON.stringify(selectedLog.raw_payload, null, 2)}
-                  </pre>
-                </ScrollArea>
+              <div className="flex-1 min-h-0 flex flex-col">
+                <p className="text-sm font-medium mb-2">Ham Veri (Raw Payload)</p>
+                <div className="flex-1 min-h-0 rounded-lg border bg-muted overflow-hidden">
+                  <ScrollArea className="h-[250px] w-full">
+                    <pre className="text-xs font-mono p-3 whitespace-pre-wrap break-all">
+                      {JSON.stringify(selectedLog.raw_payload, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </div>
               </div>
             </div>
           )}

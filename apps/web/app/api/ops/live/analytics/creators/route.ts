@@ -53,12 +53,13 @@ export async function GET(request: Request) {
       .select(`
         id,
         creator_id,
-        type,
-        viewer_count,
-        max_viewer_count,
-        duration_seconds,
+        creator_profile_id,
+        session_type,
+        total_viewers,
+        peak_viewers,
+        total_duration_seconds,
         created_at,
-        profiles:creator_id (
+        profiles:creator_profile_id (
           id,
           username,
           display_name,
@@ -105,11 +106,11 @@ export async function GET(request: Request) {
 
       if (existing) {
         existing.totalSessions++;
-        if (session.type === "video") existing.videoSessions++;
-        if (session.type === "audio_room") existing.audioSessions++;
-        existing.totalViewers += session.viewer_count || 0;
-        existing.maxViewers = Math.max(existing.maxViewers, session.max_viewer_count || 0);
-        existing.totalDuration += session.duration_seconds || 0;
+        if (session.session_type === "video_live") existing.videoSessions++;
+        if (session.session_type === "audio_room") existing.audioSessions++;
+        existing.totalViewers += session.total_viewers || 0;
+        existing.maxViewers = Math.max(existing.maxViewers, session.peak_viewers || 0);
+        existing.totalDuration += session.total_duration_seconds || 0;
         existing.avgDuration = Math.round(existing.totalDuration / existing.totalSessions);
         if (session.created_at > existing.lastSession) {
           existing.lastSession = session.created_at;
@@ -121,12 +122,12 @@ export async function GET(request: Request) {
           display_name: profile.display_name,
           avatar_url: profile.avatar_url,
           totalSessions: 1,
-          videoSessions: session.type === "video" ? 1 : 0,
-          audioSessions: session.type === "audio_room" ? 1 : 0,
-          totalViewers: session.viewer_count || 0,
-          maxViewers: session.max_viewer_count || 0,
-          totalDuration: session.duration_seconds || 0,
-          avgDuration: session.duration_seconds || 0,
+          videoSessions: session.session_type === "video_live" ? 1 : 0,
+          audioSessions: session.session_type === "audio_room" ? 1 : 0,
+          totalViewers: session.total_viewers || 0,
+          maxViewers: session.peak_viewers || 0,
+          totalDuration: session.total_duration_seconds || 0,
+          avgDuration: session.total_duration_seconds || 0,
           lastSession: session.created_at,
         });
       }

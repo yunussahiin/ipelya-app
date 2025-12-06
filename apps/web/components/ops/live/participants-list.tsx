@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { Users, Crown, Mic, Eye, MoreVertical, UserX, Ban } from "lucide-react";
+import { Users, Crown, Mic, Eye, UserX, Ban } from "lucide-react";
 
 import {
   Table,
@@ -16,13 +16,6 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +37,7 @@ interface ParticipantsListProps {
   participants: LiveParticipant[];
   sessionId: string;
   onRefresh?: () => void;
+  compact?: boolean;
 }
 
 type ActionType = "kick" | "ban" | null;
@@ -52,7 +46,8 @@ export function ParticipantsList({
   participants,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   sessionId,
-  onRefresh
+  onRefresh,
+  compact = false
 }: ParticipantsListProps) {
   // _sessionId will be used for future features like sending announcements
   const [selectedParticipant, setSelectedParticipant] = useState<LiveParticipant | null>(null);
@@ -145,6 +140,114 @@ export function ParticipantsList({
   const activeParticipants = participants.filter((p) => p.is_active);
   const inactiveParticipants = participants.filter((p) => !p.is_active);
 
+  // Compact mod - sidebar için
+  if (compact) {
+    return (
+      <>
+        <div className="space-y-2">
+          {activeParticipants.length === 0 && inactiveParticipants.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Henüz katılımcı yok</p>
+          ) : (
+            [...activeParticipants, ...inactiveParticipants].map((participant) => (
+              <div
+                key={participant.id}
+                className={`flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 ${
+                  !participant.is_active ? "opacity-50" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarImage src={participant.profile?.avatar_url || undefined} />
+                    <AvatarFallback className="text-xs">
+                      {participant.profile?.username?.[0]?.toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      {getRoleIcon(participant.role)}
+                      <span className="text-sm font-medium truncate">
+                        @{participant.profile?.username || "unknown"}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {formatWatchTime(
+                        (participant as LiveParticipant & { watch_time_seconds?: number })
+                          .watch_time_seconds ||
+                          participant.total_watch_time_seconds ||
+                          0
+                      )}
+                    </span>
+                  </div>
+                </div>
+                {participant.is_active && participant.role !== "host" && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-orange-500"
+                      onClick={() => {
+                        setSelectedParticipant(participant);
+                        setActionType("kick");
+                      }}
+                      title="Çıkar"
+                    >
+                      <UserX className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setSelectedParticipant(participant);
+                        setActionType("ban");
+                      }}
+                      title="Yasakla"
+                    >
+                      <Ban className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <AlertDialog
+          open={!!selectedParticipant && !!actionType}
+          onOpenChange={(open) => !open && setSelectedParticipant(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {actionType === "kick" ? "Katılımcıyı Çıkar" : "Katılımcıyı Yasakla"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {actionType === "kick"
+                  ? `@${selectedParticipant?.profile?.username} kullanıcısını oturumdan çıkarmak istediğinize emin misiniz?`
+                  : `@${selectedParticipant?.profile?.username} kullanıcısını yasaklamak istediğinize emin misiniz?`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={loading}>İptal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleAction}
+                disabled={loading}
+                className={
+                  actionType === "ban"
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : ""
+                }
+              >
+                {loading ? "..." : actionType === "kick" ? "Çıkar" : "Yasakla"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  // Normal mod - tam tablo görünümü
   return (
     <>
       <div className="rounded-lg border">
@@ -216,35 +319,32 @@ export function ParticipantsList({
                 </TableCell>
                 <TableCell>
                   {participant.is_active && participant.role !== "host" && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedParticipant(participant);
-                            setActionType("kick");
-                          }}
-                        >
-                          <UserX className="mr-2 h-4 w-4" />
-                          Çıkar (Kick)
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => {
-                            setSelectedParticipant(participant);
-                            setActionType("ban");
-                          }}
-                        >
-                          <Ban className="mr-2 h-4 w-4" />
-                          Yasakla (Ban)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-orange-500"
+                        onClick={() => {
+                          setSelectedParticipant(participant);
+                          setActionType("kick");
+                        }}
+                        title="Çıkar"
+                      >
+                        <UserX className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          setSelectedParticipant(participant);
+                          setActionType("ban");
+                        }}
+                        title="Yasakla"
+                      >
+                        <Ban className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>

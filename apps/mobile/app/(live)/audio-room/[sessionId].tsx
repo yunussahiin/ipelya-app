@@ -149,12 +149,13 @@ export default function AudioRoomViewerScreen() {
       connect();
     }
     return () => {
-      if (sessionId) {
+      if (sessionId && hasConnectedRef.current) {
+        hasConnectedRef.current = false;
         leaveSession(sessionId);
         disconnect();
       }
     };
-  }, [sessionId, joinSession, leaveSession, disconnect, connect]);
+  }, [sessionId]); // joinSession, leaveSession, disconnect, connect are stable
 
   // Duration timer - sessionData'dan startedAt kullan
   useEffect(() => {
@@ -266,6 +267,7 @@ export default function AudioRoomViewerScreen() {
           onPushToTalkStart={handlePushToTalkStart}
           onPushToTalkEnd={handlePushToTalkEnd}
           onToggleMicrophone={handleToggleMicrophone}
+          onReport={() => setShowReportModal(true)}
           bottomInset={insets.bottom}
         />
       </View>

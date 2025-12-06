@@ -15,7 +15,7 @@ const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_UR
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { roomName, sessionId } = body;
+    const { roomName } = body;
 
     if (!roomName) {
       return NextResponse.json({ error: 'roomName is required' }, { status: 400 });
@@ -71,18 +71,8 @@ export async function POST(request: NextRequest) {
 
     const token = await at.toJwt();
 
-    // Admin log kaydet
-    if (sessionId) {
-      await adminSupabase.from('live_admin_logs').insert({
-        admin_id: user.id,
-        action: 'view_session',
-        target_type: 'session',
-        target_id: sessionId,
-        metadata: { room_name: roomName },
-        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-        user_agent: request.headers.get('user-agent'),
-      });
-    }
+    // NOT: view_session logu kaldırıldı - token yenileme nedeniyle çok fazla log oluşuyordu
+    // Sadece önemli aksiyonlar (terminate, kick, ban vb.) loglanmalı
 
     return NextResponse.json({
       token,

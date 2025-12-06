@@ -37,31 +37,31 @@ export async function GET() {
     // Bugünkü istatistikler
     const { data: todaySessions } = await supabase
       .from("live_sessions")
-      .select("id, type, viewer_count, duration_seconds")
+      .select("id, session_type, peak_viewers, total_duration_seconds")
       .gte("created_at", today.toISOString());
 
     // Haftalık istatistikler
     const { data: weekSessions } = await supabase
       .from("live_sessions")
-      .select("id, type, viewer_count, duration_seconds, created_at")
+      .select("id, session_type, peak_viewers, total_duration_seconds, created_at")
       .gte("created_at", weekAgo.toISOString());
 
     // Aylık istatistikler
     const { data: monthSessions } = await supabase
       .from("live_sessions")
-      .select("id, type, viewer_count, duration_seconds, created_at")
+      .select("id, session_type, peak_viewers, total_duration_seconds, created_at")
       .gte("created_at", monthAgo.toISOString());
 
     // Bugünkü çağrılar
     const { data: todayCalls } = await supabase
       .from("calls")
-      .select("id, type, duration_seconds")
+      .select("id, call_type, duration_seconds")
       .gte("created_at", today.toISOString());
 
     // Haftalık çağrılar
     const { data: weekCalls } = await supabase
       .from("calls")
-      .select("id, type, duration_seconds, created_at")
+      .select("id, call_type, duration_seconds, created_at")
       .gte("created_at", weekAgo.toISOString());
 
     // Haftalık günlük breakdown
@@ -83,30 +83,30 @@ export async function GET() {
       dailyBreakdown.push({
         date: date.toISOString().split("T")[0],
         dayName: date.toLocaleDateString("tr-TR", { weekday: "short" }),
-        videoSessions: daySessions.filter(s => s.type === "video").length,
-        audioSessions: daySessions.filter(s => s.type === "audio_room").length,
+        videoSessions: daySessions.filter(s => s.session_type === "video_live").length,
+        audioSessions: daySessions.filter(s => s.session_type === "audio_room").length,
         calls: dayCalls.length,
-        totalViewers: daySessions.reduce((sum, s) => sum + (s.viewer_count || 0), 0),
-        totalDuration: daySessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0),
+        totalViewers: daySessions.reduce((sum, s) => sum + (s.peak_viewers || 0), 0),
+        totalDuration: daySessions.reduce((sum, s) => sum + (s.total_duration_seconds || 0), 0),
       });
     }
 
     // Oturum türü dağılımı
     const typeDistribution = {
-      video: (monthSessions || []).filter(s => s.type === "video").length,
-      audio_room: (monthSessions || []).filter(s => s.type === "audio_room").length,
+      video: (monthSessions || []).filter(s => s.session_type === "video_live").length,
+      audio_room: (monthSessions || []).filter(s => s.session_type === "audio_room").length,
       calls: (weekCalls || []).length,
     };
 
     // Özet metrikleri hesapla
     const calculateStats = (sessions: typeof todaySessions) => ({
       totalSessions: sessions?.length || 0,
-      videoSessions: sessions?.filter(s => s.type === "video").length || 0,
-      audioSessions: sessions?.filter(s => s.type === "audio_room").length || 0,
-      totalViewers: sessions?.reduce((sum, s) => sum + (s.viewer_count || 0), 0) || 0,
-      totalDuration: sessions?.reduce((sum, s) => sum + (s.duration_seconds || 0), 0) || 0,
+      videoSessions: sessions?.filter(s => s.session_type === "video_live").length || 0,
+      audioSessions: sessions?.filter(s => s.session_type === "audio_room").length || 0,
+      totalViewers: sessions?.reduce((sum, s) => sum + (s.peak_viewers || 0), 0) || 0,
+      totalDuration: sessions?.reduce((sum, s) => sum + (s.total_duration_seconds || 0), 0) || 0,
       avgDuration: sessions?.length 
-        ? Math.round((sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0)) / sessions.length)
+        ? Math.round((sessions.reduce((sum, s) => sum + (s.total_duration_seconds || 0), 0)) / sessions.length)
         : 0,
     });
 

@@ -5,6 +5,7 @@
  * Video, audio ve çağrı oranlarını gösterir
  */
 
+import { useTheme } from "next-themes";
 import { Pie, PieChart, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Video, Mic, Phone } from "lucide-react";
@@ -19,10 +20,18 @@ interface SessionTypesPieProps {
   data: TypeDistribution;
 }
 
-const COLORS = {
-  video: "hsl(var(--chart-1))",
-  audio_room: "hsl(var(--chart-2))",
-  calls: "hsl(var(--chart-3))"
+// Light ve Dark mode için ayrı renkler
+const CHART_COLORS = {
+  light: {
+    video: "#3b82f6", // blue-500
+    audio_room: "#22c55e", // green-500
+    calls: "#f97316" // orange-500
+  },
+  dark: {
+    video: "#60a5fa", // blue-400
+    audio_room: "#4ade80", // green-400
+    calls: "#fb923c" // orange-400
+  }
 };
 
 const LABELS = {
@@ -32,12 +41,16 @@ const LABELS = {
 };
 
 export function SessionTypesPie({ data }: SessionTypesPieProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const colors = isDark ? CHART_COLORS.dark : CHART_COLORS.light;
+
   const total = data.video + data.audio_room + data.calls;
 
   const chartData = [
-    { name: LABELS.video, value: data.video, fill: COLORS.video },
-    { name: LABELS.audio_room, value: data.audio_room, fill: COLORS.audio_room },
-    { name: LABELS.calls, value: data.calls, fill: COLORS.calls }
+    { name: LABELS.video, value: data.video, fill: colors.video, key: "video" },
+    { name: LABELS.audio_room, value: data.audio_room, fill: colors.audio_room, key: "audio_room" },
+    { name: LABELS.calls, value: data.calls, fill: colors.calls, key: "calls" }
   ].filter((item) => item.value > 0);
 
   const getPercentage = (value: number) => {
@@ -97,7 +110,7 @@ export function SessionTypesPie({ data }: SessionTypesPieProps) {
             <div className="flex items-center gap-3">
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{ backgroundColor: COLORS.video }}
+                style={{ backgroundColor: colors.video }}
               >
                 <Video className="h-4 w-4 text-white" />
               </div>
@@ -112,7 +125,7 @@ export function SessionTypesPie({ data }: SessionTypesPieProps) {
             <div className="flex items-center gap-3">
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{ backgroundColor: COLORS.audio_room }}
+                style={{ backgroundColor: colors.audio_room }}
               >
                 <Mic className="h-4 w-4 text-white" />
               </div>
@@ -127,7 +140,7 @@ export function SessionTypesPie({ data }: SessionTypesPieProps) {
             <div className="flex items-center gap-3">
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{ backgroundColor: COLORS.calls }}
+                style={{ backgroundColor: colors.calls }}
               >
                 <Phone className="h-4 w-4 text-white" />
               </div>

@@ -28,16 +28,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useTheme } from "@/theme/ThemeProvider";
 import { LiveChat, type ChatMessage } from "@/components/live";
-import { ViewersSheet } from "./ViewersSheet";
+import { ViewersSheet, type Viewer } from "./ViewersSheet";
 import { GiftsSheet, mockGifts, type GiftItem } from "./GiftsSheet";
-
-interface Viewer {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar?: string;
-  joinedAt: string;
-}
 
 interface BroadcastLiveOverlayProps {
   messages: ChatMessage[];
@@ -61,6 +53,8 @@ interface BroadcastLiveOverlayProps {
   onEndBroadcast?: () => void;
   /** Video yükseklik yüzdesi (0-1) - parent'a bildirir */
   onVideoHeightChange?: (heightPercent: number) => void;
+  /** İzleyiciyi şikayet et */
+  onReportViewer?: (viewer: Viewer) => void;
 }
 
 export interface BroadcastLiveOverlayRef {
@@ -87,7 +81,8 @@ export const BroadcastLiveOverlay = forwardRef<BroadcastLiveOverlayRef, Broadcas
       onToggleMic,
       onFlipCamera,
       onEndBroadcast,
-      onVideoHeightChange
+      onVideoHeightChange,
+      onReportViewer
     },
     ref
   ) => {
@@ -260,6 +255,7 @@ export const BroadcastLiveOverlay = forwardRef<BroadcastLiveOverlayRef, Broadcas
             broadcastDuration={duration}
             broadcastType={broadcastType}
             videoTrackRef={localVideoTrack}
+            onReportViewer={onReportViewer}
           />
           <GiftsSheet ref={giftsSheetRef} gifts={gifts} totalValue={totalGiftValue} />
         </>
@@ -368,6 +364,7 @@ export const BroadcastLiveOverlay = forwardRef<BroadcastLiveOverlayRef, Broadcas
           broadcastDuration={duration}
           broadcastType={broadcastType}
           videoTrackRef={localVideoTrack}
+          onReportViewer={onReportViewer}
         />
         <GiftsSheet ref={giftsSheetRef} gifts={gifts} totalValue={totalGiftValue} />
       </>

@@ -43,11 +43,11 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both;
   @keyframes shimmer-sweep {
-  from {
-    background-position: 150% 0;
+    from {
+      background-position: 150% 0;
     }
-  to {
-    background-position: -100% 0;
+    to {
+      background-position: -100% 0;
     }
   }
 }

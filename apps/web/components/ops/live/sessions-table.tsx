@@ -68,14 +68,14 @@ export function SessionsTable({
     toast.success("Room ID kopyalandı");
   };
 
-  const handleTerminateConfirm = async (reason: string) => {
+  const handleTerminateConfirm = async (reason: string, adminNote?: string) => {
     if (!terminateSession) return;
 
     try {
       const response = await fetch(`/api/ops/live/sessions/${terminateSession.id}/terminate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason })
+        body: JSON.stringify({ reason, adminNote })
       });
 
       if (!response.ok) {
