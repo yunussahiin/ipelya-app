@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export type PaymentMethodType = 'bank' | 'crypto';
 export type PaymentMethodStatus = 'pending' | 'approved' | 'rejected';
@@ -41,7 +42,7 @@ export function usePaymentMethods() {
       if (fnError) throw fnError;
       setMethods(data.methods || []);
     } catch (err: any) {
-      console.error('[usePaymentMethods] Load error:', err);
+      logger.error('Payment methods load error', err, { tag: 'Payment' });
       setError(err.message);
     } finally {
       setIsLoading(false);

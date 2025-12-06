@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 interface FollowChangePayload {
   id: string;
@@ -51,13 +52,8 @@ export function useFollowersListRealtime({
             table: "followers",
             filter: `following_id=eq.${userId}`
           },
-          (payload) => {
-            const newData = payload.new as FollowChangePayload;
-            console.log("📊 New follower added:", newData);
-            
-            // Refresh followers list to show new follower
+          () => {
             if (onListRefresh) {
-              console.log("🔄 Refreshing followers list");
               onListRefresh();
             }
           }
@@ -75,9 +71,6 @@ export function useFollowersListRealtime({
           },
           (payload) => {
             const newData = payload.new as FollowChangePayload;
-            console.log("📊 Current user followed:", newData);
-            
-            // Notify parent component
             if (onFollowChange) {
               onFollowChange(newData.following_id, true);
             }
@@ -95,27 +88,15 @@ export function useFollowersListRealtime({
           },
           (payload) => {
             const oldData = payload.old as FollowChangePayload;
-            console.log("🗑️ Unfollow event:", oldData);
-
-            // Check if this affects current user's follows
-            if (oldData.follower_id === currentUserId) {
-              console.log("📊 User unfollowed:", oldData.following_id);
-              if (onFollowChange) {
-                onFollowChange(oldData.following_id, false);
-              }
+            if (oldData.follower_id === currentUserId && onFollowChange) {
+              onFollowChange(oldData.following_id, false);
             }
           }
         );
 
-        await channel.subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            console.log("✅ Followers list realtime subscription active");
-          } else if (status === "CHANNEL_ERROR") {
-            console.error("❌ Followers list realtime subscription error");
-          }
-        });
+        await channel.subscribe();
       } catch (err) {
-        console.error("❌ Followers list realtime subscription error:", err);
+        logger.error('Followers list realtime subscription error', err, { tag: 'Followers' });
       }
     };
 

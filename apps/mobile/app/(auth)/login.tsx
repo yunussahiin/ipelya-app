@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
+import { Pressable, Text, StyleSheet, View, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import { AuthScreen } from "@/components/layout/AuthScreen";
 import { AuthTextField } from "@/components/forms/AuthTextField";
 import { useAuthActions } from "@/hooks/useAuthActions";
 import { LAYOUT_CONSTANTS } from "@/theme/layout";
+import { ButtonLoader } from "@/components/ui";
 
 const schema = z.object({
   email: z.string().email("Geçerli bir e-posta gir"),
@@ -28,12 +29,18 @@ export default function LoginScreen() {
     error,
     setError
   } = useAuthActions();
-  const { control, handleSubmit, formState, watch } = useForm<FormValues>({
+  const { control, handleSubmit, formState, watch, setValue, trigger } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
     mode: "onBlur"
   });
   const email = watch("email");
+
+  const fillTestAccount = async (testEmail: string, testPassword: string) => {
+    setValue("email", testEmail);
+    setValue("password", testPassword);
+    await trigger();
+  };
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     await signIn(email, password);
@@ -64,8 +71,7 @@ export default function LoginScreen() {
 
   return (
     <AuthScreen
-      title="Tekrar hoş geldin"
-      subtitle="Shadow mode ve token ekonomisine kaldığın yerden devam et."
+      title=""
       footer={
         <Text style={styles.footerText}>
           Hesabın yok mu?{" "}
@@ -75,6 +81,35 @@ export default function LoginScreen() {
         </Text>
       }
     >
+      {/* Test Buttons */}
+      <View style={styles.testButtonsContainer}>
+        <Pressable
+          onPress={() => fillTestAccount("yunussahin38@gmail.com", "yunus123")}
+          disabled={isLoading}
+          style={({ pressed }) => [
+            styles.testButton,
+            {
+              opacity: isLoading || pressed ? 0.7 : 1
+            }
+          ]}
+        >
+          <Text style={styles.testButtonText}>Test 1: yunussahin38</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => fillTestAccount("hadesbay@gmail.com", "yunus123")}
+          disabled={isLoading}
+          style={({ pressed }) => [
+            styles.testButton,
+            {
+              opacity: isLoading || pressed ? 0.7 : 1
+            }
+          ]}
+        >
+          <Text style={styles.testButtonText}>Test 2: hadesbay</Text>
+        </Pressable>
+      </View>
+
       <Controller
         control={control}
         name="email"
@@ -154,7 +189,7 @@ export default function LoginScreen() {
         accessibilityState={{ disabled: isLoading || !formState.isValid }}
       >
         {isLoading ? (
-          <ActivityIndicator color={colors.buttonPrimaryText} size="small" />
+          <ButtonLoader color={colors.buttonPrimaryText} />
         ) : (
           <Text style={styles.loginButtonText}>Giriş yap</Text>
         )}
@@ -329,6 +364,27 @@ function createStyles(colors: Record<string, string>) {
     appleButton: {
       width: "100%",
       height: 50
+    },
+    testButtonsContainer: {
+      marginTop: 16,
+      gap: 8
+    },
+    testButton: {
+      backgroundColor: `${colors.accent}30`,
+      borderRadius: LAYOUT_CONSTANTS.radiusMedium,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.accent,
+      minHeight: LAYOUT_CONSTANTS.buttonMinHeight
+    },
+    testButtonText: {
+      color: colors.accent,
+      fontWeight: "600",
+      fontSize: 14,
+      lineHeight: 20
     }
   });
 }

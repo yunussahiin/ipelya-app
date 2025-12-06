@@ -5,6 +5,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit } from "./audit.service";
+import { logger } from "@/utils/logger";
 
 export interface SessionData {
   id: string;
@@ -38,11 +39,9 @@ export async function createSession(
       .single();
 
     if (error) {
-      console.error("❌ Session creation error:", error);
+      logger.error("Session creation error", error, { tag: "Session" });
       return { success: false, error: error.message };
     }
-
-    console.log(`✅ Session created: ${data.id}`);
     
     // Log session start
     await logAudit(userId, "session_started", profileType, {
@@ -53,7 +52,7 @@ export async function createSession(
     return { success: true, sessionId: data.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Session creation failed:", errorMessage);
+    logger.error("Session creation failed", error, { tag: "Session" });
     return { success: false, error: errorMessage };
   }
 }
@@ -73,13 +72,13 @@ export async function updateSessionActivity(sessionId: string): Promise<boolean>
       .eq("id", sessionId);
 
     if (error) {
-      console.error("❌ Session activity update error:", error);
+      logger.error("Session activity update error", error, { tag: "Session" });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("❌ Session activity update failed:", error);
+    logger.error("Session activity update failed", error, { tag: "Session" });
     return false;
   }
 }
@@ -96,7 +95,7 @@ export async function checkSessionTimeout(sessionId: string, timeoutMinutes: num
       .single();
 
     if (error) {
-      console.error("❌ Session check error:", error);
+      logger.error("Session check error", error, { tag: "Session" });
       return true; // Assume expired if error
     }
 
@@ -116,7 +115,7 @@ export async function checkSessionTimeout(sessionId: string, timeoutMinutes: num
 
     return false;
   } catch (error) {
-    console.error("❌ Session timeout check failed:", error);
+    logger.error("Session timeout check failed", error, { tag: "Session" });
     return true; // Assume expired if error
   }
 }
@@ -136,7 +135,7 @@ export async function endSession(
       .single();
 
     if (fetchError) {
-      console.error("❌ Session fetch error:", fetchError);
+      logger.error("Session fetch error", fetchError, { tag: "Session" });
       return false;
     }
 
@@ -148,11 +147,9 @@ export async function endSession(
       .eq("id", sessionId);
 
     if (error) {
-      console.error("❌ Session end error:", error);
+      logger.error("Session end error", error, { tag: "Session" });
       return false;
     }
-
-    console.log(`✅ Session ended: ${sessionId} (reason: ${reason})`);
 
     // Log session end
     const action = reason === "expired" ? "session_timeout" : "session_ended";
@@ -163,7 +160,7 @@ export async function endSession(
 
     return true;
   } catch (error) {
-    console.error("❌ Session end failed:", error);
+    logger.error("Session end failed", error, { tag: "Session" });
     return false;
   }
 }
@@ -181,13 +178,13 @@ export async function getActiveSessions(userId: string): Promise<SessionData[]> 
       .order("started_at", { ascending: false });
 
     if (error) {
-      console.error("❌ Get active sessions error:", error);
+      logger.error("Get active sessions error", error, { tag: "Session" });
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("❌ Get active sessions failed:", error);
+    logger.error("Get active sessions failed", error, { tag: "Session" });
     return [];
   }
 }
@@ -204,11 +201,9 @@ export async function invalidateAllSessions(userId: string): Promise<boolean> {
       .eq("status", "active");
 
     if (error) {
-      console.error("❌ Invalidate all sessions error:", error);
+      logger.error("Invalidate all sessions error", error, { tag: "Session" });
       return false;
     }
-
-    console.log(`✅ All sessions invalidated for user: ${userId}`);
     
     // Log session invalidation
     const sessionEndedAction = "session_ended" as const;
@@ -218,7 +213,7 @@ export async function invalidateAllSessions(userId: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error("❌ Invalidate all sessions failed:", error);
+    logger.error("Invalidate all sessions failed", error, { tag: "Session" });
     return false;
   }
 }
@@ -238,18 +233,13 @@ export async function cleanupExpiredSessions(): Promise<number> {
       .select();
 
     if (error) {
-      console.error("❌ Cleanup expired sessions error:", error);
+      logger.error("Cleanup expired sessions error", error, { tag: "Session" });
       return 0;
     }
 
-    const count = data?.length || 0;
-    if (count > 0) {
-      console.log(`🗑️ Cleaned up ${count} expired sessions`);
-    }
-
-    return count;
+    return data?.length || 0;
   } catch (error) {
-    console.error("❌ Cleanup expired sessions failed:", error);
+    logger.error("Cleanup expired sessions failed", error, { tag: "Session" });
     return 0;
   }
 }

@@ -63,7 +63,7 @@ export function FeedItem({ item }: FeedItemProps) {
         <View>
           <PostCard
             post={item.content}
-            onLike={() => handleLike(item.content?.is_liked || false)}
+            onLike={handleLike}
             onComment={handleComment}
             onShare={handleShare}
             onUserPress={handleUserPress}
@@ -76,7 +76,7 @@ export function FeedItem({ item }: FeedItemProps) {
         <View>
           <MiniPostCard
             miniPost={item.content}
-            onLike={() => handleLike(item.content?.is_liked || false)}
+            onLike={handleLike}
             onComment={handleComment}
             onShare={handleShare}
             onUserPress={handleUserPress}

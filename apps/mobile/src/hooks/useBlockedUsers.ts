@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export interface BlockedUser {
   id: string;
@@ -36,14 +37,11 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
     setLoading(true);
     setError(null);
     try {
-      console.log("📋 Loading blocked users");
-
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) {
         throw new Error(`Auth error: ${authError?.message || "No user found"}`);
       }
       const user = authData.user;
-      console.log(`👤 User ID: ${user.id}`);
 
       const { data, error: fetchError } = await supabase
         .from("blocked_users")
@@ -76,23 +74,16 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
           blocked_profile: profilesData?.find((p) => p.user_id === blocked.blocked_id)
         }));
 
-        console.log(`✅ Loaded ${enrichedData.length} blocked users with profiles`);
         setBlockedUsers((enrichedData as unknown as BlockedUser[]) || []);
         return;
       }
 
-      if (fetchError) {
-        console.error(`📊 Fetch error details:`, fetchError);
-        throw fetchError;
-      }
+      if (fetchError) throw fetchError;
 
-      // Eğer engellenen kullanıcı yoksa
-      console.log(`✅ Loaded 0 blocked users`);
       setBlockedUsers([]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load blocked users";
-      console.error(`❌ Load error: ${message}`);
-      console.error(`📊 Full error:`, err);
+      logger.error('Load blocked users error', err, { tag: 'BlockedUsers' });
       setError(message);
     } finally {
       setLoading(false);

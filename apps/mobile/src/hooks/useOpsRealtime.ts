@@ -14,6 +14,7 @@ import { useShadowStore } from '@/store/shadow.store';
 import { saveLockInfo, clearLockInfo, formatLockDuration } from '@/services/user-lock.service';
 import { updateRateLimitConfigDynamic, RateLimitConfig } from '@/services/rate-limit.service';
 import { updateAnomalyConfig, AnomalyDetectionConfig } from '@/services/anomaly-detection.service';
+import { logger } from '@/utils/logger';
 
 /**
  * Setup realtime listener for ops commands from web-ops
@@ -22,12 +23,9 @@ import { updateAnomalyConfig, AnomalyDetectionConfig } from '@/services/anomaly-
  */
 export function useOpsRealtime(userId: string | undefined) {
   useEffect(() => {
-    if (!userId) {
-      console.log('⚠️ useOpsRealtime: userId not available');
-      return;
-    }
+    if (!userId) return;
 
-    console.log('🔗 Setting up realtime listener for ops commands...');
+    logger.debug('Setting up ops realtime listener', { tag: 'OpsRealtime' });
 
     // Subscribe to ops broadcast channel
     const channel = supabase.channel(`ops:user:${userId}`);
@@ -37,11 +35,7 @@ export function useOpsRealtime(userId: string | undefined) {
         'broadcast',
         { event: 'session_terminated' },
         async (payload) => {
-          console.log('📡 Received: session_terminated', JSON.stringify(payload, null, 2));
-          console.log('📡 Payload structure:', { 
-            hasPayload: !!payload.payload, 
-            keys: Object.keys(payload) 
-          });
+          logger.debug('Received: session_terminated', { tag: 'OpsRealtime' });
           await handleSessionTerminated(payload.payload as Record<string, unknown>, userId);
         }
       )
@@ -49,7 +43,7 @@ export function useOpsRealtime(userId: string | undefined) {
         'broadcast',
         { event: 'user_locked' },
         (payload) => {
-          console.log('📡 Received: user_locked', payload);
+          logger.debug('Received: user_locked', { tag: 'OpsRealtime' });
           handleUserLocked(payload.payload as Record<string, unknown>, userId);
         }
       )
@@ -57,7 +51,7 @@ export function useOpsRealtime(userId: string | undefined) {
         'broadcast',
         { event: 'user_unlocked' },
         (payload) => {
-          console.log('📡 Received: user_unlocked', payload);
+          logger.debug('Received: user_unlocked', { tag: 'OpsRealtime' });
           handleUserUnlocked(payload.payload as Record<string, unknown>, userId);
         }
       )
@@ -65,7 +59,7 @@ export function useOpsRealtime(userId: string | undefined) {
         'broadcast',
         { event: 'rate_limit_config_updated' },
         (payload) => {
-          console.log('📡 Received: rate_limit_config_updated', payload);
+          logger.debug('Received: rate_limit_config_updated', { tag: 'OpsRealtime' });
           handleRateLimitConfigUpdated(payload.payload as Record<string, unknown>);
         }
       )
@@ -73,7 +67,7 @@ export function useOpsRealtime(userId: string | undefined) {
         'broadcast',
         { event: 'anomaly_detection_config_updated' },
         (payload) => {
-          console.log('📡 Received: anomaly_detection_config_updated', payload);
+          logger.debug('Received: anomaly_detection_config_updated', { tag: 'OpsRealtime' });
           handleAnomalyConfigUpdated(payload.payload as Record<string, unknown>);
         }
       )
@@ -81,22 +75,19 @@ export function useOpsRealtime(userId: string | undefined) {
         'broadcast',
         { event: 'anomaly_alert' },
         (payload) => {
-          console.log('📡 Received: anomaly_alert', payload);
+          logger.debug('Received: anomaly_alert', { tag: 'OpsRealtime' });
           handleAnomalyAlert(payload.payload as Record<string, unknown>);
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Realtime listener connected');
+          logger.debug('Ops realtime connected', { tag: 'OpsRealtime' });
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Realtime listener error');
-        } else if (status === 'CLOSED') {
-          console.log('🔌 Realtime listener disconnected');
+          logger.error('Ops realtime error', undefined, { tag: 'OpsRealtime' });
         }
       });
 
     return () => {
-      console.log('🔌 Unsubscribing from realtime listener...');
       channel.unsubscribe();
     };
   }, [userId]);
@@ -113,27 +104,9 @@ async function handleSessionTerminated(
     const sessionId = (payload.sessionId || payload.session_id) as string;
     const reason = (payload.reason || 'Unknown') as string;
 
-    console.log(
-      `⚠️ Session terminated by ops: ${sessionId} (reason: ${reason})`
-    );
-
-    // 1. End session locally
-    console.log(`🔴 Ending session: ${sessionId}`);
     await endSession(sessionId, 'invalidated');
-
-    // 2. Disable shadow mode
-    console.log('🔴 Disabling shadow mode');
     useShadowStore.setState({ enabled: false, sessionId: null });
-
-    // 3. Log audit event
-    console.log('🔴 Logging audit event');
-    await logAudit(userId, 'session_terminated_by_ops', 'real', {
-      sessionId,
-      reason,
-    });
-
-    // 4. Show alert to user
-    console.log('🔴 Showing alert');
+    await logAudit(userId, 'session_terminated_by_ops', 'real', { sessionId, reason });
     Alert.alert(
       'Oturum Sonlandırıldı',
       `Ops tarafından oturumunuz sonlandırıldı.\n\nNeden: ${reason}`,
@@ -147,9 +120,8 @@ async function handleSessionTerminated(
       ]
     );
 
-    console.log('✅ Session terminated successfully');
   } catch (error) {
-    console.error('❌ Error handling session termination:', error);
+    logger.error('Error handling session termination', error, { tag: 'OpsRealtime' });
   }
 }
 
@@ -165,9 +137,6 @@ async function handleUserLocked(
     const duration = payload.duration as number | null;
     const lockedUntil = payload.locked_until as string | null;
 
-    console.log(`🔒 User locked by ops: ${reason} (duration: ${duration ? `${duration} minutes` : 'permanent'})`);
-
-    // 1. Save lock info to local storage
     await saveLockInfo({
       reason,
       lockedAt: new Date().toISOString(),
@@ -205,9 +174,8 @@ async function handleUserLocked(
       ]
     );
 
-    console.log('✅ User lockout handled');
   } catch (error) {
-    console.error('❌ Error handling user lockout:', error);
+    logger.error('Error handling user lockout', error, { tag: 'OpsRealtime' });
   }
 }
 
@@ -219,9 +187,6 @@ async function handleUserUnlocked(
   userId: string
 ) {
   try {
-    console.log('🔓 User unlocked by ops');
-
-    // 1. Clear lock info from local storage
     await clearLockInfo();
 
     // 2. Log audit event
@@ -239,9 +204,8 @@ async function handleUserUnlocked(
       ]
     );
 
-    console.log('✅ User unlock handled');
   } catch (error) {
-    console.error('❌ Error handling user unlock:', error);
+    logger.error('Error handling user unlock', error, { tag: 'OpsRealtime' });
   }
 }
 
@@ -253,14 +217,9 @@ function handleRateLimitConfigUpdated(payload: Record<string, unknown>) {
     const config = payload.config as Partial<RateLimitConfig>;
     const type = payload.type as 'pin' | 'biometric';
 
-    console.log(`⚙️ Rate limit config updated for ${type}:`, config);
-
-    // Apply config update
     updateRateLimitConfigDynamic(type, config);
-
-    console.log('✅ Rate limit config updated successfully');
   } catch (error) {
-    console.error('❌ Error handling rate limit config update:', error);
+    logger.error('Error handling rate limit config update', error, { tag: 'OpsRealtime' });
   }
 }
 
@@ -271,14 +230,9 @@ function handleAnomalyConfigUpdated(payload: Record<string, unknown>) {
   try {
     const config = payload.config as Partial<AnomalyDetectionConfig>;
 
-    console.log('⚙️ Anomaly detection config updated:', config);
-
-    // Apply config update
     updateAnomalyConfig(config);
-
-    console.log('✅ Anomaly detection config updated successfully');
   } catch (error) {
-    console.error('❌ Error handling anomaly config update:', error);
+    logger.error('Error handling anomaly config update', error, { tag: 'OpsRealtime' });
   }
 }
 
@@ -287,15 +241,8 @@ function handleAnomalyConfigUpdated(payload: Record<string, unknown>) {
  */
 function handleAnomalyAlert(payload: Record<string, unknown>) {
   try {
-    const alertType = payload.type as string;
-    const severity = payload.severity as string;
     const message = payload.message as string;
 
-    console.log(
-      `🚨 Anomaly alert received: ${alertType} (${severity})`
-    );
-
-    // Show notification to user
     Alert.alert(
       '🚨 Şüpheli Aktivite Algılandı',
       message,
@@ -307,8 +254,7 @@ function handleAnomalyAlert(payload: Record<string, unknown>) {
       ]
     );
 
-    console.log('✅ Anomaly alert handled');
   } catch (error) {
-    console.error('❌ Error handling anomaly alert:', error);
+    logger.error('Error handling anomaly alert', error, { tag: 'OpsRealtime' });
   }
 }

@@ -265,15 +265,11 @@ export function useLivenessDetection() {
     const rightEye = face.rightEyeOpenProbability;
     
     if (blinkStateRef.current === 'waiting_close') {
-      // Gözler kapalı mı?
       if (leftEye < THRESHOLDS.eyeClosedThreshold && rightEye < THRESHOLDS.eyeClosedThreshold) {
         blinkStateRef.current = 'waiting_open';
-        console.log('[Liveness] Blink: Eyes closed detected');
       }
     } else if (blinkStateRef.current === 'waiting_open') {
-      // Gözler tekrar açıldı mı?
       if (leftEye > THRESHOLDS.eyeOpenThreshold && rightEye > THRESHOLDS.eyeOpenThreshold) {
-        console.log('[Liveness] Blink: Eyes opened - BLINK DETECTED!');
         return true;
       }
     }
@@ -289,10 +285,7 @@ export function useLivenessDetection() {
     
     if (smiling > THRESHOLDS.smileThreshold) {
       smileCountRef.current++;
-      console.log(`[Liveness] Smile: ${smileCountRef.current}/${THRESHOLDS.smileFrameCount}`);
-      
       if (smileCountRef.current >= THRESHOLDS.smileFrameCount) {
-        console.log('[Liveness] Smile: SMILE DETECTED!');
         return true;
       }
     } else {
@@ -311,9 +304,7 @@ export function useLivenessDetection() {
   const checkTurnRight = useCallback((face: Face): boolean => {
     const yaw = face.yawAngle;
     
-    // Front kamera ayna: Sağa çevirme = negatif yaw açısı
     if (yaw < -THRESHOLDS.turnAngleThreshold) {
-      console.log(`[Liveness] Turn Right: yaw=${yaw.toFixed(1)}° - DETECTED!`);
       return true;
     }
     
@@ -328,9 +319,7 @@ export function useLivenessDetection() {
   const checkTurnLeft = useCallback((face: Face): boolean => {
     const yaw = face.yawAngle;
     
-    // Front kamera ayna: Sola çevirme = pozitif yaw açısı
     if (yaw > THRESHOLDS.turnAngleThreshold) {
-      console.log(`[Liveness] Turn Left: yaw=${yaw.toFixed(1)}° - DETECTED!`);
       return true;
     }
     

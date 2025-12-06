@@ -12,6 +12,7 @@ import { AppState, AppStateStatus } from "react-native";
 import { supabase } from "@/lib/supabaseClient";
 import * as Network from "expo-network";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // TYPES
@@ -33,7 +34,7 @@ export function useRealtimeConnection(): UseRealtimeConnectionReturn {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [isOnline, setIsOnline] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempts = useRef(0);
 
   // Bağlantı kur
@@ -50,16 +51,13 @@ export function useRealtimeConnection(): UseRealtimeConnectionReturn {
       if (status === "SUBSCRIBED") {
         setStatus("connected");
         reconnectAttempts.current = 0;
-        console.log("[Realtime] Connected");
       }
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         setStatus("disconnected");
-        console.log("[Realtime] Disconnected:", status);
         scheduleReconnect();
       }
       if (status === "CLOSED") {
         setStatus("disconnected");
-        console.log("[Realtime] Closed");
       }
     });
 
@@ -75,7 +73,6 @@ export function useRealtimeConnection(): UseRealtimeConnectionReturn {
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
     reconnectAttempts.current++;
 
-    console.log(`[Realtime] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
     setStatus("reconnecting");
 
     reconnectTimeoutRef.current = setTimeout(() => {
@@ -102,12 +99,11 @@ export function useRealtimeConnection(): UseRealtimeConnectionReturn {
         if (mounted) {
           setIsOnline(online);
           if (online && status === "disconnected") {
-            console.log("[Realtime] Network restored, reconnecting...");
             reconnect();
           }
         }
       } catch (error) {
-        console.warn("[Realtime] Network check failed:", error);
+        logger.warn('Network check failed', { tag: 'Realtime' });
       }
     };
 
@@ -127,7 +123,6 @@ export function useRealtimeConnection(): UseRealtimeConnectionReturn {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active" && status === "disconnected") {
-        console.log("[Realtime] App became active, reconnecting...");
         reconnect();
       }
     };

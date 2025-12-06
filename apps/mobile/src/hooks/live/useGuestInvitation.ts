@@ -132,9 +132,8 @@ export function useGuestInvitation(options: UseGuestInvitationOptions): UseGuest
           setPendingRequests((prev) => [...prev, request]);
           onRequestReceived?.(request);
         })
-        .on('broadcast', { event: 'invitation_rejected' }, (payload) => {
-          // Davet reddedildi bildirimi
-          console.log('Invitation rejected by:', payload.payload.userName);
+        .on('broadcast', { event: 'invitation_rejected' }, () => {
+          // Davet reddedildi - silent
         })
         .subscribe();
     }

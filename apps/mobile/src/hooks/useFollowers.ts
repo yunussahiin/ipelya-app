@@ -13,6 +13,7 @@ import {
   type FollowerProfile,
   type FollowStats
 } from "@/services/followers.service";
+import { logger } from "@/utils/logger";
 
 export type { FollowerProfile, FollowStats };
 
@@ -68,7 +69,7 @@ export function useFollowers(): UseFollowersState & UseFollowersActions {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Takipçi listesi yüklenemedi";
       setError(message);
-      console.error("❌ Load followers error:", err);
+      logger.error('Load followers error', err, { tag: 'Followers' });
     } finally {
       setLoading(false);
     }
@@ -83,7 +84,7 @@ export function useFollowers(): UseFollowersState & UseFollowersActions {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Takip listesi yüklenemedi";
       setError(message);
-      console.error("❌ Load following error:", err);
+      logger.error('Load following error', err, { tag: 'Followers' });
     } finally {
       setLoading(false);
     }
@@ -98,7 +99,7 @@ export function useFollowers(): UseFollowersState & UseFollowersActions {
     } catch (err) {
       const message = err instanceof Error ? err.message : "İstatistikler yüklenemedi";
       setError(message);
-      console.error("❌ Load stats error:", err);
+      logger.error('Load stats error', err, { tag: 'Followers' });
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export function useFollowers(): UseFollowersState & UseFollowersActions {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Takip başarısız";
       setError(message);
-      console.error("❌ Follow error:", err);
+      logger.error('Follow error', err, { tag: 'Followers' });
       return false;
     }
   }, []);
@@ -145,7 +146,7 @@ export function useFollowers(): UseFollowersState & UseFollowersActions {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Takipten çıkma başarısız";
       setError(message);
-      console.error("❌ Unfollow error:", err);
+      logger.error('Unfollow error', err, { tag: 'Followers' });
       return false;
     }
   }, []);

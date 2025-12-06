@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '@/utils/logger';
 
 const LOCK_STORAGE_KEY = 'user_lock_info';
 
@@ -20,9 +21,8 @@ export interface UserLockInfo {
 export async function saveLockInfo(lockInfo: UserLockInfo): Promise<void> {
   try {
     await AsyncStorage.setItem(LOCK_STORAGE_KEY, JSON.stringify(lockInfo));
-    console.log('✅ Lock info saved to storage');
   } catch (error) {
-    console.error('❌ Error saving lock info:', error);
+    logger.error('Error saving lock info', error, { tag: 'UserLock' });
   }
 }
 
@@ -50,7 +50,7 @@ export async function getLockInfo(): Promise<UserLockInfo | null> {
 
     return lockInfo;
   } catch (error) {
-    console.error('❌ Error getting lock info:', error);
+    logger.error('Error getting lock info', error, { tag: 'UserLock' });
     return null;
   }
 }
@@ -61,9 +61,8 @@ export async function getLockInfo(): Promise<UserLockInfo | null> {
 export async function clearLockInfo(): Promise<void> {
   try {
     await AsyncStorage.removeItem(LOCK_STORAGE_KEY);
-    console.log('✅ Lock info cleared from storage');
   } catch (error) {
-    console.error('❌ Error clearing lock info:', error);
+    logger.error('Error clearing lock info', error, { tag: 'UserLock' });
   }
 }
 

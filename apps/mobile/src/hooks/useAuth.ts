@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { supabase } from "@/lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
+import { logger } from "@/utils/logger";
 
 interface AuthState {
   user: User | null;
@@ -41,7 +42,7 @@ function initAuthListener() {
     useAuthStore.getState().setUser(user);
     useAuthStore.getState().setLoading(false);
   }).catch((error) => {
-    console.error("[useAuth] Session alınamadı:", error);
+    logger.error('Session fetch error', error, { tag: 'Auth' });
     useAuthStore.getState().setUser(null);
     useAuthStore.getState().setLoading(false);
   });

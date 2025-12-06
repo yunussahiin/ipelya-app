@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useMessageStore, useConversationStore } from "@/store/messaging";
 import { useAuth } from "@/hooks/useAuth";
 import { messageKeys } from "./useMessages";
+import { logger } from "@/utils/logger";
 import type { Message } from "@ipelya/types";
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
@@ -94,7 +95,7 @@ export function useMessageRealtime(conversationId: string) {
             reply_to: replyTo,
           };
 
-          console.log("[Realtime] Adding message to React Query cache:", messageWithProfile.id);
+          logger.debug(`Adding message to cache: ${messageWithProfile.id}`, { tag: "Realtime" });
           
           // React Query cache'ine ekle
           queryClient.setQueryData(
@@ -191,10 +192,10 @@ export function useMessageRealtime(conversationId: string) {
     // Subscribe
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        console.log(`[Realtime] Messages channel subscribed: ${conversationId}`);
+        logger.debug(`Messages channel subscribed: ${conversationId}`, { tag: "Realtime" });
       }
       if (status === "CHANNEL_ERROR") {
-        console.error(`[Realtime] Messages channel error: ${conversationId}`);
+        logger.error(`Messages channel error: ${conversationId}`, undefined, { tag: "Realtime" });
       }
     });
 
@@ -202,7 +203,7 @@ export function useMessageRealtime(conversationId: string) {
 
     // Cleanup
     return () => {
-      console.log(`[Realtime] Messages channel unsubscribing: ${conversationId}`);
+      logger.debug(`Messages channel unsubscribing: ${conversationId}`, { tag: "Realtime" });
       channel.unsubscribe();
     };
   }, [conversationId, user?.id]);
@@ -221,7 +222,7 @@ export function useGlobalMessageRealtime() {
   useEffect(() => {
     if (!user) return;
 
-    console.log("[Realtime] Global messages subscribing...");
+    logger.debug("Global messages subscribing", { tag: "Realtime" });
     const channel = supabase.channel("messages:global");
 
     channel.on(
@@ -261,12 +262,12 @@ export function useGlobalMessageRealtime() {
     );
 
     channel.subscribe((status) => {
-      console.log("[Realtime] Global messages status:", status);
+      logger.debug(`Global messages status: ${status}`, { tag: "Realtime" });
     });
     channelRef.current = channel;
 
     return () => {
-      console.log("[Realtime] Global messages unsubscribing...");
+      logger.debug("Global messages unsubscribing", { tag: "Realtime" });
       channel.unsubscribe();
     };
   }, [user?.id]);
@@ -290,7 +291,7 @@ export function useReactionRealtime(conversationId: string) {
   useEffect(() => {
     if (!user || !conversationId) return;
 
-    console.log(`[Realtime] Reactions channel subscribing: ${conversationId}`);
+    logger.debug(`Reactions channel subscribing: ${conversationId}`, { tag: "Realtime" });
     const channel = supabase.channel(`reactions:${conversationId}`);
 
     // Reaction INSERT
@@ -302,7 +303,7 @@ export function useReactionRealtime(conversationId: string) {
         table: "message_reactions",
       },
       async (payload: MessagePayload) => {
-        console.log("[Realtime] Reaction INSERT payload received:", payload);
+        logger.debug("Reaction INSERT received", { tag: "Realtime" });
         
         const reaction = payload.new as {
           id: string;
@@ -312,13 +313,9 @@ export function useReactionRealtime(conversationId: string) {
           created_at: string;
         };
 
-        console.log("[Realtime] Reaction INSERT parsed:", reaction);
 
         // Kendi reaction'ımızı skip et (optimistic update ile zaten eklendi)
-        if (reaction.user_id === user.id) {
-          console.log("[Realtime] Skipping own reaction");
-          return;
-        }
+        if (reaction.user_id === user.id) return;
 
         // Mesajın bu sohbette olup olmadığını kontrol et
         const { data: message } = await supabase
@@ -329,7 +326,6 @@ export function useReactionRealtime(conversationId: string) {
           .single();
 
         if (message) {
-          console.log("[Realtime] Adding reaction to message:", reaction.message_id);
           
           // React Query cache'ini güncelle
           queryClient.setQueryData(
@@ -395,20 +391,11 @@ export function useReactionRealtime(conversationId: string) {
           emoji: string;
         };
 
-        console.log("[Realtime] Reaction DELETE received:", deletedReaction);
 
         // Kendi reaction'ımızı skip et (optimistic update ile zaten silindi)
-        if (deletedReaction.user_id === user.id) {
-          console.log("[Realtime] Skipping own reaction removal");
-          return;
-        }
+        if (deletedReaction.user_id === user.id) return;
 
-        if (!deletedReaction?.message_id) {
-          console.warn("[Realtime] No message_id in deleted reaction");
-          return;
-        }
-
-        console.log("[Realtime] Removing reaction from message:", deletedReaction.message_id);
+        if (!deletedReaction?.message_id) return;
 
         // React Query cache'ini güncelle
         queryClient.setQueryData(
@@ -447,17 +434,17 @@ export function useReactionRealtime(conversationId: string) {
 
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        console.log(`[Realtime] Reactions channel subscribed: ${conversationId}`);
+        logger.debug(`Reactions channel subscribed: ${conversationId}`, { tag: "Realtime" });
       }
       if (status === "CHANNEL_ERROR") {
-        console.error(`[Realtime] Reactions channel error: ${conversationId}`);
+        logger.error(`Reactions channel error: ${conversationId}`, undefined, { tag: "Realtime" });
       }
     });
     
     channelRef.current = channel;
 
     return () => {
-      console.log(`[Realtime] Reactions channel unsubscribing: ${conversationId}`);
+      logger.debug(`Reactions channel unsubscribing: ${conversationId}`, { tag: "Realtime" });
       channel.unsubscribe();
     };
   }, [conversationId, user?.id, queryClient]);

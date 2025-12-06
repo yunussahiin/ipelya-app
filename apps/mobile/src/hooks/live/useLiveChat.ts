@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import type { ChatMessage } from '@/components/live/LiveChat';
+import { logger } from '@/utils/logger';
 
 interface UseLiveChatOptions {
   sessionId: string;
@@ -226,7 +227,7 @@ export function useLiveChat({
       if (insertError) throw insertError;
       return true;
     } catch (err) {
-      console.error('Message send error:', err);
+      logger.error('Message send error', err, { tag: 'LiveChat' });
       return false;
     }
   }, [user?.id, sessionId]);
@@ -244,7 +245,7 @@ export function useLiveChat({
       if (updateError) throw updateError;
       return true;
     } catch (err) {
-      console.error('Message delete error:', err);
+      logger.error('Message delete error', err, { tag: 'LiveChat' });
       return false;
     }
   }, [user?.id]);

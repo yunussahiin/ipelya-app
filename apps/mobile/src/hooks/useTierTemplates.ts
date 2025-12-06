@@ -22,8 +22,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { TIER_BENEFITS, SUGGESTED_TIER_TEMPLATES, TierBenefitId } from '@/services/iap/products';
+import { TIER_BENEFITS, SUGGESTED_TIER_TEMPLATES } from '@/services/iap/products';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/utils/logger';
 
 export interface TierBenefit {
   id: string;
@@ -80,9 +81,10 @@ export function useTierTemplates() {
       } else {
         throw new Error(data?.error || 'Şablonlar yüklenemedi');
       }
-    } catch (err: any) {
-      console.error('Load tier templates error:', err);
-      setError(err.message);
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Load tier templates error', error, { tag: 'Tiers' });
+      setError(error.message);
       
       // Fallback: Local data kullan
       const fallbackTemplates = SUGGESTED_TIER_TEMPLATES.map(t => ({
@@ -121,7 +123,6 @@ export function useTierTemplates() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tier_benefits' },
         () => {
-          console.log('[useTierTemplates] tier_benefits changed, refreshing...');
           loadData();
         }
       )
@@ -129,7 +130,6 @@ export function useTierTemplates() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tier_templates' },
         () => {
-          console.log('[useTierTemplates] tier_templates changed, refreshing...');
           loadData();
         }
       )

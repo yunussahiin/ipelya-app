@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export interface AutoPayoutSettings {
   isEnabled: boolean;
@@ -39,7 +40,7 @@ export function useAutoPayoutSettings() {
         dayOfWeek: 1
       });
     } catch (err: any) {
-      console.error('[useAutoPayoutSettings] Load error:', err);
+      logger.error('Auto payout settings load error', err, { tag: 'Payout' });
       setError(err.message);
     } finally {
       setIsLoading(false);

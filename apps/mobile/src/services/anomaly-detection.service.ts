@@ -5,6 +5,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { getAuditLogs } from "./audit.service";
+import { logger } from "@/utils/logger";
 
 export interface AnomalyAlert {
   type: "excessive_failed_attempts" | "multiple_ips" | "long_session" | "unusual_time";
@@ -54,7 +55,6 @@ export function updateAnomalyConfig(
   newConfig: Partial<AnomalyDetectionConfig>
 ): void {
   ANOMALY_CONFIG = { ...ANOMALY_CONFIG, ...newConfig };
-  console.log('✅ Anomaly detection config updated:', ANOMALY_CONFIG);
 }
 
 /**
@@ -102,7 +102,7 @@ export async function detectExcessiveFailedAttempts(
 
     return null;
   } catch (error) {
-    console.error("❌ Excessive failed attempts detection error:", error);
+    logger.error('Excessive failed attempts detection error', error, { tag: 'Anomaly' });
     return null;
   }
 }
@@ -148,7 +148,7 @@ export async function detectMultipleIps(
 
     return null;
   } catch (error) {
-    console.error("❌ Multiple IPs detection error:", error);
+    logger.error('Multiple IPs detection error', error, { tag: 'Anomaly' });
     return null;
   }
 }
@@ -192,7 +192,7 @@ export async function detectLongSession(
 
     return null;
   } catch (error) {
-    console.error("❌ Long session detection error:", error);
+    logger.error('Long session detection error', error, { tag: 'Anomaly' });
     return null;
   }
 }
@@ -223,7 +223,7 @@ export async function detectUnusualAccessTime(
 
     return null;
   } catch (error) {
-    console.error("❌ Unusual access time detection error:", error);
+    logger.error('Unusual access time detection error', error, { tag: 'Anomaly' });
     return null;
   }
 }
@@ -253,13 +253,9 @@ export async function runAnomalyDetections(userId: string): Promise<AnomalyAlert
     if (longSession) alerts.push(longSession);
     if (unusualTime) alerts.push(unusualTime);
 
-    if (alerts.length > 0) {
-      console.log(`⚠️ ${alerts.length} anomaly detected:`, alerts);
-    }
-
     return alerts;
   } catch (error) {
-    console.error("❌ Anomaly detection error:", error);
+    logger.error('Anomaly detection error', error, { tag: 'Anomaly' });
     return [];
   }
 }
@@ -280,11 +276,9 @@ export async function logAnomalyAlert(userId: string, alert: AnomalyAlert): Prom
       });
 
     if (error) {
-      console.error("❌ Anomaly alert log error:", error);
-    } else {
-      console.log(`📢 Anomaly alert logged: ${alert.type}`);
+      logger.error('Anomaly alert log error', error, { tag: 'Anomaly' });
     }
   } catch (error) {
-    console.error("❌ Anomaly alert log failed:", error);
+    logger.error('Anomaly alert log failed', error, { tag: 'Anomaly' });
   }
 }

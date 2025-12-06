@@ -51,13 +51,16 @@ export function BroadcastChannelListScreen() {
   // Arama filtresi
   const filteredMyChannels = useMemo(() => {
     if (!searchQuery) return myChannels || [];
-    return (myChannels || []).filter((ch) =>
+    return (myChannels || []).filter((ch: BroadcastChannel) =>
       ch.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [myChannels, searchQuery]);
 
   // Takip ettiklerimden kendi kanallarını çıkar
-  const myChannelIds = useMemo(() => new Set((myChannels || []).map((c) => c.id)), [myChannels]);
+  const myChannelIds = useMemo(
+    () => new Set((myChannels || []).map((c: BroadcastChannel) => c.id)),
+    [myChannels]
+  );
 
   const filteredJoinedChannels = useMemo(() => {
     const joined = (joinedChannels || []).filter((ch) => !myChannelIds.has(ch.id));

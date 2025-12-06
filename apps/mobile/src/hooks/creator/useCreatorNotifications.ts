@@ -19,6 +19,7 @@ import { useEffect, useCallback } from 'react';
 import { useToast } from '@/components/ui';
 import { useCreatorRealtime, type CreatorRealtimeEvent } from './useCreatorRealtime';
 import * as Notifications from 'expo-notifications';
+import { logger } from '@/utils/logger';
 
 // Notification config
 Notifications.setNotificationHandler({
@@ -157,7 +158,7 @@ export function useCreatorNotifications(options: UseCreatorNotificationsOptions 
           trigger: null // Immediate notification
         });
       } catch (error) {
-        console.error('[CreatorNotifications] Push notification failed:', error);
+        logger.error('Push notification failed', error, { tag: 'Notifications' });
       }
     }
   }, [showToasts, sendPushNotifications, showToast]);
@@ -182,7 +183,7 @@ export function useCreatorNotifications(options: UseCreatorNotificationsOptions 
       }
 
       if (finalStatus !== 'granted') {
-        console.log('[CreatorNotifications] Permission not granted');
+        // Permission not granted - silent
       }
     }
 

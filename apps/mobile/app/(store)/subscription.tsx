@@ -50,7 +50,11 @@ export default function SubscriptionScreen() {
         <View style={[styles.featuresSection, { backgroundColor: colors.surface }]}>
           {features.map((feature, index) => (
             <View key={index} style={styles.featureRow}>
-              <Ionicons name={feature.icon as any} size={20} color={colors.success} />
+              <Ionicons
+                name={feature.icon as keyof typeof Ionicons.glyphMap}
+                size={20}
+                color={colors.success}
+              />
               <Text style={[styles.featureText, { color: colors.textPrimary }]}>
                 {feature.text}
               </Text>
@@ -67,7 +71,7 @@ export default function SubscriptionScreen() {
               title={sub.title}
               period={sub.period}
               price={sub.price}
-              features={sub.features}
+              features={[...sub.features]}
               isActive={activeSubscription?.productId === sub.id}
               isBestValue={sub.period === "yearly"}
               onSubscribe={handleSubscribe}

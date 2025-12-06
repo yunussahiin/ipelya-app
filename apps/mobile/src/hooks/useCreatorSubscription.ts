@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
 import { useEconomyStore } from '@/store/economy.store';
+import { logger } from '@/utils/logger';
 
 export interface CreatorSubscription {
   id: string;
@@ -83,7 +84,7 @@ export function useCreatorSubscription() {
         })) || []
       );
     } catch (error) {
-      console.error('Load subscriptions error:', error);
+      logger.error('Load subscriptions error', error, { tag: 'Subscription' });
     }
   }, [user?.id]);
 

@@ -286,7 +286,7 @@ export function CommentLikersSheet({ commentId, visible, onClose }: CommentLiker
         ) : (
           <BottomSheetFlatList
             data={filteredLikers}
-            keyExtractor={(item) => item.user_id}
+            keyExtractor={(item: Liker) => item.user_id}
             renderItem={renderLiker}
             contentContainerStyle={styles.list}
             ListEmptyComponent={

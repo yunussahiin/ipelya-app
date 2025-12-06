@@ -14,6 +14,7 @@ import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // TYPES
@@ -25,6 +26,7 @@ interface MessageNotificationData {
   channel_id?: string;
   message_id?: string;
   sender_id?: string;
+  [key: string]: unknown;
 }
 
 // =============================================
@@ -33,22 +35,13 @@ interface MessageNotificationData {
 
 // Foreground notification handling
 Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    // Aktif sohbetteyse gösterme
-    const data = notification.request.content.data as MessageNotificationData;
-    
-    // TODO: Aktif sohbet kontrolü
-    // const activeConversationId = useConversationStore.getState().activeConversationId;
-    // if (data.conversation_id === activeConversationId) {
-    //   return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false };
-    // }
-
-    return {
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    };
-  },
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 });
 
 // =============================================
@@ -58,13 +51,13 @@ Notifications.setNotificationHandler({
 export function usePushNotifications() {
   const { user } = useAuth();
   const router = useRouter();
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   // Push token kaydet
   const registerForPushNotifications = useCallback(async () => {
     if (!Device.isDevice) {
-      console.log("[Push] Must use physical device for push notifications");
+      logger.debug("Must use physical device for push notifications", { tag: "Push" });
       return null;
     }
 
@@ -78,7 +71,7 @@ export function usePushNotifications() {
     }
 
     if (finalStatus !== "granted") {
-      console.log("[Push] Permission not granted");
+      logger.debug("Push permission not granted", { tag: "Push" });
       return null;
     }
 
@@ -87,7 +80,7 @@ export function usePushNotifications() {
       projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
     });
 
-    console.log("[Push] Token:", token.data);
+    logger.debug("Push token registered", { tag: "Push" });
 
     // Token'ı Supabase'e kaydet
     if (user) {
@@ -121,10 +114,8 @@ export function usePushNotifications() {
   // Notification tıklama handler
   const handleNotificationResponse = useCallback(
     (response: Notifications.NotificationResponse) => {
-      const data = response.notification.request.content
-        .data as MessageNotificationData;
+      const data = response.notification.request.content.data as unknown as MessageNotificationData;
 
-      console.log("[Push] Notification tapped:", data);
 
       switch (data.type) {
         case "new_message":
@@ -161,9 +152,8 @@ export function usePushNotifications() {
 
     // Foreground notification listener
     notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log("[Push] Notification received:", notification);
-        // TODO: Realtime ile sync et
+      () => {
+        // Realtime ile sync edilecek
       }
     );
 
@@ -173,12 +163,8 @@ export function usePushNotifications() {
     );
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, [user, registerForPushNotifications, handleNotificationResponse]);
 

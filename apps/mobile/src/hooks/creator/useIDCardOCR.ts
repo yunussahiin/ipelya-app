@@ -480,8 +480,7 @@ export function useIDCardOCR() {
     const textRecognition = useTextRecognition({ language: 'latin' });
     scanText = textRecognition.scanText;
     // OCR initialized
-  } catch (error) {
-    console.error('[OCR] useTextRecognition failed:', error);
+  } catch {
     scanText = () => ({ resultText: '' });
   }
   
@@ -500,11 +499,6 @@ export function useIDCardOCR() {
    */
   const parseOCRResult = useCallback((ocrResult: any): IDCardData => {
     const text = ocrResult?.resultText || '';
-    
-    // Debug: Raw OCR text (her 30 frame'de bir logla)
-    if (Math.random() < 0.03) {
-      console.log('[OCR] Raw text sample:', text.substring(0, 300));
-    }
     
     const tcNumber = extractTCNumber(text);
     const names = extractNames(text);
@@ -629,21 +623,6 @@ export function useIDCardOCR() {
     const data = parseOCRResult(ocrResult);
     const result = consolidateResults(data);
     setLastResult(result);
-    
-    // İstenirse sonuçları logla
-    if (logResults && result.isComplete) {
-      console.log('[OCR] Taranan veriler:', {
-        tcNumber: result.data.tcNumber || '-',
-        firstName: result.data.firstName || '-',
-        lastName: result.data.lastName || '-',
-        birthDate: result.data.birthDate || '-',
-        expiryDate: result.data.expiryDate || '-',
-        gender: result.data.gender || '-',
-        documentNo: result.data.documentNo || '-',
-        hasMRZ: result.data.hasMRZ ? 'Evet (Arka yüz)' : 'Hayır (Ön yüz)',
-        confidence: `${Math.round(result.confidence * 100)}%`,
-      });
-    }
     
     return result;
   }, [parseOCRResult, consolidateResults]);

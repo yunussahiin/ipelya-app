@@ -118,8 +118,8 @@ export function useDocumentNormalizer() {
           setLastDetection(detection);
           return detection;
         }
-      } catch (error) {
-        console.warn('Dynamsoft detection failed:', error);
+      } catch {
+        // Dynamsoft detection failed - use fallback
       }
     }
 
@@ -159,8 +159,8 @@ export function useDocumentNormalizer() {
             normalizedPath: result.imagePath,
           };
         }
-      } catch (error) {
-        console.warn('Dynamsoft normalization failed:', error);
+      } catch {
+        // Dynamsoft normalization failed - use fallback
       }
     }
 

@@ -18,6 +18,7 @@ import type {
   Message,
 } from "@ipelya/types";
 import { useAuth } from "@/hooks/useAuth";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // LOCAL REACTION FUNCTIONS (mobile supabase client kullanır)
@@ -80,9 +81,6 @@ export function useMessages(conversationId: string) {
   const query = useInfiniteQuery({
     queryKey: messageKeys.list(conversationId),
     queryFn: async ({ pageParam }) => {
-      console.log("[useMessages] queryFn called, pageParam:", pageParam);
-      
-      // Session al
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
 
@@ -94,7 +92,6 @@ export function useMessages(conversationId: string) {
       });
       if (pageParam) params.set("cursor", pageParam);
 
-      console.log("[useMessages] Fetching messages...");
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/get-messages?${params}`,
         {
@@ -108,7 +105,6 @@ export function useMessages(conversationId: string) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Mesajlar yüklenemedi");
 
-      console.log("[useMessages] Fetched messages count:", result.data?.length || 0);
       return { data: result.data || [], nextCursor: result.nextCursor, isFirstPage: !pageParam };
     },
     initialPageParam: undefined as string | undefined,
@@ -133,10 +129,6 @@ export function useSendMessage() {
 
   return useMutation({
     mutationFn: async (request: CreateMessageRequest) => {
-      console.log("[useSendMessage] mutationFn called:", request.conversation_id);
-      console.log("[useSendMessage] reply_to_id:", request.reply_to_id);
-      
-      // Session al
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
 
@@ -168,12 +160,9 @@ export function useSendMessage() {
         throw new Error(result.error || "Mesaj gönderilemedi");
       }
 
-      console.log("[useSendMessage] mutationFn result:", result.data?.id);
       return result.data;
     },
     onMutate: async (request) => {
-      console.log("[useSendMessage] onMutate - adding pending message");
-      // Optimistic update - pending mesaj ekle
       const tempId = `temp_${Date.now()}`;
       const store = useMessageStore.getState();
 
@@ -208,7 +197,6 @@ export function useSendMessage() {
       return { tempId, conversationId: request.conversation_id };
     },
     onSuccess: (message, _, context) => {
-      console.log("[useSendMessage] onSuccess - message id:", message?.id);
       if (context) {
         // Pending mesajı kaldır
         useMessageStore.getState().removePendingMessage(context.conversationId, context.tempId);
@@ -233,7 +221,7 @@ export function useSendMessage() {
       }
     },
     onError: (error, _, context) => {
-      console.error("[useSendMessage] onError:", error);
+      logger.error('Send message error', error, { tag: 'Messages' });
       if (context) {
         // Hata durumunda pending mesajı kaldır
         useMessageStore.getState().removePendingMessage(context.conversationId, context.tempId);
@@ -339,8 +327,6 @@ export function useMarkAsRead() {
       conversationId: string;
       messageId: string;
     }) => {
-      console.log("[MarkAsRead] Marking message as read:", messageId);
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Kullanıcı oturumu bulunamadı");
 
@@ -360,7 +346,6 @@ export function useMarkAsRead() {
       );
 
       const result = await response.json();
-      console.log("[MarkAsRead] Result:", result);
       if (!response.ok) throw new Error(result.error || "Okundu işaretlenemedi");
       return result;
     },
@@ -441,8 +426,7 @@ export function useAddReaction() {
       );
     },
     onError: (error, variables) => {
-      console.error("[Reaction] onError - failed to save:", error);
-      // Hata durumunda cache'i invalidate et (güncel veriyi çek)
+      logger.error('Reaction error', error, { tag: 'Messages' });
       queryClient.invalidateQueries({ queryKey: messageKeys.list(variables.conversationId) });
     },
   });

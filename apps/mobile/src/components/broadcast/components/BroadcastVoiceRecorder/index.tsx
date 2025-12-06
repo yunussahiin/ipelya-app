@@ -38,7 +38,7 @@ export function BroadcastVoiceRecorder({ onRecorded, onCancel }: BroadcastVoiceR
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Animasyon
   const pulseScale = useSharedValue(1);
@@ -162,10 +162,7 @@ export function BroadcastVoiceRecorder({ onRecorded, onCancel }: BroadcastVoiceR
           <Animated.View style={[styles.pulse, { backgroundColor: colors.accent }, pulseStyle]} />
         )}
         <View
-          style={[
-            styles.micCircle,
-            { backgroundColor: isRecording ? colors.error : colors.accent }
-          ]}
+          style={[styles.micCircle, { backgroundColor: isRecording ? "#ef4444" : colors.accent }]}
         >
           <Mic size={32} color="#fff" />
         </View>
@@ -183,7 +180,7 @@ export function BroadcastVoiceRecorder({ onRecorded, onCancel }: BroadcastVoiceR
         <Pressable
           style={[
             styles.recordButton,
-            { backgroundColor: isRecording ? colors.error : colors.accent }
+            { backgroundColor: isRecording ? "#ef4444" : colors.accent }
           ]}
           onPress={isRecording ? stopRecording : startRecording}
         >

@@ -10,6 +10,7 @@
 
 import { useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // TYPES
@@ -75,7 +76,7 @@ export function useMentions() {
         .in("username", usernames);
 
       if (error) {
-        console.error("[Mentions] Kullanıcılar çözümlenemedi:", error);
+        logger.error('Mentions resolve error', error, { tag: 'Mentions' });
         return new Map();
       }
 
@@ -129,12 +130,9 @@ export function useMentions() {
         .insert(mentionRecords);
 
       if (insertError) {
-        console.error("[Mentions] Mention'lar kaydedilemedi:", insertError);
+        logger.error('Mentions insert error', insertError, { tag: 'Mentions' });
         return [];
       }
-
-      // Bildirim gönder (Edge Function tetikleyecek)
-      console.log(`[Mentions] ${mentionRecords.length} mention işlendi`);
 
       return mentionRecords.map((r) => r.user_id);
     },
@@ -148,7 +146,7 @@ export function useMentions() {
     async (query: string, conversationId?: string): Promise<MentionUser[]> => {
       if (!query || query.length < 1) return [];
 
-      let queryBuilder = supabase
+      const queryBuilder = supabase
         .from("profiles")
         .select("user_id, username, display_name")
         .or(`username.ilike.${query}%,display_name.ilike.%${query}%`)
@@ -162,7 +160,7 @@ export function useMentions() {
       const { data, error } = await queryBuilder;
 
       if (error) {
-        console.error("[Mentions] Kullanıcı araması başarısız:", error);
+        logger.error('Mentions search error', error, { tag: 'Mentions' });
         return [];
       }
 

@@ -19,6 +19,7 @@ import {
 } from 'livekit-client';
 import { AudioSession, TrackReferenceOrPlaceholder } from '@livekit/react-native';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export type VideoQuality = "360p" | "540p" | "720p" | "1080p";
 
@@ -234,7 +235,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
       throw new Error(`Token alınamadı: ${error.message}`);
     }
 
-    console.log('[LiveKit] Token response:', { role: data.role, canPublish: data.canPublish, roomName: data.roomName });
+    logger.debug(`Token received: role=${data.role}`, { tag: 'LiveKit' });
     return { token: data.token, actualRoomName: data.roomName };
   }, [sessionId, callId, userInfo]);
 
@@ -257,13 +258,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
       const currentSettings = mediaSettingsRef.current;
       const isAudioOnly = audioOnlyRef.current;
 
-      console.log('[LiveKit] Creating room:', {
-        audioOnly: isAudioOnly,
-        noiseSuppression: currentSettings.noiseSuppression,
-        echoCancellation: currentSettings.echoCancellation,
-        autoGainControl: currentSettings.autoGainControl,
-        ...(isAudioOnly ? {} : { videoQuality: currentSettings.videoQuality }),
-      });
+      logger.debug(`Creating room: audioOnly=${isAudioOnly}`, { tag: 'LiveKit' });
 
       // Room options - audio only için video ayarlarını dahil etme
       const roomOptions: ConstructorParameters<typeof Room>[0] = {
@@ -315,7 +310,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         
         // Mevcut katılımcıları hemen al - bağlantı kurulduğunda odada zaten olanlar
         const existingParticipants = Array.from(newRoom.remoteParticipants.values());
-        console.log('[LiveKit] Connected! Existing participants:', existingParticipants.length);
+        logger.debug(`Connected! Participants: ${existingParticipants.length}`, { tag: 'LiveKit' });
         setRemoteParticipants(existingParticipants);
         
         // Host için medyayı aktifle - BAĞLANTI TAMAMLANDIKTAN SONRA
@@ -324,12 +319,10 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         const isAudioOnlyMode = audioOnlyRef.current;
         const shouldEnableKrisp = enableKrispRef.current;
 
-        console.log('[LiveKit] enableMedia:', shouldEnableMedia, 'audioOnly:', isAudioOnlyMode);
 
         if (shouldEnableMedia) {
           try {
             if (isAudioOnlyMode) {
-              console.log('[LiveKit] Enabling microphone (audio-only mode)...');
               await newRoom.localParticipant.setMicrophoneEnabled(true);
               setIsMicrophoneEnabled(true);
               
@@ -341,22 +334,20 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
                   const micTrack = newRoom.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
                   if (micTrack) {
                     await micTrack.setProcessor(krispProcessor);
-                    console.log('[LiveKit] Krisp noise filter enabled');
+                    logger.debug('Krisp noise filter enabled', { tag: 'LiveKit' });
                   }
-                } catch (krispError) {
-                  console.log('[LiveKit] Krisp not available:', krispError);
+                } catch {
+                  // Krisp not available
                 }
               }
             } else {
-              console.log('[LiveKit] Enabling camera and microphone...');
               await newRoom.localParticipant.setCameraEnabled(true);
               await newRoom.localParticipant.setMicrophoneEnabled(true);
               setIsCameraEnabled(true);
               setIsMicrophoneEnabled(true);
             }
-            console.log('[LiveKit] Media enabled successfully');
           } catch (mediaError) {
-            console.warn('[LiveKit] Media enable error:', mediaError);
+            logger.warn('Media enable error', { tag: 'LiveKit', data: { error: String(mediaError) } });
           }
         }
         
@@ -367,20 +358,11 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         setIsConnected(false);
         setConnectionState(ConnectionState.Disconnected);
         
-        // Admin aksiyonlarını tespit et
-        console.log('[LiveKit] Disconnected, reason:', reason);
-        
         if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
-          // Admin tarafından kick veya ban edildi
-          console.log('[LiveKit] Admin kick/ban detected');
           onAdminKick?.();
         } else if (reason === DisconnectReason.ROOM_DELETED) {
-          // Oda silindi (admin terminate)
-          console.log('[LiveKit] Room terminated by admin');
           onRoomTerminated?.();
         } else if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
-          // Başka cihazdan giriş yapıldı
-          console.log('[LiveKit] Duplicate session detected');
           onDuplicateSession?.();
         }
         
@@ -422,14 +404,11 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
       });
 
       // Remote track events - izleyici tarafında host'un track'lerini almak için
-      newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        console.log('[LiveKit] Track subscribed:', track.kind, 'from:', participant.identity);
-        // Force re-render by updating participants
+      newRoom.on(RoomEvent.TrackSubscribed, () => {
         setRemoteParticipants(Array.from(newRoom.remoteParticipants.values()));
       });
 
-      newRoom.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-        console.log('[LiveKit] Track unsubscribed:', track.kind, 'from:', participant.identity);
+      newRoom.on(RoomEvent.TrackUnsubscribed, () => {
         setRemoteParticipants(Array.from(newRoom.remoteParticipants.values()));
       });
 
@@ -502,10 +481,9 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
           const decoder = new TextDecoder();
           const messageStr = decoder.decode(payload);
           const message: DataMessage = JSON.parse(messageStr);
-          console.log('[LiveKit] Data message received:', message.type, 'from:', participant?.identity);
           onDataMessage?.(message, participant);
         } catch (err) {
-          console.error('[LiveKit] Failed to parse data message:', err);
+          logger.error('Failed to parse data message', err, { tag: 'LiveKit' });
         }
       });
 
@@ -519,19 +497,13 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
       }
 
       // Token al ve bağlan
-      console.log('[LiveKit] Getting token for room:', roomName);
       const { token, actualRoomName } = await getToken(roomName);
-      console.log('[LiveKit] Token received, connecting to:', serverUrl, 'actualRoom:', actualRoomName);
+      logger.debug(`Connecting to room: ${actualRoomName}`, { tag: 'LiveKit' });
       await newRoom.connect(serverUrl, token, {
         autoSubscribe: true, // Remote track'leri otomatik subscribe et
       });
       
-      // connect() tamamlandıktan sonra room state'i Connected olmalı
-      console.log('[LiveKit] Connect completed, room state:', newRoom.state);
-      
-      // Eğer Connected event'i henüz tetiklenmediyse manuel olarak state'i güncelle
       if (newRoom.state === 'connected') {
-        console.log('[LiveKit] Room already connected, updating state manually');
         
         // Önce room state'ini güncelle - bu önemli!
         setRoom(newRoom);
@@ -540,9 +512,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         setIsConnected(true);
         setConnectionState(ConnectionState.Connected);
         
-        // Mevcut katılımcıları al
         const existingParticipants = Array.from(newRoom.remoteParticipants.values());
-        console.log('[LiveKit] Existing participants after connect:', existingParticipants.length);
         setRemoteParticipants(existingParticipants);
       }
 
@@ -612,12 +582,9 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         if (typeof track.restartTrack === 'function') {
           await track.restartTrack({ facingMode: newFacingMode });
           setIsFrontCamera(!isFrontCamera);
-          console.log('[LiveKit] Camera flipped to:', newFacingMode);
         } else if (typeof track.switchCamera === 'function') {
-          // React Native WebRTC fallback
           await track.switchCamera();
           setIsFrontCamera(!isFrontCamera);
-          console.log('[LiveKit] Camera switched using switchCamera()');
         } else {
           // En son çare: kamerayı kapat ve yeni facingMode ile aç
           await roomRef.current.localParticipant.setCameraEnabled(false);
@@ -626,13 +593,10 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
             facingMode: newFacingMode,
           });
           setIsFrontCamera(!isFrontCamera);
-          console.log('[LiveKit] Camera restarted with facingMode:', newFacingMode);
         }
       } catch (err) {
-        console.error('[LiveKit] Camera flip error:', err);
+        logger.error('Camera flip error', err, { tag: 'LiveKit' });
       }
-    } else {
-      console.warn('[LiveKit] No video track to flip');
     }
   }, [isFrontCamera]);
 
@@ -641,8 +605,8 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
     const startAudio = async () => {
       try {
         await AudioSession.startAudioSession();
-      } catch (err) {
-        console.warn('[useLiveKitRoom] AudioSession start failed:', err);
+      } catch {
+        // AudioSession start failed
       }
     };
     startAudio();
@@ -743,10 +707,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
   // Data message gönderme fonksiyonu
   const sendDataMessage = useCallback(async (type: DataMessageType, payload?: Record<string, unknown>) => {
     const currentRoom = roomRef.current || room;
-    if (!currentRoom || !isConnected) {
-      console.warn('[LiveKit] Cannot send data message - not connected');
-      return;
-    }
+    if (!currentRoom || !isConnected) return;
 
     const message: DataMessage = {
       type,
@@ -761,9 +722,8 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
 
     try {
       await currentRoom.localParticipant.publishData(data, { reliable: true });
-      console.log('[LiveKit] Data message sent:', type);
     } catch (err) {
-      console.error('[LiveKit] Failed to send data message:', err);
+      logger.error('Failed to send data message', err, { tag: 'LiveKit' });
     }
   }, [room, isConnected]);
 

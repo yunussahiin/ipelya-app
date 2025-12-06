@@ -13,6 +13,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { useShadowStore } from '@/store/shadow.store';
 import { updateSessionActivity, checkSessionTimeout } from '@/services/session.service';
 import { Alert } from 'react-native';
+import { logger } from '@/utils/logger';
 
 const TIMEOUT_MINUTES = 30;
 const WARNING_MINUTES = 5;
@@ -23,7 +24,7 @@ export function useSessionTimeout() {
   const sessionId = useShadowStore((state) => state.sessionId);
   const [showWarning, setShowWarning] = useState(false);
   const lastActivityRef = useRef<Date>(new Date());
-  const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const checkIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   /**
@@ -57,7 +58,7 @@ export function useSessionTimeout() {
     const isExpired = await checkSessionTimeout(sessionId, TIMEOUT_MINUTES);
     
     if (isExpired) {
-      console.log('⏰ Session timed out');
+      logger.debug('Session timed out', { tag: 'Session' });
       
       // Disable shadow mode
       useShadowStore.setState({ enabled: false, sessionId: null });
@@ -99,16 +100,7 @@ export function useSessionTimeout() {
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        console.log('📱 App came to foreground, checking session...');
         checkTimeout();
-      }
-
-      // App went to background
-      if (
-        appStateRef.current === 'active' &&
-        nextAppState.match(/inactive|background/)
-      ) {
-        console.log('📱 App went to background');
       }
 
       appStateRef.current = nextAppState;
@@ -132,8 +124,6 @@ export function useSessionTimeout() {
       return;
     }
 
-    console.log('⏰ Starting session timeout checker...');
-    
     // Reset activity on mount
     updateActivity();
 

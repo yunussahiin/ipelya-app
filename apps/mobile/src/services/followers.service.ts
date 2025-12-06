@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export interface FollowerProfile {
   id: string;
@@ -67,7 +68,7 @@ export async function getFollowers(userId: string, currentUserId?: string): Prom
 
     return profiles || [];
   } catch (error) {
-    console.error("❌ Get followers error:", error);
+    logger.error('Get followers error', error, { tag: 'Followers' });
     return [];
   }
 }
@@ -101,7 +102,7 @@ export async function getFollowing(userId: string): Promise<FollowerProfile[]> {
 
     return profiles || [];
   } catch (error) {
-    console.error("❌ Get following error:", error);
+    logger.error('Get following error', error, { tag: 'Followers' });
     return [];
   }
 }
@@ -149,7 +150,7 @@ export async function getFollowStats(userId: string, currentUserId?: string): Pr
       is_following: isFollowing
     };
   } catch (error) {
-    console.error("❌ Get follow stats error:", error);
+    logger.error('Get follow stats error', error, { tag: 'Followers' });
     return {
       followers_count: 0,
       following_count: 0,
@@ -186,11 +187,10 @@ export async function followUser(followingId: string): Promise<{ success: boolea
       throw error;
     }
 
-    console.log("✅ User followed:", followingId);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Takip başarısız";
-    console.error("❌ Follow error:", errorMessage);
+    logger.error('Follow error', error, { tag: 'Followers' });
     return { success: false, error: errorMessage };
   }
 }
@@ -213,11 +213,10 @@ export async function unfollowUser(followingId: string): Promise<{ success: bool
 
     if (error) throw error;
 
-    console.log("✅ User unfollowed:", followingId);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Takipten çıkma başarısız";
-    console.error("❌ Unfollow error:", errorMessage);
+    logger.error('Unfollow error', error, { tag: 'Followers' });
     return { success: false, error: errorMessage };
   }
 }

@@ -16,6 +16,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../store/auth.store";
 import { uploadMedia, queueMediaProcessing } from "../../services/media-upload.service";
+import { logger } from "@/utils/logger";
 
 interface CreateStoryParams {
   mediaUri: string;
@@ -44,16 +45,14 @@ export function useCreateStory() {
       const userId = payload.sub;
 
       // Upload media to stories bucket
-      console.log("📤 Uploading story media...");
       const uploadResult = await uploadMedia(mediaUri, userId, "stories", accessToken);
 
       // Queue media for background optimization (non-blocking)
       queueMediaProcessing(userId, uploadResult.path, accessToken, undefined, {
         preset: "story"
-      }).catch((err) => console.warn("[useCreateStory] Queue error (non-critical):", err));
+      }).catch(() => {});
 
       // Call create-story edge function
-      console.log("📤 Creating story...");
       const response = await fetch(`${supabaseUrl}/functions/v1/create-story`, {
         method: "POST",
         headers: {
@@ -74,7 +73,6 @@ export function useCreateStory() {
       }
 
       const result = await response.json();
-      console.log("✅ Story created:", result);
       return result;
     },
     onSuccess: () => {
@@ -83,7 +81,7 @@ export function useCreateStory() {
       queryClient.invalidateQueries({ queryKey: ["user-stories"] });
     },
     onError: (error) => {
-      console.error("❌ Story oluşturma hatası:", error);
+      logger.error('Story creation error', error, { tag: 'Stories' });
     }
   });
 }

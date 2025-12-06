@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import { logger } from '@/utils/logger';
 
 export interface NotificationData {
   type: string;
@@ -27,16 +28,9 @@ export function useNotificationListener(): void {
       }),
     });
 
-    console.log('✅ Notification handler configured');
-
-    // 2. Listen for notifications received while app is foregrounded
     const notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log('📬 Notification received (foreground):', {
-          title: notification.request.content.title,
-          body: notification.request.content.body,
-          data: notification.request.content.data,
-        });
+      () => {
+        // Notification received in foreground
       }
     );
 
@@ -44,7 +38,6 @@ export function useNotificationListener(): void {
     const responseListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data as NotificationData;
-        console.log('👆 Notification tapped:', data);
 
         // Handle deep linking based on notification type
         handleNotificationDeepLink(data);
@@ -54,7 +47,6 @@ export function useNotificationListener(): void {
     const checkLastNotification = async () => {
       const lastNotification = Notifications.getLastNotificationResponse();
       if (lastNotification) {
-        console.log('📬 App opened from notification:', lastNotification);
         const data = lastNotification.notification.request.content
           .data as NotificationData;
         handleNotificationDeepLink(data);
@@ -76,9 +68,7 @@ export function useNotificationListener(): void {
  */
 function handleNotificationDeepLink(data: NotificationData): void {
   try {
-    // Priority 1: Use custom URL if provided
     if (data.url) {
-      console.log('🔗 Deep linking to:', data.url);
       router.push(data.url);
       return;
     }
@@ -88,7 +78,6 @@ function handleNotificationDeepLink(data: NotificationData): void {
       case 'new_follower':
       case 'follow_back':
         if (data.actor_id) {
-          console.log('🔗 Opening profile:', data.actor_id);
           router.push(`/(profile)/${data.actor_id}`);
         }
         break;
@@ -97,7 +86,6 @@ function handleNotificationDeepLink(data: NotificationData): void {
       case 'message_like':
       case 'message_reply':
         if (data.actor_id) {
-          console.log('🔗 Opening messages:', data.actor_id);
           router.push(`/messages/${data.actor_id}`);
         }
         break;
@@ -106,27 +94,24 @@ function handleNotificationDeepLink(data: NotificationData): void {
       case 'content_comment':
       case 'content_share':
         if (data.content_id) {
-          console.log('🔗 Opening content:', data.content_id);
           router.push(`/content/${data.content_id}`);
         }
         break;
 
       case 'security_alert':
-        console.log('🔗 Opening security settings');
         router.push('/(settings)/security');
         break;
 
       case 'system_alert':
         if (data.action_url && typeof data.action_url === 'string') {
-          console.log('🔗 Opening system alert:', data.action_url);
           router.push(data.action_url);
         }
         break;
 
       default:
-        console.log('ℹ️ No deep link handler for notification type:', data.type);
+        break;
     }
   } catch (err) {
-    console.error('❌ Error handling notification deep link:', err);
+    logger.error('Notification deep link error', err, { tag: 'Notifications' });
   }
 }

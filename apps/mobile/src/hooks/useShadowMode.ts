@@ -17,6 +17,7 @@ import { verifyPin } from "@/utils/crypto";
 import { logAudit } from "@/services/audit.service";
 import { checkPinRateLimit, checkBiometricRateLimit } from "@/services/rate-limit.service";
 import { isUserLocked, getLockInfo, formatLockDuration } from "@/services/user-lock.service";
+import { logger } from "@/utils/logger";
 import * as LocalAuthentication from "expo-local-authentication";
 
 /**
@@ -40,20 +41,14 @@ export function useShadowMode() {
    */
   const checkBiometricAvailability = useCallback(async () => {
     try {
-      console.log("🔍 Biometric availability kontrol ediliyor...");
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      console.log(`📱 Biometric hardware var mı? ${hasHardware}`);
-      
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      console.log(`✅ Biometric kaydedilmiş mi? ${isEnrolled}`);
-      
       const available = hasHardware && isEnrolled;
       setBiometricAvailable(available);
-      console.log(`✨ Biometric kullanılabilir: ${available}`);
-      
+      logger.debug(`Biometric available: ${available}`, { tag: "Shadow" });
       return available;
     } catch (error) {
-      console.error("❌ Biometric availability check error:", error);
+      logger.error("Biometric availability check error", error, { tag: "Shadow" });
       setBiometricAvailable(false);
       return false;
     }
@@ -77,12 +72,11 @@ export function useShadowMode() {
 
       if (fetchError) throw fetchError;
 
-      console.log(`✅ ${profileType} profile fetched`);
       return profile;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to fetch profile";
       setError(message);
-      console.error("❌ Get profile error:", error);
+      logger.error("Get profile error", error, { tag: "Shadow" });
       throw error;
     } finally {
       setLoading(false);
@@ -104,7 +98,7 @@ export function useShadowMode() {
         const rateLimitStatus = await checkPinRateLimit(user.id);
         if (rateLimitStatus.isLocked) {
           setError(rateLimitStatus.message);
-          console.warn("⚠️ PIN rate limit exceeded:", rateLimitStatus.message);
+          logger.warn("PIN rate limit exceeded", { tag: "Shadow" });
           return false;
         }
 
@@ -141,7 +135,7 @@ export function useShadowMode() {
       } catch (error) {
         const message = error instanceof Error ? error.message : "PIN verification failed";
         setError(message);
-        console.error("❌ PIN verification error:", error);
+        logger.error("PIN verification error", error, { tag: "Shadow" });
         return false;
       } finally {
         setLoading(false);
@@ -174,24 +168,19 @@ export function useShadowMode() {
               : 'kalıcı olarak';
             
             setError(`Hesabınız ${durationText} kilitlenmiştir. Neden: ${lockInfo?.reason}`);
-            console.warn('⚠️ User is locked, cannot enable shadow mode');
+            logger.warn("User is locked, cannot enable shadow mode", { tag: "Shadow" });
             return false;
           }
         }
 
         // PIN doğrulama (biometric bypass)
         if (!biometricVerified && pin) {
-          console.log("🔑 PIN doğrulanıyor...");
           const isValid = await verifyShadowPin(pin);
           if (!isValid) {
             throw new Error("Invalid PIN");
           }
-        } else if (biometricVerified) {
-          console.log("✅ Biometric doğrulama bypass'ı kullanılıyor");
         }
 
-        // Call toggle_shadow_mode function
-        console.log("🔄 Shadow mode toggle RPC çağrılıyor...");
         const { data, error } = await supabase.rpc("toggle_shadow_mode", {
           p_user_id: user.id,
         });
@@ -209,13 +198,9 @@ export function useShadowMode() {
         // RPC creates session when entering shadow mode
         // RPC ends session when exiting shadow mode
         if (newState && data?.session_id) {
-          // Update local store with session ID from RPC
           useShadowStore.setState({ sessionId: data.session_id });
-          console.log(`✅ Session oluşturuldu: ${data.session_id}`);
         } else if (!newState) {
-          // Clear local session ID when exiting shadow mode
           useShadowStore.setState({ sessionId: null });
-          console.log("📝 Session kapatıldı");
         }
 
         // Log audit event
@@ -225,12 +210,12 @@ export function useShadowMode() {
           sessionId: data?.session_id
         });
 
-        console.log(`✅ Shadow mode toggled: ${newState}`);
+        logger.debug(`Shadow mode toggled: ${newState}`, { tag: "Shadow" });
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to toggle shadow mode";
         setError(message);
-        console.error("❌ Toggle shadow mode error:", error);
+        logger.error("Toggle shadow mode error", error, { tag: "Shadow" });
         return false;
       } finally {
         setLoading(false);
@@ -246,27 +231,20 @@ export function useShadowMode() {
    */
   const verifyBiometric = useCallback(async (): Promise<boolean> => {
     try {
-      console.log("🔐 Biometric doğrulama başlatılıyor...");
-      
       // Check rate limit
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const rateLimitStatus = await checkBiometricRateLimit(user.id);
         if (rateLimitStatus.isLocked) {
           setError(rateLimitStatus.message);
-          console.warn("⚠️ Biometric rate limit exceeded:", rateLimitStatus.message);
+          logger.warn("Biometric rate limit exceeded", { tag: "Shadow" });
           return false;
         }
       }
 
       const available = await checkBiometricAvailability();
       
-      if (!available) {
-        console.log("ℹ️ Biometric kullanılamıyor → PIN fallback'e geçiliyor");
-        return false;
-      }
-
-      console.log("👆 Biometric prompt gösteriliyor (Face ID/Touch ID/Fingerprint)");
+      if (!available) return false;
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: "Shadow profiline geçiş yap",
         fallbackLabel: "PIN kullan",
@@ -274,24 +252,14 @@ export function useShadowMode() {
       });
 
       if (result.success) {
-        console.log("✅ Biometric doğrulama başarılı!");
-        // Log successful biometric verification
-        if (user) {
-          await logAudit(user.id, "biometric_verified", "real");
-        }
+        if (user) await logAudit(user.id, "biometric_verified", "real");
         return true;
       } else {
-        console.log(`⚠️ Biometric doğrulama başarısız (reason: ${result.error})`);
-        console.log("ℹ️ PIN fallback'e geçiliyor");
-        // Log failed biometric attempt
-        if (user) {
-          await logAudit(user.id, "biometric_failed", "real");
-        }
+        if (user) await logAudit(user.id, "biometric_failed", "real");
         return false;
       }
     } catch (error) {
-      console.error("❌ Biometric doğrulama hatası:", error);
-      console.log("ℹ️ PIN fallback'e geçiliyor");
+      logger.error("Biometric verification error", error, { tag: "Shadow" });
       return false;
     }
   }, [checkBiometricAvailability, setError]);

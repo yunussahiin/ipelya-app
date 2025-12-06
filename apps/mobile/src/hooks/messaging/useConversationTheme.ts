@@ -86,8 +86,6 @@ export function useThemeChangeListener(conversationId: string, currentUserId?: s
   useEffect(() => {
     if (!conversationId) return;
 
-    console.log("[useThemeChangeListener] Subscribing to theme changes for:", conversationId);
-
     // Conversations tablosundaki tema değişikliklerini dinle
     const channel = supabase
       .channel(`theme-${conversationId}`)
@@ -100,20 +98,12 @@ export function useThemeChangeListener(conversationId: string, currentUserId?: s
           filter: `id=eq.${conversationId}`
         },
         async (payload) => {
-          console.log("[useThemeChangeListener] Received update:", payload);
-
           const newTheme = payload.new.theme as ChatThemeId;
           const changedBy = payload.new.theme_changed_by as string;
 
-          // Tema değişmemişse işlem yapma
-          if (!newTheme) {
-            console.log("[useThemeChangeListener] No theme in payload, skipping");
-            return;
-          }
+          if (!newTheme) return;
 
-          // Kendi değişikliğimiz mi?
           const isOwnChange = changedBy === currentUserId;
-          console.log("[useThemeChangeListener] Theme change:", { newTheme, changedBy, isOwnChange });
 
           // Store'u güncelle
           updateConversation(conversationId, { theme: newTheme as any });
@@ -126,17 +116,13 @@ export function useThemeChangeListener(conversationId: string, currentUserId?: s
               changedByName = conversation.other_participant.display_name || 
                               conversation.other_participant.username || 
                               "Birisi";
-              console.log("[useThemeChangeListener] Got name from conversation:", changedByName);
             } else {
-              // Yoksa profiles tablosundan al
-              console.log("[useThemeChangeListener] Fetching profile for:", changedBy);
-              const { data: profile, error: profileError } = await supabase
+              const { data: profile } = await supabase
                 .from("profiles")
                 .select("display_name, username")
                 .eq("user_id", changedBy)
                 .single();
               
-              console.log("[useThemeChangeListener] Profile result:", { profile, profileError });
               changedByName = profile?.display_name || profile?.username || "Birisi";
             }
           }
@@ -151,16 +137,12 @@ export function useThemeChangeListener(conversationId: string, currentUserId?: s
             timestamp: Date.now()
           };
 
-          console.log("[useThemeChangeListener] Adding theme change event:", event);
           setThemeChanges((prev) => [...prev, event]);
         }
       )
-      .subscribe((status) => {
-        console.log("[useThemeChangeListener] Subscription status:", status);
-      });
+      .subscribe();
 
     return () => {
-      console.log("[useThemeChangeListener] Unsubscribing from:", conversationId);
       supabase.removeChannel(channel);
     };
   }, [conversationId, currentUserId, updateConversation]);

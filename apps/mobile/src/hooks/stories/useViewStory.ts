@@ -5,6 +5,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
+import { logger } from "@/utils/logger";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 
@@ -48,7 +49,7 @@ export function useViewStory() {
       return viewStory(params, sessionToken);
     },
     onError: (error) => {
-      console.error("[useViewStory] Error:", error);
+      logger.error('View story error', error, { tag: 'Stories' });
     }
   });
 }

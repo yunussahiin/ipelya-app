@@ -134,7 +134,7 @@ export function EditBroadcastScreen() {
         async (buttonIndex) => {
           if (buttonIndex === 0) {
             const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: [ImagePicker.MediaType.IMAGE],
+              mediaTypes: ["images"],
               allowsEditing: true,
               aspect: [1, 1],
               quality: 0.8
@@ -155,7 +155,7 @@ export function EditBroadcastScreen() {
           text: "Galeriden Seç",
           onPress: async () => {
             const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: [ImagePicker.MediaType.IMAGE],
+              mediaTypes: ["images"],
               allowsEditing: true,
               aspect: [1, 1],
               quality: 0.8

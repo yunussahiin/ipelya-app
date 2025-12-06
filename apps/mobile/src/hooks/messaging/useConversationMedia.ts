@@ -56,8 +56,6 @@ export function useConversationMedia(conversationId: string, type: MediaType = "
         return { data: [] as MediaItem[], nextCursor: null };
       }
 
-      console.log("[useConversationMedia] Fetching:", { conversationId, type, cursor: pageParam });
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Oturum bulunamadı");
 
@@ -80,11 +78,6 @@ export function useConversationMedia(conversationId: string, type: MediaType = "
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Medya yüklenemedi");
-
-      console.log("[useConversationMedia] Result:", {
-        count: result.data?.length,
-        nextCursor: result.nextCursor ? "exists" : null
-      });
 
       return {
         data: result.data as MediaItem[],

@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export interface EarningsData {
   subscriptions: number;
@@ -93,7 +94,7 @@ export function useCreatorEarnings(initialPeriod: EarningsPeriod = '30d') {
         dailyEarnings: earningsData.dailyEarnings || [],
       });
     } catch (error) {
-      console.error('Fetch earnings error:', error);
+      logger.error('Fetch earnings error', error, { tag: 'Earnings' });
     } finally {
       setIsLoading(false);
     }

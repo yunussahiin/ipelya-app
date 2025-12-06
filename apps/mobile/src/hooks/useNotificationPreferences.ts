@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export interface NotificationPreferences {
   user_id: string;
@@ -49,8 +50,6 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
 
       if (!user) throw new Error('User not authenticated');
 
-      console.log('📥 Loading notification preferences for user:', user.id);
-
       const { data, error: fetchError } = await supabase
         .from('notification_preferences')
         .select('*')
@@ -63,7 +62,6 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
 
       // If no preferences exist, create default ones
       if (!data) {
-        console.log('📝 Creating default preferences');
         const defaultPrefs: NotificationPreferences = {
           user_id: user.id,
           push_enabled: true,
@@ -95,14 +93,12 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
         if (insertError) throw insertError;
 
         setPreferences(defaultPrefs);
-        console.log('✅ Default preferences created');
       } else {
         setPreferences(data);
-        console.log('✅ Preferences loaded');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load preferences';
-      console.error('❌ Load preferences error:', message);
+      logger.error('Load preferences error', err, { tag: 'NotificationPrefs' });
       setError(message);
     } finally {
       setLoading(false);
@@ -132,11 +128,9 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
         setPreferences((prev) =>
           prev ? { ...prev, ...updates } : null
         );
-
-        console.log('✅ Preferences updated');
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to update preferences';
-        console.error('❌ Update preferences error:', message);
+        logger.error('Update preferences error', err, { tag: 'NotificationPrefs' });
         setError(message);
       }
     },
@@ -157,10 +151,8 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
         await updatePreferences({
           notification_types: updatedTypes,
         });
-
-        console.log(`✅ Toggled ${type} to ${enabled}`);
       } catch (err) {
-        console.error('❌ Toggle notification type error:', err);
+        logger.error('Toggle notification type error', err, { tag: 'NotificationPrefs' });
       }
     },
     [preferences, updatePreferences]
@@ -171,9 +163,8 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
     async (enabled: boolean) => {
       try {
         await updatePreferences({ push_enabled: enabled });
-        console.log(`✅ Push notifications ${enabled ? 'enabled' : 'disabled'}`);
       } catch (err) {
-        console.error('❌ Set push enabled error:', err);
+        logger.error('Set push enabled error', err, { tag: 'NotificationPrefs' });
       }
     },
     [updatePreferences]
@@ -184,9 +175,8 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
     async (enabled: boolean) => {
       try {
         await updatePreferences({ email_enabled: enabled });
-        console.log(`✅ Email notifications ${enabled ? 'enabled' : 'disabled'}`);
       } catch (err) {
-        console.error('❌ Set email enabled error:', err);
+        logger.error('Set email enabled error', err, { tag: 'NotificationPrefs' });
       }
     },
     [updatePreferences]
@@ -200,9 +190,8 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
           quiet_hours_start: start,
           quiet_hours_end: end,
         });
-        console.log(`✅ Quiet hours set to ${start} - ${end}`);
       } catch (err) {
-        console.error('❌ Set quiet hours error:', err);
+        logger.error('Set quiet hours error', err, { tag: 'NotificationPrefs' });
       }
     },
     [updatePreferences]

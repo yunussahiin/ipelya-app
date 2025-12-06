@@ -40,7 +40,7 @@ function AudioRecorderComponent({ colors, onRecordingComplete, onCancel }: Audio
   // expo-audio player for preview
   const player = useAudioPlayer(recordedUri ? { uri: recordedUri } : null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Pulse animation

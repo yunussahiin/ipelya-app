@@ -14,6 +14,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import { logger } from '@/utils/logger';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -87,14 +88,12 @@ export async function uploadMedia(
     
     // Handle Photos Library URI (ph://) - iOS
     if (uri.startsWith('ph://')) {
-      console.log('[MediaUpload] Converting ph:// URI to file://');
       const assetId = uri.replace('ph://', '').split('/')[0];
       const asset = await MediaLibrary.getAssetInfoAsync(assetId);
       if (!asset.localUri) {
         throw new Error('Could not get local URI for photo library asset');
       }
       normalizedUri = asset.localUri;
-      console.log('[MediaUpload] Converted to:', normalizedUri);
     }
     // Handle duplicate file:// prefix
     else if (uri.startsWith('file://file://')) {
@@ -104,8 +103,6 @@ export async function uploadMedia(
     else if (!uri.startsWith('file://') && uri.startsWith('/')) {
       normalizedUri = `file://${uri}`;
     }
-    
-    console.log('[MediaUpload] Normalized URI:', normalizedUri);
 
     // Get file info
     const fileInfo = await FileSystem.getInfoAsync(normalizedUri);
@@ -150,13 +147,11 @@ export async function uploadMedia(
     });
 
     if (uploadResult.status !== 200) {
-      console.error('Upload error details:', uploadResult.body);
+      logger.error('Upload error', new Error(uploadResult.body), { tag: 'MediaUpload' });
       throw new Error(`Upload failed: ${uploadResult.status} - ${uploadResult.body}`);
     }
 
-    console.log('✅ Upload success:', uploadResult.body);
     const data = JSON.parse(uploadResult.body);
-    console.log('📦 Parsed data:', data);
 
     // Get public URL using fileName (data.path might be undefined)
     const { data: { publicUrl } } = supabase.storage
@@ -170,7 +165,7 @@ export async function uploadMedia(
       size: fileSize,
     };
   } catch (error) {
-    console.error('❌ Media upload error:', error);
+    logger.error('Media upload error', error, { tag: 'MediaUpload' });
     throw error;
   }
 }
@@ -250,7 +245,6 @@ export async function queueMediaProcessing(
   options?: QueueMediaOptions
 ): Promise<QueueMediaResult> {
   try {
-    console.log('[MediaUpload] Queueing media for optimization:', sourcePath);
 
     // Job tipini belirle
     const isVideo = sourcePath.match(/\.(mp4|mov|avi|mkv)$/i);
@@ -273,18 +267,14 @@ export async function queueMediaProcessing(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[MediaUpload] Queue error:', response.status, errorData);
       return { message_id: 0, queued: false };
     }
 
     const result = await response.json();
-    console.log('[MediaUpload] Media queued successfully:', result);
     return { message_id: result.message_id || 0, queued: true };
 
   } catch (error) {
-    console.error('[MediaUpload] Queue error:', error);
-    // Queue hatası kritik değil, upload zaten tamamlandı
+    logger.error('Queue error', error, { tag: 'MediaUpload' });
     return { message_id: 0, queued: false };
   }
 }
@@ -316,8 +306,6 @@ export async function uploadMediaWithOptimization(
     optimizationOptions
   );
 
-  console.log('[MediaUpload] Upload complete, optimization queued:', queueResult.queued);
-
   return {
     ...uploadResult,
     queued: queueResult.queued
@@ -342,11 +330,9 @@ export async function triggerMediaWorker(accessToken: string): Promise<{ process
     }
 
     const result = await response.json();
-    console.log('[MediaUpload] Worker triggered:', result);
     return result;
-
   } catch (error) {
-    console.error('[MediaUpload] Worker trigger error:', error);
+    logger.error('Worker trigger error', error, { tag: 'MediaUpload' });
     throw error;
   }
 }

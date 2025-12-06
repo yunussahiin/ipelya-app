@@ -14,8 +14,7 @@ import { useBroadcastStore } from "@/store/messaging";
 import {
   getBroadcastChannel,
   updateBroadcastChannel,
-  addBroadcastReaction,
-  removeBroadcastReaction
+  voteBroadcastPoll
 } from "@ipelya/api";
 import type {
   CreateBroadcastChannelRequest,
@@ -23,6 +22,7 @@ import type {
   BroadcastMessage,
 } from "@ipelya/types";
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // QUERY KEYS
@@ -89,8 +89,6 @@ export function useMyBroadcastChannels() {
   const query = useQuery({
     queryKey: broadcastKeys.myChannels(),
     queryFn: async () => {
-      console.log("📡 [useMyBroadcastChannels] Edge function çağrılıyor...");
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return [];
 
@@ -149,9 +147,8 @@ export function useJoinedBroadcastChannels() {
       if (error) throw error;
       
       // Flatten channels
-      const channels = (data || [])
-        .map((item: any) => item.channel)
-        .filter(Boolean);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const channels = (data || []).map((item: any) => item.channel).filter(Boolean);
       
       return channels;
     },
@@ -333,9 +330,7 @@ export function useBroadcastMessages(channelId: string) {
           schema: "public",
           table: "broadcast_reactions",
         },
-        (payload) => {
-          console.log("🔔 [Realtime] Reaction change:", payload.eventType);
-          // Sessizce refetch (loading göstermeden)
+        () => {
           queryClient.refetchQueries({
             queryKey: broadcastKeys.channelMessages(channelId),
             type: "active"
@@ -419,8 +414,6 @@ export function useAddBroadcastReaction() {
       emoji: string;
       channelId: string;
     }) => {
-      console.log("🚀 [useAddBroadcastReaction] Adding reaction via edge function:", { messageId, emoji });
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Oturum bulunamadı");
 
@@ -435,18 +428,13 @@ export function useAddBroadcastReaction() {
       return response.data;
     },
     onMutate: async ({ channelId, messageId, emoji }) => {
-      console.log("⏳ [useAddBroadcastReaction] Optimistic update:", { channelId, messageId, emoji });
       useBroadcastStore.getState().updateMessage(channelId, messageId, {
         my_reaction: emoji,
         reaction_count: 1,
       });
     },
-    onSuccess: (data, { channelId }) => {
-      console.log("✅ [useAddBroadcastReaction] Success:", data);
-      // Realtime zaten güncelleyecek, ekstra refetch gerekmiyor
-    },
     onError: (error) => {
-      console.error("❌ [useAddBroadcastReaction] Error:", error);
+      logger.error("Add broadcast reaction error", error, { tag: "Broadcast" });
     },
   });
 }
@@ -464,8 +452,6 @@ export function useRemoveBroadcastReaction() {
       emoji: string;
       channelId: string;
     }) => {
-      console.log("🗑️ [useRemoveBroadcastReaction] Removing reaction via edge function:", { messageId, emoji });
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Oturum bulunamadı");
 
@@ -483,10 +469,6 @@ export function useRemoveBroadcastReaction() {
       useBroadcastStore.getState().updateMessage(channelId, messageId, {
         my_reaction: null,
       });
-    },
-    onSuccess: (data) => {
-      console.log("✅ [useRemoveBroadcastReaction] Success:", data);
-      // Realtime zaten güncelleyecek, ekstra refetch gerekmiyor
     },
   });
 }
@@ -608,7 +590,7 @@ export function useScheduleBroadcastMessage() {
       content?: string;
       contentType?: string;
       mediaUrl?: string;
-      mediaMetadata?: Record<string, any>;
+      mediaMetadata?: Record<string, unknown>;
       scheduledAt: Date;
     }) => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -655,33 +637,21 @@ export function useScheduledBroadcastMessages(channelId: string) {
   return useQuery({
     queryKey: ["scheduledMessages", channelId],
     queryFn: async () => {
-      console.log("📅 [useScheduledBroadcastMessages] Fetching for channel:", channelId);
-      
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.log("📅 [useScheduledBroadcastMessages] No session");
-        throw new Error("Oturum bulunamadı");
-      }
+      if (!session?.access_token) throw new Error("Oturum bulunamadı");
 
       const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/schedule-broadcast-message?action=list&channel_id=${channelId}`;
-      console.log("📅 [useScheduledBroadcastMessages] URL:", url);
 
       const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
-
-      console.log("📅 [useScheduledBroadcastMessages] Response status:", res.status);
 
       if (!res.ok) {
         const error = await res.json();
-        console.log("📅 [useScheduledBroadcastMessages] Error:", error);
         throw new Error(error.error || "Mesajlar alınamadı");
       }
 
       const data = await res.json();
-      console.log("📅 [useScheduledBroadcastMessages] Data:", data);
       return data.messages || [];
     },
     enabled: !!channelId,
@@ -695,13 +665,7 @@ export function useCancelScheduledMessage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      messageId,
-      channelId,
-    }: {
-      messageId: string;
-      channelId: string;
-    }) => {
+    mutationFn: async ({ messageId }: { messageId: string; channelId: string }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Oturum bulunamadı");
 
@@ -788,7 +752,7 @@ export function useManageBroadcastMember() {
     },
     onSuccess: (_, { channelId }) => {
       queryClient.invalidateQueries({
-        queryKey: broadcastKeys.channelMembers(channelId),
+        queryKey: [...broadcastKeys.channel(channelId), "members"],
       });
     },
   });

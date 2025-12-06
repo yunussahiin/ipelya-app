@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
 import { Alert, Share } from "react-native";
 import * as Haptics from "expo-haptics";
+import { logger } from "@/utils/logger";
 
 interface UsePostActionsProps {
   postId: string;
@@ -26,9 +27,7 @@ export function usePostActions({ postId }: UsePostActionsProps) {
 
   // Like/unlike mutation
   const likeMutation = useMutation({
-    mutationFn: async (isLiked: boolean) => {
-      console.log("🔵 Like mutation started:", { postId, isLiked });
-      
+    mutationFn: async () => {
       const response = await fetch(`${supabaseUrl}/functions/v1/like-post`, {
         method: "POST",
         headers: {
@@ -40,18 +39,12 @@ export function usePostActions({ postId }: UsePostActionsProps) {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("❌ Like API error:", error);
         throw new Error(error.error || "Failed to like/unlike post");
       }
 
-      const result = await response.json();
-      console.log("✅ Like API success:", result);
-      return result;
+      return response.json();
     },
-    onMutate: async (isLiked) => {
-      console.log("🟡 onMutate started:", { postId, isLiked });
-      
-      // Haptic feedback
+    onMutate: async () => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Cancel outgoing queries
@@ -60,14 +53,11 @@ export function usePostActions({ postId }: UsePostActionsProps) {
       return { previousData: null };
     },
     onError: (err) => {
-      console.error("❌ Like mutation error:", err);
-      
-      // Refetch on error to get correct state
+      logger.error('Like error', err, { tag: 'Feed' });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       Alert.alert("Hata", "Beğeni işlemi başarısız oldu");
     },
-    onSuccess: (data, variables) => {
-      console.log("🎉 Like mutation success:", data);
+    onSuccess: (data) => {
       
       // Update based on API response
       const queries = queryClient.getQueriesData({ queryKey: ["feed"] });
@@ -92,15 +82,6 @@ export function usePostActions({ postId }: UsePostActionsProps) {
                   } else if (!newIsLiked && wasLiked) {
                     newCount = currentCount - 1;
                   }
-                  
-                  console.log("🔄 Final update:", {
-                    postId,
-                    action: data.action,
-                    wasLiked,
-                    newIsLiked,
-                    currentCount,
-                    newCount
-                  });
                   
                   return {
                     ...item,
@@ -137,15 +118,14 @@ export function usePostActions({ postId }: UsePostActionsProps) {
 
       if (result.action === Share.sharedAction) {
         // TODO: Track share analytics
-        console.log("Post shared");
       }
     } catch (error) {
-      console.error("Share error:", error);
+      logger.error('Share error', error, { tag: 'Feed' });
     }
   };
 
   return {
-    handleLike: (isLiked: boolean) => likeMutation.mutate(isLiked),
+    handleLike: () => likeMutation.mutate(),
     handleComment,
     handleShare,
     isLiking: likeMutation.isPending

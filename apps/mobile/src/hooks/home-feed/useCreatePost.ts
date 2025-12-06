@@ -19,6 +19,7 @@ import { createPost } from '@ipelya/api/home-feed';
 import type { CreatePostRequest } from '@ipelya/types';
 import { useAuthStore } from '../../store/auth.store';
 import { uploadMultipleMedia, queueMediaProcessing } from '../../services/media-upload.service';
+import { logger } from '@/utils/logger';
 
 /**
  * Create Post Hook
@@ -63,7 +64,7 @@ export function useCreatePost() {
             accessToken,
             undefined, // no message_id for posts
             { preset: 'post' }
-          ).catch(err => console.warn('[useCreatePost] Queue error (non-critical):', err));
+          ).catch(() => {});
         }
       }
       
@@ -74,7 +75,7 @@ export function useCreatePost() {
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
     onError: (error) => {
-      console.error('Post oluşturma hatası:', error);
+      logger.error('Post creation error', error, { tag: 'Post' });
     },
   });
 }

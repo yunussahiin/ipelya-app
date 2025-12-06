@@ -4,19 +4,25 @@
  * @livekit/react-native-krisp-noise-filter paketi gerekli
  */
 
-import { useEffect, useMemo, useCallback, useState } from 'react';
-import type { LocalAudioTrack } from '@livekit/react-native';
+import { useMemo, useCallback, useState } from 'react';
+
+// LocalAudioTrack type for Krisp processor
+interface LocalAudioTrack {
+  setProcessor?: (processor: unknown) => Promise<void>;
+}
 
 // Krisp paketi opsiyonel - yüklü değilse hata vermez
-let KrispNoiseFilter: (() => any) | null = null;
+let KrispNoiseFilter: (() => unknown) | null = null;
 
-try {
-  // Dynamic import - paket yüklü değilse hata vermez
-  const krispModule = require('@livekit/react-native-krisp-noise-filter');
-  KrispNoiseFilter = krispModule.KrispNoiseFilter;
-} catch {
-  console.log('[Krisp] @livekit/react-native-krisp-noise-filter paketi yüklü değil');
-}
+// Dynamic import at module level
+(async () => {
+  try {
+    const krispModule = await import('@livekit/react-native-krisp-noise-filter');
+    KrispNoiseFilter = krispModule.KrispNoiseFilter;
+  } catch {
+    // Krisp paketi yüklü değil - sessizce devam et
+  }
+})();
 
 export interface UseKrispNoiseFilterOptions {
   /** Krisp'i otomatik aktifleştir */
@@ -25,7 +31,7 @@ export interface UseKrispNoiseFilterOptions {
 
 export interface UseKrispNoiseFilterResult {
   /** Krisp processor instance */
-  processor: any | null;
+  processor: unknown | null;
   /** Krisp aktif mi */
   isEnabled: boolean;
   /** Krisp destekleniyor mu */
@@ -53,21 +59,19 @@ export function useKrispNoiseFilter(
     if (!isSupported) return null;
     try {
       return KrispNoiseFilter!();
-    } catch (error) {
-      console.warn('[Krisp] Processor oluşturulamadı:', error);
+    } catch {
       return null;
     }
   }, [isSupported]);
 
   // Track'e processor ekle
   const applyToTrack = useCallback(async (track: LocalAudioTrack | null) => {
-    if (!track || !processor) return;
+    if (!track || !processor || !track.setProcessor) return;
     
     try {
       await track.setProcessor(processor);
-      console.log('[Krisp] Noise filter track\'e uygulandı');
-    } catch (error) {
-      console.warn('[Krisp] Track\'e uygulanamadı:', error);
+    } catch {
+      // Krisp track'e uygulanamadı
     }
   }, [processor]);
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export interface Notification {
   id: string;
@@ -47,7 +48,6 @@ export function useNotifications(): UseNotificationsReturn {
 
       if (!user) throw new Error('User not authenticated');
 
-      console.log('📥 Loading notifications for user:', user.id);
 
       const { data, error: fetchError } = await supabase
         .from('notifications')
@@ -64,10 +64,9 @@ export function useNotifications(): UseNotificationsReturn {
       const unread = (data || []).filter((n) => !n.read).length;
       setUnreadCount(unread);
 
-      console.log('✅ Loaded', data?.length || 0, 'notifications');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load notifications';
-      console.error('❌ Load notifications error:', message);
+      logger.error('Load notifications error', err, { tag: 'Notifications' });
       setError(message);
     } finally {
       setLoading(false);
@@ -87,7 +86,6 @@ export function useNotifications(): UseNotificationsReturn {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        console.log('🔗 Setting up realtime subscription for user:', user.id);
 
         // Subscribe to new notifications
         const channel = supabase
@@ -102,36 +100,22 @@ export function useNotifications(): UseNotificationsReturn {
             },
             (payload) => {
               const newNotification = payload.new as Notification;
-              console.log('📬 New notification received:', newNotification);
-
-              // Add to beginning of list
-              setNotifications((prev) => {
-                const updated = [newNotification, ...prev];
-                console.log('📊 Updated notifications count:', updated.length);
-                return updated;
-              });
-              
-              // Update unread count
+              setNotifications((prev) => [newNotification, ...prev]);
               if (!newNotification.read) {
-                setUnreadCount((prev) => {
-                  const updated = prev + 1;
-                  console.log('📊 Updated unread count:', updated);
-                  return updated;
-                });
+                setUnreadCount((prev) => prev + 1);
               }
             }
           )
           .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
-              console.log('✅ Realtime subscription active');
+              logger.debug('Notifications subscription active', { tag: 'Notifications' });
               retryCount = 0;
             } else if (status === 'CHANNEL_ERROR') {
               if (retryCount < maxRetries) {
                 retryCount++;
-                console.warn(`⚠️ Realtime subscription error (retry ${retryCount}/${maxRetries})`);
                 setTimeout(setupSubscription, 1000 * retryCount);
               } else {
-                console.warn('⚠️ Realtime subscription failed after retries');
+                logger.error('Notifications subscription failed', undefined, { tag: 'Notifications' });
               }
             }
           });
@@ -140,7 +124,7 @@ export function useNotifications(): UseNotificationsReturn {
           channel.unsubscribe();
         };
       } catch (err) {
-        console.error('❌ Subscription setup error:', err);
+        logger.error('Subscription setup error', err, { tag: 'Notifications' });
       }
     };
 
@@ -169,9 +153,8 @@ export function useNotifications(): UseNotificationsReturn {
       );
 
       setUnreadCount((prev) => Math.max(0, prev - 1));
-      console.log('✅ Marked notification as read:', notificationId);
     } catch (err) {
-      console.error('❌ Mark as read error:', err);
+      logger.error('Mark as read error', err, { tag: 'Notifications' });
     }
   }, []);
 
@@ -196,9 +179,8 @@ export function useNotifications(): UseNotificationsReturn {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
 
-      console.log('✅ Marked all notifications as read');
     } catch (err) {
-      console.error('❌ Mark all as read error:', err);
+      logger.error('Mark all as read error', err, { tag: 'Notifications' });
     }
   }, []);
 
@@ -213,9 +195,8 @@ export function useNotifications(): UseNotificationsReturn {
       if (deleteError) throw deleteError;
 
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      console.log('✅ Deleted notification:', notificationId);
     } catch (err) {
-      console.error('❌ Delete notification error:', err);
+      logger.error('Delete notification error', err, { tag: 'Notifications' });
     }
   }, []);
 

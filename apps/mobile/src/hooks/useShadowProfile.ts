@@ -11,6 +11,7 @@
 
 import { useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { logger } from "@/utils/logger";
 
 // Supabase client factory
 const getSupabaseClient = () => {
@@ -71,12 +72,11 @@ export function useShadowProfile() {
       if (fetchError) throw fetchError;
 
       setProfile(shadowProfile as ShadowProfile);
-      console.log("✅ Shadow profile fetched");
       return shadowProfile;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch profile";
       setError(message);
-      console.error("❌ Get shadow profile error:", err);
+      logger.error('Get shadow profile error', err, { tag: 'ShadowProfile' });
       throw err;
     } finally {
       setLoading(false);
@@ -107,12 +107,11 @@ export function useShadowProfile() {
 
         // Refresh profile
         await getShadowProfile();
-        console.log("✅ Shadow profile updated");
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to update profile";
         setError(message);
-        console.error("❌ Update shadow profile error:", err);
+        logger.error('Update shadow profile error', err, { tag: 'ShadowProfile' });
         throw err;
       } finally {
         setLoading(false);
@@ -134,9 +133,9 @@ export function useShadowProfile() {
 
         // Get file extension
         const fileExtension = fileUri.split(".").pop() || "jpg";
-        const fileName = `shadow_${user.id}_${Date.now()}.${fileExtension}`;
+        const _fileName = `shadow_${user.id}_${Date.now()}.${fileExtension}`;
 
-        // Read file and upload
+        // Read file and upload (TODO: implement)
         // TODO: Implement file reading and upload
         // const fileData = await fetch(fileUri);
         // const blob = await fileData.blob();
@@ -155,12 +154,11 @@ export function useShadowProfile() {
         // Update profile with avatar URL
         // await updateProfile({ avatar_url: publicUrl });
 
-        console.log("✅ Avatar uploaded");
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to upload avatar";
         setError(message);
-        console.error("❌ Upload avatar error:", err);
+        logger.error('Upload avatar error', err, { tag: 'ShadowProfile' });
         throw err;
       } finally {
         setLoading(false);

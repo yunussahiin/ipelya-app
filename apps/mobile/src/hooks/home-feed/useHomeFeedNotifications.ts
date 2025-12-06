@@ -56,29 +56,8 @@ export function useHomeFeedNotifications(
           
           // Sadece home feed notification'larını işle
           if (HOME_FEED_NOTIFICATION_TYPES.includes(notification.type)) {
-            console.log('🔔 Home Feed Notification:', notification);
-            
             if (onNotification) {
               onNotification(notification);
-            }
-            
-            // Notification type'a göre action al
-            switch (notification.type) {
-              case 'mention':
-                console.log('👤 Mention notification');
-                break;
-              case 'content_like':
-                console.log('❤️ Like notification');
-                break;
-              case 'content_comment':
-                console.log('💬 Comment notification');
-                break;
-              case 'content_share':
-                console.log('🔗 Share notification');
-                break;
-              case 'crystal_gift':
-                console.log('🎁 Gift notification');
-                break;
             }
           }
         }

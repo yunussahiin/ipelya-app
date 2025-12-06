@@ -11,7 +11,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useAuth } from '@/store/auth.store';
+import { useAuthStore } from '@/store/auth.store';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export type CreatorEventType = 
@@ -36,7 +36,7 @@ interface UseCreatorRealtimeOptions {
 }
 
 export function useCreatorRealtime(options: UseCreatorRealtimeOptions = {}) {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const {
     onNewEarning,
@@ -77,8 +77,6 @@ export function useCreatorRealtime(options: UseCreatorRealtimeOptions = {}) {
   useEffect(() => {
     if (!user?.id || !enabled) return;
 
-    console.log('[CreatorRealtime] Subscribing to creator events...');
-
     // Create a single channel for all creator events
     const channel = supabase
       .channel(`creator:${user.id}`)
@@ -92,7 +90,6 @@ export function useCreatorRealtime(options: UseCreatorRealtimeOptions = {}) {
           filter: `creator_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('[CreatorRealtime] New transaction:', payload.new);
           handleEvent('new_earning', payload.new);
         }
       )
@@ -106,7 +103,6 @@ export function useCreatorRealtime(options: UseCreatorRealtimeOptions = {}) {
           filter: `creator_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('[CreatorRealtime] Payout status changed:', payload.new);
           handleEvent('payout_status_changed', payload.new);
         }
       )
@@ -121,7 +117,6 @@ export function useCreatorRealtime(options: UseCreatorRealtimeOptions = {}) {
         },
         (payload) => {
           if (payload.new.status !== payload.old?.status) {
-            console.log('[CreatorRealtime] Payment method status changed:', payload.new);
             handleEvent('payment_method_verified', payload.new);
           }
         }
@@ -136,18 +131,14 @@ export function useCreatorRealtime(options: UseCreatorRealtimeOptions = {}) {
           filter: `creator_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('[CreatorRealtime] KYC status changed:', payload.new);
           handleEvent('kyc_status_changed', payload.new);
         }
       )
-      .subscribe((status) => {
-        console.log('[CreatorRealtime] Subscription status:', status);
-      });
+      .subscribe();
 
     channelRef.current = channel;
 
     return () => {
-      console.log('[CreatorRealtime] Unsubscribing...');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

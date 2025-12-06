@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 // QueryParams helper
 const parseQueryParams = (url: string) => {
@@ -45,7 +46,6 @@ export const createSessionFromUrl = async (url: string) => {
 
     // Token'sız URL'leri sessizce ignore et (initial URL gibi)
     if (!params.access_token || !params.refresh_token) {
-      console.log("ℹ️ Token'sız URL, OAuth callback değil");
       return null;
     }
 
@@ -56,10 +56,10 @@ export const createSessionFromUrl = async (url: string) => {
 
     if (error) throw error;
 
-    console.log("✅ OAuth session başarıyla oluşturuldu");
+    logger.debug("OAuth session created", { tag: "OAuth" });
     return data.session;
   } catch (error) {
-    console.error("❌ OAuth session oluşturma hatası:", error);
+    logger.error("OAuth session creation error", error, { tag: "OAuth" });
     throw error;
   }
 };
@@ -72,8 +72,7 @@ export const signInWithGoogle = async () => {
   try {
     const redirectUrl = getRedirectUrl();
 
-    console.log("🔵 Google OAuth başlatılıyor...");
-    console.log("Redirect URL:", redirectUrl);
+    logger.debug("Google OAuth starting", { tag: "OAuth" });
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -86,8 +85,6 @@ export const signInWithGoogle = async () => {
     if (error) throw error;
     if (!data.url) throw new Error("OAuth URL alınamadı");
 
-    console.log("🌐 Tarayıcı açılıyor...");
-
     // Tarayıcıda Google login sayfasını aç
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
@@ -95,18 +92,15 @@ export const signInWithGoogle = async () => {
     );
 
     if (result.type === "success") {
-      console.log("✅ Tarayıcıdan başarıyla geri döndü");
       const session = await createSessionFromUrl(result.url);
       return session;
     } else if (result.type === "cancel") {
-      console.log("⚠️ Kullanıcı OAuth'u iptal etti");
       throw new Error("OAuth iptal edildi");
     } else if (result.type === "dismiss") {
-      console.log("⚠️ Tarayıcı kapatıldı");
       throw new Error("Tarayıcı kapatıldı");
     }
   } catch (error) {
-    console.error("❌ Google OAuth hatası:", error);
+    logger.error("Google OAuth error", error, { tag: "OAuth" });
     throw error;
   }
 };
@@ -119,9 +113,8 @@ export const setupDeepLinkListener = () => {
   const url = Linking.useURL();
 
   if (url != null) {
-    console.log("🔗 Deep link alındı:", url);
     createSessionFromUrl(url).catch((error) => {
-      console.error("Deep link session oluşturma hatası:", error);
+      logger.error("Deep link session error", error, { tag: "OAuth" });
     });
   }
 };
@@ -134,7 +127,7 @@ export const signInWithMagicLink = async (email: string) => {
   try {
     const redirectUrl = getRedirectUrl();
 
-    console.log("📧 Magic link gönderiliyor:", email);
+    logger.debug(`Magic link sending to: ${email}`, { tag: "OAuth" });
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -145,10 +138,10 @@ export const signInWithMagicLink = async (email: string) => {
 
     if (error) throw error;
 
-    console.log("✅ Magic link email'e gönderildi");
+    logger.debug("Magic link sent", { tag: "OAuth" });
     return true;
   } catch (error) {
-    console.error("❌ Magic link hatası:", error);
+    logger.error("Magic link error", error, { tag: "OAuth" });
     throw error;
   }
 };
@@ -163,7 +156,7 @@ export const signInWithApple = async () => {
   }
 
   try {
-    console.log("🍎 Apple Sign-In başlatılıyor...");
+    logger.debug("Apple Sign-In starting", { tag: "OAuth" });
 
     // Nonce oluştur (güvenlik için)
     const rawNonce = Math.random().toString(36).substring(2, 15);
@@ -182,7 +175,6 @@ export const signInWithApple = async () => {
     });
 
     if (credential.identityToken) {
-      console.log("✅ Apple Sign-In başarılı");
 
       // Supabase'e Apple token'ını gönder
       const { data, error } = await supabase.auth.signInWithIdToken({
@@ -193,7 +185,7 @@ export const signInWithApple = async () => {
 
       if (error) throw error;
 
-      console.log("✅ Apple OAuth session oluşturuldu");
+      logger.debug("Apple OAuth session created", { tag: "OAuth" });
       return data.session;
     } else {
       throw new Error("Apple Sign-In: Identity token alınamadı");
@@ -205,10 +197,9 @@ export const signInWithApple = async () => {
       "code" in error &&
       error.code === "ERR_REQUEST_CANCELED"
     ) {
-      console.log("⚠️ Kullanıcı Apple Sign-In'i iptal etti");
       throw new Error("Apple Sign-In iptal edildi");
     }
-    console.error("❌ Apple Sign-In hatası:", error);
+    logger.error("Apple Sign-In error", error, { tag: "OAuth" });
     throw error;
   }
 };

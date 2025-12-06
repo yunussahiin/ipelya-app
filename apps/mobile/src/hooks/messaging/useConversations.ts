@@ -19,7 +19,18 @@ import {
   muteConversation,
   unmuteConversation,
 } from "@ipelya/api";
-import type { CreateConversationRequest, ConversationListItem } from "@ipelya/types";
+import type { CreateConversationRequest } from "@ipelya/types";
+
+// Conversation participant type
+interface ConversationParticipant {
+  user_id: string;
+  profile?: {
+    id: string;
+    display_name: string;
+    avatar_url?: string;
+    username?: string;
+  };
+}
 
 // =============================================
 // QUERY KEYS
@@ -68,19 +79,6 @@ export function useConversations(archived = false) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Sohbetler yüklenemedi");
 
-      // DEBUG: Son mesaj bilgilerini logla
-      console.log("[useConversations] Fetched conversations:", result.data?.length);
-      result.data?.forEach((conv: any) => {
-        const lm = conv.last_message_preview;
-        console.log(`[useConversations] Conv: ${conv.other_participant?.display_name || conv.name}`, {
-          last_message_content: lm?.content?.substring(0, 30),
-          content_type: lm?.content_type,
-          sender_id: lm?.sender_id,
-          is_mine: lm?.is_mine,
-          current_user_id: conv.current_user_id
-        });
-      });
-
       return { data: result.data, nextCursor: result.nextCursor };
     },
     initialPageParam: undefined as string | undefined,
@@ -112,8 +110,6 @@ export function useConversation(conversationId: string) {
   const query = useQuery({
     queryKey: conversationKeys.detail(conversationId),
     queryFn: async () => {
-      console.log("[useConversation] Fetching conversation:", conversationId);
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Kullanıcı oturumu bulunamadı");
 
@@ -139,20 +135,22 @@ export function useConversation(conversationId: string) {
 
       // Direct sohbetlerde karşı tarafın bilgisini ekle
       if (data.type === "direct" && data.conversation_participants) {
-        const otherParticipant = data.conversation_participants.find(
-          (p: any) => p.user_id !== user.id
+        const participants = data.conversation_participants as ConversationParticipant[];
+        const otherParticipant = participants.find(
+          (p) => p.user_id !== user.id
         );
         if (otherParticipant?.profile) {
-          (data as any).other_participant = {
-            user_id: otherParticipant.user_id,
-            display_name: otherParticipant.profile.display_name,
-            avatar_url: otherParticipant.profile.avatar_url,
-            username: otherParticipant.profile.username,
-          };
+          Object.assign(data, {
+            other_participant: {
+              user_id: otherParticipant.user_id,
+              display_name: otherParticipant.profile.display_name,
+              avatar_url: otherParticipant.profile.avatar_url,
+              username: otherParticipant.profile.username,
+            }
+          });
         }
       }
 
-      console.log("[useConversation] Result:", (data as any).other_participant?.display_name);
       return data;
     },
     // Store'da varsa fetch yapma
@@ -166,16 +164,16 @@ export function useConversation(conversationId: string) {
   // Store'a ekle (sadece yeni veri geldiğinde)
   useEffect(() => {
     if (query.data && !existsInStore) {
-      const conv = query.data as any;
+      const conv = query.data;
       useConversationStore.getState().addConversation({
-        id: conv.id,
-        type: conv.type,
-        name: conv.name,
-        avatar_url: conv.avatar_url,
-        last_message_at: conv.last_message_at,
+        id: conv.id as string,
+        type: conv.type as "direct" | "group",
+        name: (conv.name as string | null) ?? null,
+        avatar_url: (conv.avatar_url as string | null) ?? null,
+        last_message_at: (conv.last_message_at as string | null) ?? null,
         unread_count: 0,
-        is_muted: conv.is_muted ?? false,
-        other_participant: conv.other_participant,
+        is_muted: (conv.is_muted as boolean) ?? false,
+        other_participant: conv.other_participant as { user_id: string; display_name: string | null; avatar_url: string | null; username: string | null } | undefined,
       });
     }
   }, [query.data, existsInStore]);

@@ -4,6 +4,7 @@
  */
 
 import { getFailedPinAttempts, getFailedBiometricAttempts, logAudit } from "./audit.service";
+import { logger } from "@/utils/logger";
 
 export interface RateLimitConfig {
   maxAttempts: number;
@@ -47,7 +48,6 @@ export function updateRateLimitConfigDynamic(
     BIOMETRIC_RATE_LIMIT = updated;
   }
 
-  console.log(`✅ Rate limit config updated for ${type}:`, updated);
   return updated;
 }
 
@@ -100,7 +100,7 @@ export async function checkPinRateLimit(userId: string): Promise<RateLimitStatus
           : ""
     };
   } catch (error) {
-    console.error("❌ PIN rate limit check error:", error);
+    logger.error('PIN rate limit check error', error, { tag: 'RateLimit' });
     return {
       isLocked: false,
       attemptsRemaining: PIN_RATE_LIMIT.maxAttempts,
@@ -151,7 +151,7 @@ export async function checkBiometricRateLimit(userId: string): Promise<RateLimit
           : ""
     };
   } catch (error) {
-    console.error("❌ Biometric rate limit check error:", error);
+    logger.error('Biometric rate limit check error', error, { tag: 'RateLimit' });
     return {
       isLocked: false,
       attemptsRemaining: BIOMETRIC_RATE_LIMIT.maxAttempts,
@@ -173,7 +173,7 @@ export async function logRateLimitViolation(
       rateLimitViolation: true
     });
   } catch (error) {
-    console.error("❌ Rate limit violation log error:", error);
+    logger.error('Rate limit violation log error', error, { tag: 'RateLimit' });
   }
 }
 
@@ -193,6 +193,5 @@ export function updateRateLimitConfig(
     Object.assign(BIOMETRIC_RATE_LIMIT, updated);
   }
 
-  console.log(`✅ Rate limit config updated for ${type}:`, updated);
   return updated;
 }

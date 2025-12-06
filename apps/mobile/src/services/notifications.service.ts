@@ -10,7 +10,5 @@ Notifications.setNotificationHandler({
 
 export async function requestNotificationPermissions() {
   const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== "granted") {
-    console.warn("Bildirim izinleri reddedildi");
-  }
+  return status === "granted";
 }

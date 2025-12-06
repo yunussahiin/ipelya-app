@@ -15,6 +15,7 @@ import * as Network from "expo-network";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendMessage } from "./useMessages";
 import { useMessageStore, useConversationStore } from "@/store/messaging";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // TYPES
@@ -54,10 +55,9 @@ export function useOfflineQueue() {
       const stored = await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
       if (stored) {
         queueRef.current = JSON.parse(stored);
-        console.log(`[OfflineQueue] ${queueRef.current.length} mesaj yüklendi`);
       }
     } catch (error) {
-      console.error("[OfflineQueue] Kuyruk yüklenemedi:", error);
+      logger.error("Queue load error", error, { tag: "OfflineQueue" });
     }
   }, []);
 
@@ -69,7 +69,7 @@ export function useOfflineQueue() {
         JSON.stringify(queueRef.current)
       );
     } catch (error) {
-      console.error("[OfflineQueue] Kuyruk kaydedilemedi:", error);
+      logger.error("Queue save error", error, { tag: "OfflineQueue" });
     }
   }, []);
 
@@ -93,7 +93,6 @@ export function useOfflineQueue() {
         status: "pending",
       } as any);
 
-      console.log(`[OfflineQueue] Mesaj kuyruğa eklendi: ${queuedMessage.id}`);
       return queuedMessage.id;
     },
     [saveQueue]
@@ -106,17 +105,12 @@ export function useOfflineQueue() {
     // Bağlantı kontrolü
     try {
       const networkState = await Network.getNetworkStateAsync();
-      if (!networkState.isConnected) {
-        console.log("[OfflineQueue] Bağlantı yok, kuyruk bekletiliyor");
-        return;
-      }
-    } catch (error) {
-      console.warn("[OfflineQueue] Network check failed:", error);
+      if (!networkState.isConnected) return;
+    } catch {
       return;
     }
 
     isProcessing.current = true;
-    console.log(`[OfflineQueue] ${queueRef.current.length} mesaj işleniyor...`);
 
     const failedMessages: QueuedMessage[] = [];
 
@@ -131,9 +125,8 @@ export function useOfflineQueue() {
           queuedMessage.id
         );
 
-        console.log(`[OfflineQueue] Mesaj gönderildi: ${queuedMessage.id}`);
       } catch (error) {
-        console.error(`[OfflineQueue] Mesaj gönderilemedi: ${queuedMessage.id}`, error);
+        logger.error("Message send failed", error, { tag: "OfflineQueue" });
 
         // Retry sayısını artır
         queuedMessage.retryCount++;
@@ -147,17 +140,13 @@ export function useOfflineQueue() {
             queuedMessage.request.conversation_id,
             queuedMessage.id
           );
-          console.log(`[OfflineQueue] Mesaj başarısız: ${queuedMessage.id}`);
         }
       }
     }
 
-    // Başarısız mesajları kuyruğa geri ekle
     queueRef.current = failedMessages;
     await saveQueue();
-
     isProcessing.current = false;
-    console.log(`[OfflineQueue] İşlem tamamlandı, kalan: ${failedMessages.length}`);
   }, [sendMessage, removePendingMessage, saveQueue]);
 
   // Bağlantı değişikliğini dinle (periyodik kontrol)
@@ -169,15 +158,12 @@ export function useOfflineQueue() {
         const networkState = await Network.getNetworkStateAsync();
         const isConnected = networkState.isConnected ?? false;
 
-        // Bağlantı geri geldiyse kuyruğu işle
         if (isConnected && !wasConnected) {
-          console.log("[OfflineQueue] Bağlantı geri geldi, kuyruk işleniyor...");
           processQueue();
         }
-
         wasConnected = isConnected;
-      } catch (error) {
-        console.warn("[OfflineQueue] Network check failed:", error);
+      } catch {
+        // Network check failed
       }
     };
 
@@ -232,13 +218,9 @@ export function useSyncOnReconnect() {
     const now = new Date();
     const lastSync = lastSyncRef.current;
 
-    // Son 30 saniye içinde sync yapıldıysa atla
     if (lastSync && now.getTime() - lastSync.getTime() < 30 * 1000) {
-      console.log("[Sync] Son 30 saniye içinde sync yapıldı, atlanıyor");
       return;
     }
-
-    console.log("[Sync] Veriler senkronize ediliyor...");
 
     try {
       const convStore = useConversationStore.getState();
@@ -249,7 +231,6 @@ export function useSyncOnReconnect() {
         queryKey: ["conversations"],
         refetchType: "active"
       });
-      console.log("[Sync] Conversation listesi yenilendi");
 
       // 2. Aktif conversation varsa mesajları yenile
       if (activeConversationId) {
@@ -257,7 +238,6 @@ export function useSyncOnReconnect() {
           queryKey: ["messages", activeConversationId],
           refetchType: "active"
         });
-        console.log("[Sync] Aktif conversation mesajları yenilendi:", activeConversationId);
       }
 
       // 3. Supabase'den güncel unread count'ları çek
@@ -280,14 +260,12 @@ export function useSyncOnReconnect() {
               });
             }
           }
-          console.log("[Sync] Unread count'lar güncellendi:", participants.length, "conversation");
         }
       }
 
       lastSyncRef.current = now;
-      console.log("[Sync] Senkronizasyon tamamlandı");
     } catch (error) {
-      console.error("[Sync] Senkronizasyon hatası:", error);
+      logger.error("Sync error", error, { tag: "Sync" });
     }
   }, [queryClient]);
 
@@ -301,13 +279,11 @@ export function useSyncOnReconnect() {
         const isConnected = networkState.isConnected ?? false;
 
         if (isConnected && !wasConnected) {
-          console.log("[Sync] Bağlantı geri geldi, sync başlatılıyor...");
           sync();
         }
-
         wasConnected = isConnected;
-      } catch (error) {
-        console.warn("[Sync] Network check failed:", error);
+      } catch {
+        // Network check failed
       }
     };
 
@@ -319,7 +295,6 @@ export function useSyncOnReconnect() {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active") {
-        console.log("[Sync] App foreground'a geldi, sync başlatılıyor...");
         sync();
       }
     };

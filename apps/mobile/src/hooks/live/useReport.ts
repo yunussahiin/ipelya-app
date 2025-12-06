@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export type ReportReason =
   | 'harassment'
@@ -92,15 +93,8 @@ export function useReport(): UseReportResult {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.warn('[Report] No user found');
         return { success: false, error: 'Oturum açmanız gerekiyor' };
       }
-
-      console.log('[Report] Submitting report:', {
-        sessionId: data.sessionId,
-        reportedUserId: data.reportedUserId,
-        reason: data.reason,
-      });
 
       // Şikayeti gönder
       const { data: report, error } = await supabase
@@ -117,16 +111,15 @@ export function useReport(): UseReportResult {
         .single();
 
       if (error) {
-        console.error('[Report] Error submitting report:', error);
+        logger.error('Report submit error', error, { tag: 'Report' });
         setLastSubmitSuccess(false);
         return { success: false, error: error.message };
       }
 
-      console.log('[Report] Report submitted successfully:', report.id);
       setLastSubmitSuccess(true);
       return { success: true, reportId: report.id };
     } catch (error) {
-      console.error('[Report] Unexpected error:', error);
+      logger.error('Report unexpected error', error, { tag: 'Report' });
       setLastSubmitSuccess(false);
       return {
         success: false,

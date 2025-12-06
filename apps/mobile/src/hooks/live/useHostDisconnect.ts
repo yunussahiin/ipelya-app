@@ -58,7 +58,6 @@ export function useHostDisconnect(options: UseHostDisconnectOptions) {
     const channel = supabase
       .channel(`live:${sessionId}`)
       .on('broadcast', { event: 'host_disconnected' }, (payload) => {
-        console.log('[useHostDisconnect] Host disconnected:', payload);
         setState({
           isHostDisconnected: true,
           reconnectDeadline: payload.payload?.reconnectDeadline || Date.now() + 30000,
@@ -66,8 +65,7 @@ export function useHostDisconnect(options: UseHostDisconnectOptions) {
           message: payload.payload?.message || 'Yayıncı bağlantısı kesildi...',
         });
       })
-      .on('broadcast', { event: 'host_reconnected' }, (payload) => {
-        console.log('[useHostDisconnect] Host reconnected:', payload);
+      .on('broadcast', { event: 'host_reconnected' }, () => {
         setState({
           isHostDisconnected: false,
           reconnectDeadline: null,
@@ -77,7 +75,6 @@ export function useHostDisconnect(options: UseHostDisconnectOptions) {
         onHostReconnected?.();
       })
       .on('broadcast', { event: 'session_ended' }, (payload) => {
-        console.log('[useHostDisconnect] Session ended:', payload);
         setState({
           isHostDisconnected: false,
           reconnectDeadline: null,

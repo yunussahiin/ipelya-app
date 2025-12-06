@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export interface UseBlockUserReturn {
   blocking: boolean;
@@ -23,8 +24,6 @@ export function useBlockUser(): UseBlockUserReturn {
       setBlocking(true);
       setError(null);
       try {
-        console.log(`🚫 Blocking user: ${userId}`);
-
         const { data, error: authError } = await supabase.auth.getUser();
         if (authError || !data.user) {
           throw new Error("Authenticated user not found");
@@ -56,11 +55,10 @@ export function useBlockUser(): UseBlockUserReturn {
           .eq("follower_id", userId)
           .eq("following_id", user.id);
 
-        console.log(`✅ User blocked: ${userId}`);
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to block user";
-        console.error(`❌ Block error: ${message}`);
+        logger.error('Block error', err, { tag: 'BlockUser' });
         setError(message);
         return false;
       } finally {
@@ -75,8 +73,6 @@ export function useBlockUser(): UseBlockUserReturn {
       setBlocking(true);
       setError(null);
       try {
-        console.log(`🔓 Unblocking user: ${userId}`);
-
         const { data, error: authError } = await supabase.auth.getUser();
         if (authError || !data.user) {
           throw new Error("Authenticated user not found");
@@ -93,11 +89,10 @@ export function useBlockUser(): UseBlockUserReturn {
           throw unblockError;
         }
 
-        console.log(`✅ User unblocked: ${userId}`);
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to unblock user";
-        console.error(`❌ Unblock error: ${message}`);
+        logger.error('Unblock error', err, { tag: 'BlockUser' });
         setError(message);
         return false;
       } finally {

@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export interface FollowersRealtimeStats {
   followers_count: number;
@@ -22,16 +23,13 @@ export function useFollowersRealtime(userId: string | undefined) {
 
   // Load initial stats
   const loadInitialStats = useCallback(async () => {
-    if (!userId) {
-      console.log("⚠️ No userId provided to useFollowersRealtime");
-      return;
-    }
+    if (!userId) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      console.log("📊 Loading followers stats for userId:", userId);
+      logger.debug(`Loading followers stats for: ${userId}`, { tag: "Followers" });
 
       // Get followers count
       const { count: followersCount, error: followersError } = await supabase
@@ -49,7 +47,7 @@ export function useFollowersRealtime(userId: string | undefined) {
 
       if (followingError) throw followingError;
 
-      console.log("✅ Followers stats loaded:", { followersCount, followingCount });
+      logger.debug(`Stats loaded: ${followersCount} followers, ${followingCount} following`, { tag: "Followers" });
 
       setStats({
         followers_count: followersCount || 0,
@@ -58,7 +56,7 @@ export function useFollowersRealtime(userId: string | undefined) {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load stats";
       setError(message);
-      console.error("❌ Load followers realtime stats error:", err);
+      logger.error("Load followers stats error", err, { tag: "Followers" });
     } finally {
       setLoading(false);
     }
@@ -91,16 +89,11 @@ export function useFollowersRealtime(userId: string | undefined) {
             table: "followers",
             filter: `following_id=eq.${userId}`
           },
-          (payload) => {
-            console.log("📊 New follower:", payload.new);
-            setStats((prev) => {
-              const updated = {
-                ...prev,
-                followers_count: prev.followers_count + 1
-              };
-              console.log("📈 Updated followers count:", updated.followers_count);
-              return updated;
-            });
+          () => {
+            setStats((prev) => ({
+              ...prev,
+              followers_count: prev.followers_count + 1
+            }));
           }
         );
 
@@ -113,40 +106,20 @@ export function useFollowersRealtime(userId: string | undefined) {
             table: "followers"
           },
           (payload) => {
-            const oldData = payload.old as any;
-            console.log("🗑️ DELETE event received:", JSON.stringify(oldData));
-            console.log("🎯 Current userId:", userId);
-            console.log("📋 oldData.following_id:", oldData?.following_id);
-            console.log("📋 oldData.follower_id:", oldData?.follower_id);
+            const oldData = payload.old as { following_id?: string; follower_id?: string };
 
-            // Check if this affects followers count
             if (oldData?.following_id === userId) {
-              console.log("✅ Follower removed - following_id matches!");
-              setStats((prev) => {
-                const updated = {
-                  ...prev,
-                  followers_count: Math.max(0, prev.followers_count - 1)
-                };
-                console.log("📉 Updated followers count:", prev.followers_count, "→", updated.followers_count);
-                return updated;
-              });
-            } else {
-              console.log("❌ Follower removed - following_id does NOT match");
+              setStats((prev) => ({
+                ...prev,
+                followers_count: Math.max(0, prev.followers_count - 1)
+              }));
             }
 
-            // Check if this affects following count
             if (oldData?.follower_id === userId) {
-              console.log("✅ Unfollowed - follower_id matches!");
-              setStats((prev) => {
-                const updated = {
-                  ...prev,
-                  following_count: Math.max(0, prev.following_count - 1)
-                };
-                console.log("📉 Updated following count:", prev.following_count, "→", updated.following_count);
-                return updated;
-              });
-            } else {
-              console.log("❌ Unfollowed - follower_id does NOT match");
+              setStats((prev) => ({
+                ...prev,
+                following_count: Math.max(0, prev.following_count - 1)
+              }));
             }
           }
         );
@@ -160,8 +133,7 @@ export function useFollowersRealtime(userId: string | undefined) {
             table: "followers",
             filter: `follower_id=eq.${userId}`
           },
-          (payload) => {
-            console.log("📊 Now following:", payload.new);
+          () => {
             setStats((prev) => ({
               ...prev,
               following_count: prev.following_count + 1
@@ -171,7 +143,7 @@ export function useFollowersRealtime(userId: string | undefined) {
 
         await channel.subscribe((status) => {
           if (status === "SUBSCRIBED") {
-            console.log("✅ Realtime followers subscription active");
+            logger.debug("Followers subscription active", { tag: "Followers" });
           } else if (status === "CHANNEL_ERROR") {
             setError("Failed to subscribe to real-time updates");
           }
@@ -179,7 +151,7 @@ export function useFollowersRealtime(userId: string | undefined) {
       } catch (err) {
         const message = err instanceof Error ? err.message : "Subscription error";
         setError(message);
-        console.error("❌ Realtime subscription error:", err);
+        logger.error("Realtime subscription error", err, { tag: "Followers" });
       }
     };
 

@@ -14,6 +14,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/utils/logger';
 
 export type EarningsPeriod = '7d' | '30d' | '90d' | '180d' | '365d' | 'all';
 export type TransactionType = 'all' | 'subscription' | 'gift' | 'payout';
@@ -105,7 +106,7 @@ export function useCreatorEarnings() {
 
       setData(result);
     } catch (err: any) {
-      console.error('[useCreatorEarnings] Load error:', err);
+      logger.error('Creator earnings load error', err, { tag: 'Earnings' });
       setError(err.message || 'Failed to load earnings');
     } finally {
       setIsLoading(false);
@@ -139,8 +140,8 @@ export function useCreatorEarnings() {
       } : null);
 
       setTransactionPage(nextPage);
-    } catch (err: any) {
-      console.error('[useCreatorEarnings] Load more error:', err);
+    } catch {
+      // Load more error - silent
     } finally {
       setIsLoadingMore(false);
     }
@@ -168,7 +169,6 @@ export function useCreatorEarnings() {
             filter: `creator_id=eq.${session.user.id}`
           },
           () => {
-            console.log('[useCreatorEarnings] New transaction, refreshing...');
             loadEarnings(false);
           }
         )

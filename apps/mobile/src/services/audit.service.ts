@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export type AuditAction =
   | "shadow_mode_enabled"
@@ -63,15 +64,14 @@ export async function logAudit(
       .single();
 
     if (error) {
-      console.error("❌ Audit log error:", error.message);
+      logger.error('Audit log error', error, { tag: 'Audit' });
       return { success: false, error: error.message };
     }
 
-    console.log(`📝 Audit logged: ${action}`);
     return { success: true, data };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error("❌ Audit log failed:", errorMessage);
+    logger.error('Audit log failed', err, { tag: 'Audit' });
     return { success: false, error: errorMessage };
   }
 }
@@ -205,7 +205,6 @@ export async function clearOldAuditLogs(
       return { success: false, error: error.message };
     }
 
-    console.log(`🗑️ Cleared ${count || 0} old audit logs`);
     return { success: true, deletedCount: count || 0 };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";

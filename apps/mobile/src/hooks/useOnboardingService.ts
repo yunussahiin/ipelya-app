@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useOnboardingStore } from "@/store/onboarding.store";
+import { logger } from "@/utils/logger";
 
 interface OnboardingData {
   step1?: {
@@ -79,14 +80,9 @@ export function useOnboardingService() {
           .eq("user_id", userId)
           .eq("type", "real");
 
-        if (error) {
-          console.error("❌ Onboarding sync hatası:", error);
-          throw error;
-        }
-
-        console.log(`✅ Onboarding Step ${step} kaydedildi`);
+        if (error) throw error;
       } catch (error) {
-        console.error("❌ Onboarding sync başarısız:", error);
+        logger.error('Onboarding sync error', error, { tag: 'Onboarding' });
         throw error;
       }
     },
@@ -107,17 +103,16 @@ export function useOnboardingService() {
           .single();
 
         if (error) {
-          console.error("❌ Onboarding yükleme hatası:", error);
+          logger.error('Onboarding load error', error, { tag: 'Onboarding' });
           return null;
         }
 
-        console.log(`✅ Onboarding Step ${data?.onboarding_step} yüklendi`);
         return {
           step: data?.onboarding_step || 0,
           data: data?.onboarding_data || {},
         };
       } catch (error) {
-        console.error("❌ Onboarding yükleme başarısız:", error);
+        logger.error('Onboarding load failed', error, { tag: 'Onboarding' });
         return null;
       }
     },
@@ -202,8 +197,6 @@ export function useOnboardingService() {
           .maybeSingle();
 
         if (!shadowProfile) {
-          console.warn("⚠️ Shadow profile trigger tarafından oluşturulmadı, manuel oluştur");
-          // Fallback: Shadow profile yok ise manuel oluştur
           const { error: shadowCreateError } = await supabase
             .from("profiles")
             .insert({
@@ -215,17 +208,11 @@ export function useOnboardingService() {
             });
 
           if (shadowCreateError) {
-            console.warn("⚠️ Shadow profile oluşturma hatası:", shadowCreateError);
-          } else {
-            console.log("✅ Shadow profile manuel olarak oluşturuldu");
+            logger.warn('Shadow profile create error', { tag: 'Onboarding' });
           }
-        } else {
-          console.log("✅ Shadow profile trigger tarafından oluşturulmuş");
         }
-
-        console.log("✅ Onboarding tamamlandı, shadow profile hazır");
       } catch (error) {
-        console.error("❌ Onboarding tamamlama hatası:", error);
+        logger.error('Onboarding complete error', error, { tag: 'Onboarding' });
         throw error;
       }
     },
@@ -248,10 +235,8 @@ export function useOnboardingService() {
           .eq("type", "real");
 
         if (error) throw error;
-
-        console.log("✅ Shadow PIN kaydedildi");
       } catch (error) {
-        console.error("❌ Shadow PIN kaydetme hatası:", error);
+        logger.error('Shadow PIN save error', error, { tag: 'Onboarding' });
         throw error;
       }
     },

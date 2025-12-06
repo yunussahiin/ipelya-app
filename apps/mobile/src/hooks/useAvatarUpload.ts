@@ -12,6 +12,7 @@ import {
   extractStoragePathFromUrl
 } from "@/services/avatar.service";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export interface UseAvatarUploadState {
   loading: boolean;
@@ -85,7 +86,7 @@ export function useAvatarUpload(currentAvatarUrl?: string | null, profileType: "
     } catch (err) {
       const message = err instanceof Error ? err.message : "Galeri açılırken hata oluştu";
       setError(message);
-      console.error("❌ Pick image error:", err);
+      logger.error('Pick image error', err, { tag: 'Avatar' });
     } finally {
       setLoading(false);
     }
@@ -125,7 +126,7 @@ export function useAvatarUpload(currentAvatarUrl?: string | null, profileType: "
     } catch (err) {
       const message = err instanceof Error ? err.message : "Kamera açılırken hata oluştu";
       setError(message);
-      console.error("❌ Take photo error:", err);
+      logger.error('Take photo error', err, { tag: 'Avatar' });
     } finally {
       setLoading(false);
     }
@@ -171,7 +172,7 @@ export function useAvatarUpload(currentAvatarUrl?: string | null, profileType: "
     } catch (err) {
       const message = err instanceof Error ? err.message : "Yükleme başarısız";
       setError(message);
-      console.error("❌ Upload error:", err);
+      logger.error('Upload error', err, { tag: 'Avatar' });
       return false;
     } finally {
       setUploading(false);
@@ -210,7 +211,7 @@ export function useAvatarUpload(currentAvatarUrl?: string | null, profileType: "
     } catch (err) {
       const message = err instanceof Error ? err.message : "Avatar silinemedi";
       setError(message);
-      console.error("❌ Remove avatar error:", err);
+      logger.error('Remove avatar error', err, { tag: 'Avatar' });
       return false;
     } finally {
       setRemoving(false);

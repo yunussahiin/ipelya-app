@@ -20,11 +20,18 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 
+interface PostComment {
+  id: string;
+  content: string;
+  user_id: string;
+  [key: string]: unknown;
+}
+
 export function usePostRealtime(
   postId: string,
   onLike?: () => void,
   onUnlike?: () => void,
-  onComment?: (comment: any) => void
+  onComment?: (comment: PostComment) => void
 ) {
   const queryClient = useQueryClient();
   
@@ -43,9 +50,7 @@ export function usePostRealtime(
           table: 'post_likes',
           filter: `post_id=eq.${postId}`,
         },
-        (payload) => {
-          console.log('❤️ New like:', payload);
-          
+        () => {
           if (onLike) {
             onLike();
           }
@@ -63,9 +68,7 @@ export function usePostRealtime(
           table: 'post_likes',
           filter: `post_id=eq.${postId}`,
         },
-        (payload) => {
-          console.log('💔 Like removed:', payload);
-          
+        () => {
           if (onUnlike) {
             onUnlike();
           }
@@ -83,10 +86,8 @@ export function usePostRealtime(
           filter: `post_id=eq.${postId}`,
         },
         (payload) => {
-          console.log('💬 New comment:', payload);
-          
           if (onComment) {
-            onComment(payload.new);
+            onComment(payload.new as PostComment);
           }
           
           queryClient.invalidateQueries({ queryKey: ['feed'] });

@@ -6,6 +6,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/utils/logger';
 
 export type PayoutStatus = 'pending' | 'in_review' | 'approved' | 'paid' | 'rejected' | 'cancelled';
 
@@ -46,7 +47,7 @@ export function usePayoutRequests() {
       setPendingRequest(data.pendingRequest || null);
       setWithdrawableBalance(data.withdrawableBalance || 0);
     } catch (err: any) {
-      console.error('[usePayoutRequests] Load error:', err);
+      logger.error('Payout requests load error', err, { tag: 'Payout' });
       setError(err.message);
     } finally {
       setIsLoading(false);

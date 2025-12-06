@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { saveSession, clearSession } from "@/services/secure-store.service";
 import { useAuthStore } from "@/store/auth.store";
 import { signInWithGoogle, signInWithMagicLink, signInWithApple } from "@/services/oauth.service";
+import { logger } from "@/utils/logger";
 
 export function useAuthActions() {
   const router = useRouter();
@@ -53,13 +54,11 @@ export function useAuthActions() {
         const onboardingStep = profileData?.onboarding_step || 0;
 
         if (onboardingStep < 5) {
-          // Incomplete onboarding - resume et
-          console.log(`🔄 Onboarding resume: Step ${onboardingStep}`);
+          logger.debug(`Onboarding resume: Step ${onboardingStep}`, { tag: "Auth" });
           router.replace(`/(auth)/onboarding?step=${onboardingStep}`);
         } else {
-          // Onboarding complete - home'a git
-          console.log("✅ Onboarding complete");
-          router.replace("/home");
+          logger.debug("Onboarding complete", { tag: "Auth" });
+          router.replace("/(feed)");
         }
       }
     } catch (err) {
@@ -73,21 +72,21 @@ export function useAuthActions() {
     setLoading(true);
     setError(null);
     try {
-      console.log("🔵 Starting signup for:", email);
+      logger.debug(`Starting signup for: ${email}`, { tag: "Auth" });
       const { data, error: authError } = await supabase.auth.signUp({ email, password });
       
       if (authError) {
-        console.error("❌ Auth signup error:", authError);
+        logger.error("Auth signup error", authError, { tag: "Auth" });
         throw authError;
       }
       
-      console.log("✅ Auth signup successful, user ID:", data.user?.id);
+      logger.debug(`Auth signup successful, user ID: ${data.user?.id}`, { tag: "Auth" });
       
       // Session token'ı kaydet
       if (data.session?.access_token) {
         await saveSession(data.session.access_token);
         setSession(data.session.access_token);
-        console.log("✅ Session token saved");
+        logger.debug("Session token saved", { tag: "Auth" });
       }
       
       // Kayıt sonrası device info kaydet (trigger otomatik profile oluşturur)
@@ -100,7 +99,7 @@ export function useAuthActions() {
           device_id: Constants.deviceId || "unknown"
         };
         
-        console.log("🔄 Updating profile with device info...");
+        logger.debug("Updating profile with device info", { tag: "Auth" });
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
@@ -111,17 +110,16 @@ export function useAuthActions() {
           .eq("type", "real");
         
         if (profileError) {
-          console.error("⚠️ Profile update error:", profileError);
-          // Profile update hatası kritik değil, devam et
+          logger.warn("Profile update error", { tag: "Auth", data: { error: profileError.message } });
         } else {
-          console.log("✅ Profile updated successfully");
+          logger.debug("Profile updated successfully", { tag: "Auth" });
         }
       }
       
-      console.log("🎉 Signup complete, redirecting to onboarding");
+      logger.debug("Signup complete, redirecting to onboarding", { tag: "Auth" });
       router.replace("/(auth)/onboarding");
     } catch (err) {
-      console.error("💥 Signup error:", err);
+      logger.error("Signup error", err, { tag: "Auth" });
       setError(err instanceof Error ? err.message : "Bilinmeyen hata");
     } finally {
       setLoading(false);
@@ -139,7 +137,7 @@ export function useAuthActions() {
     setLoading(true);
     setError(null);
     try {
-      console.log("🔵 Google OAuth başlatılıyor...");
+      logger.debug("Google OAuth starting", { tag: "Auth" });
       const session = await signInWithGoogle();
       
       if (session?.access_token && session.user) {
@@ -164,12 +162,12 @@ export function useAuthActions() {
           .eq("user_id", session.user.id)
           .eq("type", "real");
         
-        console.log("✅ Google OAuth başarılı");
+        logger.debug("Google OAuth successful", { tag: "Auth" });
         router.replace("/home");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Google OAuth hatası";
-      console.error("❌ Google OAuth hatası:", errorMessage);
+      logger.error("Google OAuth error", err, { tag: "Auth" });
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -180,13 +178,13 @@ export function useAuthActions() {
     setLoading(true);
     setError(null);
     try {
-      console.log("📧 Magic link gönderiliyor:", email);
+      logger.debug(`Magic link sending to: ${email}`, { tag: "Auth" });
       await signInWithMagicLink(email);
-      console.log("✅ Magic link email'e gönderildi");
+      logger.debug("Magic link sent", { tag: "Auth" });
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Magic link hatası";
-      console.error("❌ Magic link hatası:", errorMessage);
+      logger.error("Magic link error", err, { tag: "Auth" });
       setError(errorMessage);
       return false;
     } finally {
@@ -198,7 +196,7 @@ export function useAuthActions() {
     setLoading(true);
     setError(null);
     try {
-      console.log("🍎 Apple Sign-In başlatılıyor...");
+      logger.debug("Apple Sign-In starting", { tag: "Auth" });
       const session = await signInWithApple();
       
       if (session?.access_token && session.user) {
@@ -223,12 +221,12 @@ export function useAuthActions() {
           .eq("user_id", session.user.id)
           .eq("type", "real");
         
-        console.log("✅ Apple Sign-In başarılı");
+        logger.debug("Apple Sign-In successful", { tag: "Auth" });
         router.replace("/home");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Apple Sign-In hatası";
-      console.error("❌ Apple Sign-In hatası:", errorMessage);
+      logger.error("Apple Sign-In error", err, { tag: "Auth" });
       setError(errorMessage);
     } finally {
       setLoading(false);

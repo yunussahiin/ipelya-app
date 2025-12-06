@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export type BanType = 'session' | 'creator' | 'global';
 
@@ -60,11 +61,8 @@ export function useBanCheck(): UseBanCheckResult {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.warn('[BanCheck] No user found');
         return false;
       }
-
-      console.log('[BanCheck] Checking ban for user:', user.id, 'session:', sessionId);
 
       // Ban kontrolü - session, creator veya global
       // 1. Session ban: Bu spesifik yayından yasaklanmış
@@ -78,12 +76,11 @@ export function useBanCheck(): UseBanCheckResult {
         .eq('is_active', true);
 
       if (error) {
-        console.error('[BanCheck] Error fetching bans:', error);
+        logger.error('Error fetching bans', error, { tag: 'BanCheck' });
         return false;
       }
 
       if (!bans || bans.length === 0) {
-        console.log('[BanCheck] No active bans found');
         setIsBanned(false);
         setBanInfo(null);
         return false;
@@ -117,7 +114,6 @@ export function useBanCheck(): UseBanCheckResult {
       });
 
       if (activeBan) {
-        console.log('[BanCheck] Active ban found:', activeBan);
         setIsBanned(true);
         setBanInfo({
           id: activeBan.id,
@@ -131,12 +127,11 @@ export function useBanCheck(): UseBanCheckResult {
         return true;
       }
 
-      console.log('[BanCheck] No matching ban found');
       setIsBanned(false);
       setBanInfo(null);
       return false;
     } catch (error) {
-      console.error('[BanCheck] Unexpected error:', error);
+      logger.error('Ban check error', error, { tag: 'BanCheck' });
       return false;
     } finally {
       setIsChecking(false);

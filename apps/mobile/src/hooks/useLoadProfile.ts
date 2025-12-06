@@ -10,6 +10,7 @@
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useProfileStore } from "@/store/profile.store";
+import { logger } from "@/utils/logger";
 
 export function useLoadProfile() {
   const setProfile = useProfileStore((s) => s.setProfile);
@@ -21,11 +22,8 @@ export function useLoadProfile() {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError || !user) {
-          console.log("ℹ️ No user authenticated");
           return;
         }
-
-        console.log("📥 Loading real profile for user:", user.id);
 
         // Fetch REAL profile from database
         // Shadow profil useShadowMode hook'u tarafından yönetilir
@@ -37,24 +35,11 @@ export function useLoadProfile() {
           .single();
 
         if (profileError) {
-          console.error("❌ Profile load error:", profileError);
+          logger.error('Profile load error', profileError, { tag: 'Profile' });
           return;
         }
 
-        if (!profile) {
-          console.warn("⚠️ Profile not found");
-          return;
-        }
-
-        // Log loaded profile
-        console.log("✅ Real profile loaded:", {
-          id: profile.user_id,
-          username: profile.username,
-          displayName: profile.display_name,
-          avatarUrl: profile.avatar_url
-        });
-
-        // Set profile in store
+        if (!profile) return;
         setProfile({
           id: profile.user_id,
           displayName: profile.display_name,
@@ -62,7 +47,7 @@ export function useLoadProfile() {
         });
 
       } catch (error) {
-        console.error("❌ useLoadProfile error:", error);
+        logger.error('useLoadProfile error', error, { tag: 'Profile' });
       }
     };
 

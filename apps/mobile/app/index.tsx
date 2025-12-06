@@ -1,8 +1,11 @@
 import { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/auth.store";
+import { useTheme } from "@/theme/ThemeProvider";
+import { AvatarSkeleton, TextSkeleton } from "@/components/ui";
+import { logger } from "@/utils/logger";
 
 export default function EntryScreen() {
   const sessionToken = useAuthStore((state) => state.sessionToken);
@@ -29,7 +32,7 @@ export default function EntryScreen() {
           setSession(data.session.access_token);
         }
       } catch (err) {
-        console.error("Session hydration error:", err);
+        logger.error("Session hydration error", err, { tag: "Auth" });
         await supabase.auth.signOut();
       } finally {
         if (isMounted) {
@@ -44,11 +47,16 @@ export default function EntryScreen() {
     };
   }, [markHydrated, setSession]);
 
+  const { colors } = useTheme();
+
   if (!isHydrated) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#f472b6" />
-        <Text style={styles.loaderLabel}>Oturum geri yükleniyor...</Text>
+      <View style={[styles.loader, { backgroundColor: colors.background }]}>
+        <AvatarSkeleton size={64} />
+        <TextSkeleton width={180} height={16} />
+        <Text style={[styles.loaderLabel, { color: colors.textMuted }]}>
+          Oturum geri yükleniyor...
+        </Text>
       </View>
     );
   }
@@ -65,11 +73,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#050308",
-    gap: 12
+    gap: 16
   },
   loaderLabel: {
-    color: "#94a3b8",
-    fontWeight: "600"
+    fontWeight: "600",
+    marginTop: 8
   }
 });

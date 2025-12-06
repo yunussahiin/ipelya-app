@@ -5,6 +5,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
+import { logger } from "@/utils/logger";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 
@@ -62,7 +63,7 @@ export function useReactToStory() {
       queryClient.invalidateQueries({ queryKey: ["stories"] });
     },
     onError: (error) => {
-      console.error("[useReactToStory] Error:", error);
+      logger.error('React to story error', error, { tag: 'Stories' });
     }
   });
 }

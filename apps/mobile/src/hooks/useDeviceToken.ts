@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabaseClient';
+import { logger } from '@/utils/logger';
 
 export interface UseDeviceTokenReturn {
   token: string | null;
@@ -21,21 +22,16 @@ export function useDeviceToken(): UseDeviceTokenReturn {
       setLoading(true);
       setError(null);
 
-      // 1. Fiziksel cihaz kontrolü
       if (!Device.isDevice) {
-        console.warn('⚠️ Simulator detected - push notifications disabled (requires physical device)');
         setLoading(false);
         return;
       }
-
-      console.log('✅ Physical device detected');
 
       // 2. Permission iste
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
-        console.log('📱 Requesting notification permissions...');
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
@@ -44,18 +40,13 @@ export function useDeviceToken(): UseDeviceTokenReturn {
         throw new Error('Permission denied for push notifications');
       }
 
-      console.log('✅ Permissions granted');
-
-      // 3. Android notification channel oluştur
       if (Device.osName === 'Android') {
-        console.log('🤖 Setting up Android notification channel...');
         await Notifications.setNotificationChannelAsync('default', {
           name: 'Default',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#FF6B35',
         });
-        console.log('✅ Android notification channel created');
       }
 
       // 4. Expo Push Token al
@@ -67,12 +58,10 @@ export function useDeviceToken(): UseDeviceTokenReturn {
         throw new Error('Project ID not found in app config');
       }
 
-      console.log('🔑 Getting Expo Push Token...');
       const expoPushToken = (
         await Notifications.getExpoPushTokenAsync({ projectId })
       ).data;
 
-      console.log('✅ Expo Push Token:', expoPushToken);
       setToken(expoPushToken);
 
       // 5. Token'ı Supabase'e kaydet
@@ -84,7 +73,6 @@ export function useDeviceToken(): UseDeviceTokenReturn {
         throw new Error('User not authenticated');
       }
 
-      console.log('💾 Saving token to database...');
       const { error: dbError } = await supabase
         .from('device_tokens')
         .upsert(
@@ -103,10 +91,6 @@ export function useDeviceToken(): UseDeviceTokenReturn {
 
       if (dbError) throw dbError;
 
-      console.log('✅ Token saved to database');
-
-      // 6. Permission status'unu notification_preferences'a kaydet
-      console.log('💾 Saving permission status...');
       const { error: prefError } = await supabase
         .from('notification_preferences')
         .upsert({
@@ -116,10 +100,10 @@ export function useDeviceToken(): UseDeviceTokenReturn {
 
       if (prefError) throw prefError;
 
-      console.log('✅ Permission status saved');
+      logger.debug('Device token registered', { tag: 'DeviceToken' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to register device token';
-      console.error('❌ Device token error:', message);
+      logger.error('Device token error', err, { tag: 'DeviceToken' });
       setError(message);
     } finally {
       setLoading(false);

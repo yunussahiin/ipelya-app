@@ -14,6 +14,7 @@ import { usePresenceStore } from "@/store/messaging";
 import { useAuth } from "@/hooks/useAuth";
 import type { UserPresence, PresenceStatus } from "@ipelya/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { logger } from "@/utils/logger";
 
 // Stable empty array reference
 const EMPTY_TYPING_ARRAY: string[] = [];
@@ -31,12 +32,7 @@ export function useGlobalPresence() {
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      console.log("[GlobalPresence] No user, skipping");
-      return;
-    }
-
-    console.log("[GlobalPresence] Subscribing for user:", user.id);
+    if (!user) return;
 
     // Presence channel oluştur
     const channel = supabase.channel("presence:global", {
@@ -54,7 +50,7 @@ export function useGlobalPresence() {
 
       Object.entries(state).forEach(([key, presences]) => {
         if (presences && presences.length > 0) {
-          const presence = presences[0] as UserPresence;
+          const presence = presences[0] as unknown as UserPresence;
           users[key] = presence;
         }
       });
@@ -65,7 +61,7 @@ export function useGlobalPresence() {
     // Join event - yeni kullanıcı online oldu
     channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
       if (newPresences && newPresences.length > 0) {
-        const presence = newPresences[0] as UserPresence;
+        const presence = newPresences[0] as unknown as UserPresence;
         usePresenceStore.getState().setOnlineUser(key, presence);
       }
     });
@@ -77,9 +73,8 @@ export function useGlobalPresence() {
 
     // Subscribe ve track
     channel.subscribe(async (status) => {
-      console.log("[GlobalPresence] Channel status:", status);
       if (status === "SUBSCRIBED") {
-        console.log("[GlobalPresence] Tracking presence for:", user.id);
+        logger.debug("Global presence subscribed", { tag: "Presence" });
         await channel.track({
           user_id: user.id,
           status: "online" as PresenceStatus,
@@ -124,7 +119,7 @@ export function useGlobalPresence() {
 export function useConversationPresence(conversationId: string) {
   const { user } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -134,33 +129,22 @@ export function useConversationPresence(conversationId: string) {
 
     // Typing event dinle
     channel.on("broadcast", { event: "typing" }, (payload) => {
-      console.log("[Presence] Typing event received:", payload);
-      
       const { user_id, is_typing } = payload.payload as {
         user_id: string;
         is_typing: boolean;
       };
 
-      console.log("[Presence] user_id:", user_id, "is_typing:", is_typing, "my_id:", user.id);
-
-      if (user_id === user.id) {
-        console.log("[Presence] Ignoring own typing event");
-        return; // Kendi typing event'imizi ignore et
-      }
+      if (user_id === user.id) return;
 
       const store = usePresenceStore.getState();
       if (is_typing) {
-        console.log("[Presence] Setting typing for:", user_id);
         store.setTyping(conversationId, user_id);
       } else {
-        console.log("[Presence] Clearing typing for:", user_id);
         store.clearTyping(conversationId, user_id);
       }
     });
 
-    channel.subscribe((status) => {
-      console.log("[Presence] Channel subscription status:", status, "for:", conversationId);
-    });
+    channel.subscribe();
     channelRef.current = channel;
 
     // Cleanup
@@ -178,17 +162,11 @@ export function useConversationPresence(conversationId: string) {
    * Debounced - 3 saniye sonra otomatik stop
    */
   const startTyping = useCallback(() => {
-    if (!channelRef.current || !user) {
-      console.log("[Presence] Cannot start typing - no channel or user");
-      return;
-    }
+    if (!channelRef.current || !user) return;
 
-    // Önceki timeout'u temizle
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-
-    console.log("[Presence] Sending typing start event for:", user.id);
 
     // Typing event gönder
     channelRef.current.send({

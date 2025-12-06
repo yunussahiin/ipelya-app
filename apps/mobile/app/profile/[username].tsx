@@ -401,7 +401,7 @@ export default function ProfileScreen() {
 
   const handleMessage = useCallback(() => {
     if (!profile) return;
-    router.push(`/(chat)/${profile.user_id}`);
+    router.push(`/(messages)/${profile.user_id}`);
   }, [profile, router]);
 
   const handleMoreAction = useCallback(

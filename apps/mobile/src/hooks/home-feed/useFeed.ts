@@ -23,6 +23,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { getFeed } from '@ipelya/api/home-feed';
 import type { FeedParams } from '@ipelya/types';
 import { useAuthStore } from '../../store/auth.store';
+import { logger } from '@/utils/logger';
 
 interface UseFeedParams {
   tab: 'feed' | 'trending' | 'following';
@@ -41,29 +42,15 @@ export function useFeed({ tab, vibe, intent }: UseFeedParams) {
   const query = useInfiniteQuery({
     queryKey: ['feed', tab, vibe, intent],
     queryFn: async ({ pageParam }) => {
-      console.log('🚀 Fetching feed:', {
-        tab,
-        cursor: pageParam,
-        hasToken: !!accessToken,
-        tokenLength: accessToken?.length
-      });
-
       const params: FeedParams = {
         cursor: pageParam,
         limit: 20,
-        vibe: vibe as any,
-        intent: intent as any,
+        vibe: vibe as FeedParams['vibe'],
+        intent: intent as FeedParams['intent'],
       };
       
       try {
         const response = await getFeed(supabaseUrl, accessToken, params);
-        
-        console.log('✅ Feed response:', {
-          success: response.success,
-          itemsCount: response.data?.items?.length,
-          hasMore: response.data?.has_more,
-          error: response.error
-        });
         
         if (!response.success) {
           throw new Error(response.error || 'Feed fetch failed');
@@ -71,7 +58,7 @@ export function useFeed({ tab, vibe, intent }: UseFeedParams) {
         
         return response.data;
       } catch (error) {
-        console.error('❌ Feed fetch error:', error);
+        logger.error('Feed fetch error', error, { tag: 'Feed' });
         throw error;
       }
     },

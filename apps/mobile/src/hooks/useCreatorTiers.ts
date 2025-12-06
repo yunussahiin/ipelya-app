@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/utils/logger';
 
 export interface CreatorTier {
   id: string;
@@ -76,7 +77,7 @@ export function useCreatorTiers() {
         })) || []
       );
     } catch (error) {
-      console.error('Load tiers error:', error);
+      logger.error('Load tiers error', error, { tag: 'Tiers' });
     } finally {
       setIsLoading(false);
     }
@@ -103,8 +104,7 @@ export function useCreatorTiers() {
             table: 'creator_subscription_tiers',
             filter: `creator_id=eq.${session.user.id}`
           },
-          (payload) => {
-            console.log('[useCreatorTiers] Tier changed:', payload.eventType);
+          () => {
             loadMyTiers();
           }
         )

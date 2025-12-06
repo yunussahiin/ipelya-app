@@ -94,7 +94,7 @@ export function CreateBroadcastScreen() {
           if (buttonIndex === 0) {
             // Galeriden seç
             const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: [ImagePicker.MediaType.IMAGE],
+              mediaTypes: ["images"],
               allowsEditing: true,
               aspect: [1, 1],
               quality: 0.8
@@ -115,7 +115,7 @@ export function CreateBroadcastScreen() {
           text: "Galeriden Seç",
           onPress: async () => {
             const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: [ImagePicker.MediaType.IMAGE],
+              mediaTypes: ["images"],
               allowsEditing: true,
               aspect: [1, 1],
               quality: 0.8
@@ -157,7 +157,7 @@ export function CreateBroadcastScreen() {
         // Local file - base64'e çevir
         try {
           const base64 = await FileSystem.readAsStringAsync(avatarUri, {
-            encoding: FileSystem.EncodingType.Base64
+            encoding: "base64"
           });
           avatarBase64 = `data:image/jpeg;base64,${base64}`;
         } catch (e) {

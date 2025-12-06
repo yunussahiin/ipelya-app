@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, StyleSheet, View, Platform } from "react-native";
+import { Pressable, Text, StyleSheet, View, Platform } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,7 @@ import { AuthScreen } from "@/components/layout/AuthScreen";
 import { AuthTextField } from "@/components/forms/AuthTextField";
 import { useAuthActions } from "@/hooks/useAuthActions";
 import { LAYOUT_CONSTANTS } from "@/theme/layout";
+import { ButtonLoader } from "@/components/ui";
 
 const schema = z
   .object({
@@ -127,7 +128,7 @@ export default function RegisterScreen() {
         accessibilityRole="button"
       >
         {isLoading ? (
-          <ActivityIndicator color={colors.buttonPrimaryText} size="small" />
+          <ButtonLoader color={colors.buttonPrimaryText} />
         ) : (
           <Text style={styles.registerButtonText}>Kayıt ol</Text>
         )}
@@ -136,7 +137,7 @@ export default function RegisterScreen() {
   );
 }
 
-function createStyles(colors: any) {
+function createStyles(colors: Record<string, string>) {
   return StyleSheet.create({
     errorContainer: {
       backgroundColor: `${colors.warning}15`,

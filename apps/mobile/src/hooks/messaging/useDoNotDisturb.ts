@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // TYPES
@@ -64,7 +65,7 @@ export function useDoNotDisturb() {
         setSettings(parsed);
       }
     } catch (error) {
-      console.error("[DND] Ayarlar yüklenemedi:", error);
+      logger.warn('DND settings load failed', { tag: 'DND' });
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +90,7 @@ export function useDoNotDisturb() {
           });
       }
     } catch (error) {
-      console.error("[DND] Ayarlar kaydedilemedi:", error);
+      logger.warn('DND settings save failed', { tag: 'DND' });
     }
   }, [user]);
 
@@ -106,9 +107,6 @@ export function useDoNotDisturb() {
         endTime,
       });
 
-      console.log(
-        `[DND] Etkinleştirildi${durationMinutes ? ` (${durationMinutes} dakika)` : " (süresiz)"}`
-      );
     },
     [settings, saveSettings]
   );
@@ -121,7 +119,6 @@ export function useDoNotDisturb() {
       endTime: null,
     });
 
-    console.log("[DND] Devre dışı bırakıldı");
   }, [settings, saveSettings]);
 
   // Zamanlama ayarla
@@ -132,7 +129,6 @@ export function useDoNotDisturb() {
         schedule,
       });
 
-      console.log("[DND] Zamanlama güncellendi");
     },
     [settings, saveSettings]
   );
@@ -188,7 +184,9 @@ export function useDoNotDisturb() {
         return {
           shouldShowAlert: shouldShow,
           shouldPlaySound: shouldShow,
-          shouldSetBadge: true, // Badge her zaman güncelle
+          shouldSetBadge: true,
+          shouldShowBanner: shouldShow,
+          shouldShowList: shouldShow,
         };
       },
     });

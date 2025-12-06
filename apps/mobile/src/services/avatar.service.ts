@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 export interface AvatarUploadOptions {
   userId: string;
@@ -66,9 +67,8 @@ export async function initializeAvatarBucket(): Promise<void> {
         fileSizeLimit: MAX_FILE_SIZE,
         allowedMimeTypes: ALLOWED_MIME_TYPES
       });
-      console.log(`✅ Avatar bucket "${BUCKET_NAME}" created successfully`);
     } catch (createError) {
-      console.error("❌ Failed to create avatar bucket:", createError);
+      logger.error('Failed to create avatar bucket', createError, { tag: 'Avatar' });
     }
   }
 }
@@ -105,14 +105,10 @@ export async function uploadAvatar(options: AvatarUploadOptions): Promise<Avatar
     const filename = `${userId}_${timestamp}.jpg`;
     const path = `${userId}/${filename}`;
 
-    // Read file as binary data via fetch (works with file:// URIs)
-    console.log("📖 Reading file...");
     const response = await fetch(file.uri);
     const arrayBuffer = await response.arrayBuffer();
     const fileBytes = new Uint8Array(arrayBuffer);
 
-    // Upload to Supabase Storage
-    console.log("📤 Uploading to Supabase Storage...");
     const { error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(path, fileBytes, {
@@ -136,8 +132,6 @@ export async function uploadAvatar(options: AvatarUploadOptions): Promise<Avatar
       return { success: false, error: "Failed to generate public URL" };
     }
 
-    console.log("✅ Avatar uploaded successfully:", publicUrl);
-
     return {
       success: true,
       url: publicUrl,
@@ -145,7 +139,7 @@ export async function uploadAvatar(options: AvatarUploadOptions): Promise<Avatar
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Avatar upload failed:", errorMessage);
+    logger.error('Avatar upload failed', error, { tag: 'Avatar' });
     return { success: false, error: errorMessage };
   }
 }
@@ -169,11 +163,10 @@ export async function updateProfileAvatar(
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ ${profileType === "shadow" ? "🎭 Shadow" : "👤 Profile"} avatar updated`);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Profile update failed:", errorMessage);
+    logger.error('Profile update failed', error, { tag: 'Avatar' });
     return { success: false, error: errorMessage };
   }
 }
@@ -191,11 +184,10 @@ export async function deleteAvatar(path: string): Promise<AvatarDeleteResult> {
       return { success: false, error: error.message };
     }
 
-    console.log("✅ Avatar deleted:", path);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Avatar deletion failed:", errorMessage);
+    logger.error('Avatar deletion failed', error, { tag: 'Avatar' });
     return { success: false, error: errorMessage };
   }
 }
@@ -235,7 +227,7 @@ export async function uploadAndUpdateAvatar(
     return uploadResult;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Upload and update failed:", errorMessage);
+    logger.error('Upload and update failed', error, { tag: 'Avatar' });
     return { success: false, error: errorMessage };
   }
 }
@@ -272,11 +264,10 @@ export async function removeUserAvatar({ userId, storagePath, currentUrl, profil
       return { success: false, error: error.message };
     }
 
-    console.log("✅ Avatar cleared for user:", userId);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ Avatar remove failed:", errorMessage);
+    logger.error('Avatar remove failed', error, { tag: 'Avatar' });
     return { success: false, error: errorMessage };
   }
 }

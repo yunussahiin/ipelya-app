@@ -1,5 +1,6 @@
 import { useOnboardingService } from "./useOnboardingService";
 import { useAuth } from "./useAuth";
+import { logger } from "@/utils/logger";
 
 /**
  * Custom hook for syncing onboarding progress to database
@@ -15,14 +16,13 @@ export function useOnboardingSync() {
    */
   const syncStep = async (step: number) => {
     if (!userId) {
-      console.warn("⚠️ User ID not available for sync");
       return;
     }
 
     try {
       await syncOnboardingProgress(userId, step);
     } catch (error) {
-      console.error(`❌ Step ${step} sync hatası:`, error);
+      logger.error('Onboarding sync error', error, { tag: 'Onboarding' });
       throw error;
     }
   };

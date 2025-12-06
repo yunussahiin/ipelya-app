@@ -42,7 +42,7 @@ export default function CoinsScreen() {
                 coins={pkg.coins}
                 bonus={pkg.bonus}
                 price={pkg.price}
-                isPopular={pkg.isPopular}
+                popular={pkg.popular}
                 onPurchase={handlePurchase}
                 isProcessing={isProcessing && processingProductId === pkg.id}
               />
@@ -73,7 +73,15 @@ export default function CoinsScreen() {
   );
 }
 
-function InfoItem({ icon, text, colors }: { icon: string; text: string; colors: any }) {
+function InfoItem({
+  icon,
+  text,
+  colors
+}: {
+  icon: string;
+  text: string;
+  colors: { textPrimary: string };
+}) {
   return (
     <View style={styles.infoItem}>
       <Text style={styles.infoIcon}>{icon}</Text>

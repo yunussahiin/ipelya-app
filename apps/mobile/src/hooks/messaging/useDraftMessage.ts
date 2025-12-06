@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { logger } from "@/utils/logger";
 
 // =============================================
 // CONSTANTS
@@ -66,7 +67,7 @@ export function useDraftMessage({
 }: UseDraftMessageOptions): UseDraftMessageReturn {
   const [draft, setDraftState] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const storageKey = `${DRAFT_PREFIX}${conversationId}`;
 
   // Draft'ı AsyncStorage'dan yükle
@@ -81,10 +82,9 @@ export function useDraftMessage({
         const savedDraft = await AsyncStorage.getItem(storageKey);
         if (savedDraft) {
           setDraftState(savedDraft);
-          console.log("[Draft] Loaded draft for:", conversationId, "length:", savedDraft.length);
         }
       } catch (error) {
-        console.warn("[Draft] Failed to load draft:", error);
+        logger.warn('Failed to load draft', { tag: 'Draft' });
       } finally {
         setIsLoading(false);
       }
@@ -101,14 +101,11 @@ export function useDraftMessage({
       try {
         if (text.trim()) {
           await AsyncStorage.setItem(storageKey, text);
-          console.log("[Draft] Saved draft for:", conversationId, "length:", text.length);
         } else {
-          // Boş ise sil
           await AsyncStorage.removeItem(storageKey);
-          console.log("[Draft] Cleared empty draft for:", conversationId);
         }
       } catch (error) {
-        console.warn("[Draft] Failed to save draft:", error);
+        logger.warn('Failed to save draft', { tag: 'Draft' });
       }
     },
     [conversationId, enabled, storageKey]
@@ -146,9 +143,8 @@ export function useDraftMessage({
 
     try {
       await AsyncStorage.removeItem(storageKey);
-      console.log("[Draft] Cleared draft for:", conversationId);
     } catch (error) {
-      console.warn("[Draft] Failed to clear draft:", error);
+      logger.warn('Failed to clear draft', { tag: 'Draft' });
     }
   }, [conversationId, enabled, storageKey]);
 
@@ -184,10 +180,9 @@ export async function clearAllDrafts(): Promise<void> {
     
     if (draftKeys.length > 0) {
       await AsyncStorage.multiRemove(draftKeys);
-      console.log("[Draft] Cleared all drafts:", draftKeys.length);
     }
   } catch (error) {
-    console.warn("[Draft] Failed to clear all drafts:", error);
+    logger.warn('Failed to clear all drafts', { tag: 'Draft' });
   }
 }
 

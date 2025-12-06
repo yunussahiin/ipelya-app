@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabaseClient";
+import { logger } from "@/utils/logger";
 
 /**
  * Guard hook - /home'a erişmeden önce onboarding kontrol et
@@ -28,7 +29,7 @@ export function useOnboardingGuard() {
           .single();
 
         if (error) {
-          console.error("❌ Onboarding guard hatası:", error);
+          logger.error('Onboarding guard error', error, { tag: 'Onboarding' });
           return;
         }
 
@@ -36,13 +37,10 @@ export function useOnboardingGuard() {
 
         // If onboarding not complete, redirect
         if (onboardingStep < 5) {
-          console.log(
-            `🔄 Onboarding incomplete (step ${onboardingStep}), redirecting...`
-          );
           router.replace(`/(auth)/onboarding?step=${onboardingStep}`);
         }
       } catch (error) {
-        console.error("❌ Onboarding guard error:", error);
+        logger.error('Onboarding guard error', error, { tag: 'Onboarding' });
       }
     };
 

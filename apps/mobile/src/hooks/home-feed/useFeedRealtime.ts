@@ -21,10 +21,15 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 
+interface FeedPost {
+  id: string;
+  [key: string]: unknown;
+}
+
 export function useFeedRealtime(
   userId: string,
-  onNewPost?: (post: any) => void,
-  onPostUpdate?: (post: any) => void,
+  onNewPost?: (post: FeedPost) => void,
+  onPostUpdate?: (post: FeedPost) => void,
   onPostDelete?: (postId: string) => void
 ) {
   const queryClient = useQueryClient();
@@ -36,9 +41,6 @@ export function useFeedRealtime(
     const channel = supabase
       .channel(`feed:user:${userId}`)
       .on('broadcast', { event: 'new_post' }, (payload) => {
-        console.log('📬 New post:', payload);
-        
-        // Callback çağır
         if (onNewPost) {
           onNewPost(payload.payload);
         }
@@ -47,8 +49,6 @@ export function useFeedRealtime(
         queryClient.invalidateQueries({ queryKey: ['feed'] });
       })
       .on('broadcast', { event: 'post_update' }, (payload) => {
-        console.log('🔄 Post updated:', payload);
-        
         if (onPostUpdate) {
           onPostUpdate(payload.payload);
         }
@@ -56,8 +56,6 @@ export function useFeedRealtime(
         queryClient.invalidateQueries({ queryKey: ['feed'] });
       })
       .on('broadcast', { event: 'post_delete' }, (payload) => {
-        console.log('🗑️ Post deleted:', payload);
-        
         if (onPostDelete) {
           onPostDelete(payload.payload.post_id);
         }
