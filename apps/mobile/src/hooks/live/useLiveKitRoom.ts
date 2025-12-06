@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Room,
   RoomEvent,
+  ParticipantEvent,
   ConnectionState,
   ConnectionQuality,
   Track,
@@ -441,13 +442,52 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
         setRemoteParticipants(Array.from(newRoom.remoteParticipants.values()));
       });
       
-      // Track muted/unmuted events
-      newRoom.on(RoomEvent.TrackMuted, () => {
+      // Track muted/unmuted events - Admin tarafından mute/unmute yapıldığında tetiklenir
+      newRoom.on(RoomEvent.TrackMuted, (publication, participant) => {
+        // Local participant mute edildi mi kontrol et
+        if (participant === newRoom.localParticipant || participant.identity === newRoom.localParticipant.identity) {
+          if (publication.source === Track.Source.Microphone) {
+            setIsMicrophoneEnabled(false);
+          }
+          if (publication.source === Track.Source.Camera) {
+            setIsCameraEnabled(false);
+          }
+        }
+        // Remote participants güncelle
         setRemoteParticipants(Array.from(newRoom.remoteParticipants.values()));
       });
       
-      newRoom.on(RoomEvent.TrackUnmuted, () => {
+      newRoom.on(RoomEvent.TrackUnmuted, (publication, participant) => {
+        // Local participant unmute edildi mi kontrol et
+        if (participant === newRoom.localParticipant || participant.identity === newRoom.localParticipant.identity) {
+          if (publication.source === Track.Source.Microphone) {
+            setIsMicrophoneEnabled(true);
+          }
+          if (publication.source === Track.Source.Camera) {
+            setIsCameraEnabled(true);
+          }
+        }
+        // Remote participants güncelle
         setRemoteParticipants(Array.from(newRoom.remoteParticipants.values()));
+      });
+      
+      // Local participant'ın kendi track event'leri - ParticipantEvent kullanarak
+      newRoom.localParticipant.on(ParticipantEvent.TrackMuted, (publication) => {
+        if (publication.source === Track.Source.Microphone) {
+          setIsMicrophoneEnabled(false);
+        }
+        if (publication.source === Track.Source.Camera) {
+          setIsCameraEnabled(false);
+        }
+      });
+      
+      newRoom.localParticipant.on(ParticipantEvent.TrackUnmuted, (publication) => {
+        if (publication.source === Track.Source.Microphone) {
+          setIsMicrophoneEnabled(true);
+        }
+        if (publication.source === Track.Source.Camera) {
+          setIsCameraEnabled(true);
+        }
       });
 
       // Active speakers changed - kim konuşuyor
@@ -670,7 +710,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
   };
 
   // All participants (local + remote)
-  // useMemo ile hesapla - remoteParticipants, room veya isConnected değiştiğinde yeniden hesapla
+  // useMemo ile hesapla - remoteParticipants, room, isConnected veya local mic/camera state değiştiğinde yeniden hesapla
   const participants: FormattedParticipant[] = useMemo(() => {
     const currentRoom = roomRef.current || room;
     if (!currentRoom || !isConnected) return [];
@@ -681,7 +721,8 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions): UseLiveKitRoomRe
     ];
     
     return result;
-  }, [room, remoteParticipants, isConnected]);
+    // isMicrophoneEnabled ve isCameraEnabled dependency'leri local participant state değişikliklerini yakalar
+  }, [room, remoteParticipants, isConnected, isMicrophoneEnabled, isCameraEnabled]);
 
   // Map connection quality to string
   const qualityString = (() => {

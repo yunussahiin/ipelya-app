@@ -71,6 +71,8 @@ Bu TODO dosyası, İpelya platformunun LiveKit Web Admin Dashboard modülünün 
 | ---------------------------- | ----- | ------- | ----------------------------------------- | ----- |
 | [x] Katılımcıyı çıkar (kick) | ✅     | Kritik  | `/api/ops/live/participants/[id]/kick`    | POST  |
 | [x] Katılımcıyı banla        | ✅     | Kritik  | `/api/ops/live/participants/[id]/ban`     | POST  |
+| [x] Katılımcıyı sustur       | ✅     | Kritik  | `/api/ops/live/participants/[id]/mute`    | POST  |
+| [x] Katılımcı mic aç         | ✅     | Kritik  | `/api/ops/live/participants/[id]/unmute`  | POST  |
 | [x] Rol yükselt              | ✅     | Orta    | `/api/ops/live/participants/[id]/promote` | POST  |
 | [x] Rol düşür                | ✅     | Orta    | `/api/ops/live/participants/[id]/demote`  | POST  |
 

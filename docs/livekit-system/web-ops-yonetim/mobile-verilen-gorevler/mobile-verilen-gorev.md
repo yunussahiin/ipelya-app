@@ -1,6 +1,6 @@
 # 📱 Mobile LiveKit Entegrasyonu - Geliştirici Kılavuzu
 
-> **Son Güncelleme:** 2025-12-06 01:45  
+> **Son Güncelleme:** 2025-12-06 06:30  
 > **Durum:** ✅ Mobile Entegrasyonu Tamamlandı
 
 ---
@@ -27,6 +27,12 @@
 - [x] Room terminated alert (Alert.alert ile)
 - [x] `BanInfoModal` - Ban bilgisi modal'ı
 - [x] `ReportModal` - Şikayet gönderme modal'ı (viewer + host)
+
+### Adım 5: Admin Mute/Unmute ✅ TAMAMLANDI
+- [x] `TrackMuted` / `TrackUnmuted` event handler'ları güncellendi
+- [x] Local participant için `isMicrophoneEnabled` / `isCameraEnabled` state güncellemesi
+- [x] `participants` useMemo dependency'lerine mic/camera state eklendi
+- [x] Audio Room UI'da mute badge otomatik güncelleniyor
 
 ---
 
@@ -105,13 +111,18 @@ Bu döküman, İpelya mobil uygulamasının LiveKit entegrasyonu için gerekli b
 
 ### ✅ Backend Hazır Olan Özellikler
 
-| Özellik      | API Endpoint                                 | Açıklama                   |
-| ------------ | -------------------------------------------- | -------------------------- |
-| Kick         | `POST /api/ops/live/participants/[id]/kick`  | Admin katılımcı çıkarma    |
-| Ban          | `POST /api/ops/live/participants/[id]/ban`   | Session/Creator/Global ban |
-| Terminate    | `POST /api/ops/live/sessions/[id]/terminate` | Oturum sonlandırma         |
-| Reports      | `GET/POST /api/ops/live/reports`             | Şikayet sistemi            |
-| Webhook Logs | `GET /api/ops/live/webhook-logs`             | Event logları              |
+| Özellik      | API Endpoint                                  | Açıklama                   |
+| ------------ | --------------------------------------------- | -------------------------- |
+| Kick         | `POST /api/ops/live/participants/[id]/kick`   | Admin katılımcı çıkarma    |
+| Ban          | `POST /api/ops/live/participants/[id]/ban`    | Session/Creator/Global ban |
+| Mute         | `POST /api/ops/live/participants/[id]/mute`   | Mikrofon kapatma           |
+| Unmute       | `POST /api/ops/live/participants/[id]/unmute` | Mikrofon açma              |
+| Terminate    | `POST /api/ops/live/sessions/[id]/terminate`  | Oturum sonlandırma         |
+| Reports      | `GET/POST /api/ops/live/reports`              | Şikayet sistemi            |
+| Webhook Logs | `GET /api/ops/live/webhook-logs`              | Event logları              |
+
+> **Not:** `[id]` parametresi hem `live_participants` tablosundaki UUID hem de `user_id` (LiveKit identity) olabilir.
+> API her iki formatı da destekler.
 
 ### ✅ Mevcut Çalışan Yapı
 
@@ -169,6 +180,11 @@ Mobil uygulamada dinlenmesi gereken LiveKit SDK event'leri:
 | `TrackUnmuted`      | Track sesi açıldı     | Mute icon kaldır             |
 | `TrackPublished`    | Track yayınlandı      | Yeni track için subscribe ol |
 | `TrackUnpublished`  | Track kaldırıldı      | Track render'ını kaldır      |
+
+> **ÖNEMLİ - Admin Mute/Unmute:**  
+> Admin panelinden bir katılımcının mikrofonu kapatıldığında (`TrackMuted`) veya açıldığında (`TrackUnmuted`), 
+> mobile tarafta bu event'ler otomatik olarak tetiklenir. LiveKit SDK bu event'leri handle eder.
+> Mobile'da ekstra bir şey yapmanıza gerek yok - sadece mute icon'u gösterin/gizleyin.
 
 ### Connection & Quality Events
 
