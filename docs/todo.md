@@ -87,3 +87,33 @@
 - [ ] Unit tests yazılacak
 - [ ] Integration tests yazılacak
 - [ ] Performance optimization
+
+---
+
+## EAS Update (OTA Güncellemeler) - TODO
+
+📚 **Detaylı Dökümanlar:** `docs/mobile/expo-updates/`
+
+### Phase 1: Konfigürasyon ⚙️
+- [ ] `app.json`'a `updates` ve `runtimeVersion` ekle
+- [ ] `eas update:configure` komutunu çalıştır
+- [ ] Native dosyaların güncellendiğini doğrula
+
+### Phase 2: Build & Test 🔨
+- [ ] Development build oluştur (iOS + Android)
+- [ ] Güncelleme akışını test et
+- [ ] Production build oluştur
+
+### Phase 3: Uygulama İçi UI 📱
+- [ ] `useAppUpdate` hook oluştur
+- [ ] `UpdateBanner` component oluştur
+- [ ] Ayarlar sayfasına güncelleme kontrolü ekle
+- [ ] Foreground güncelleme kontrolü ekle
+
+### Phase 4: CI/CD & Monitoring 🔄
+- [ ] GitHub Actions workflow oluştur
+- [ ] Sentry entegrasyonu
+- [ ] EAS Dashboard izleme
+
+**Durum:** ⏳ Başlanmadı
+**Öncelik:** 🔴 Kritik (Store yayını öncesi tamamlanmalı)

@@ -132,6 +132,63 @@
 
 ---
 
+## 🔧 Type/API Hata Düzeltmeleri (2025-12-07)
+
+### expo-notifications API Değişikliği
+| Dosya                                | Düzeltme                                                              |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| `hooks/messaging/useDoNotDisturb.ts` | `NotificationBehavior` - `shouldShowBanner`, `shouldShowList` eklendi |
+
+### expo-iap API Değişikliği
+| Dosya                  | Düzeltme                                                         |
+| ---------------------- | ---------------------------------------------------------------- |
+| `hooks/usePurchase.ts` | Tam refactor - `useIAP` options, `fetchProducts`, error handling |
+
+### expo-image-picker API Değişikliği
+| Dosya                                                  | Düzeltme                       |
+| ------------------------------------------------------ | ------------------------------ |
+| `components/broadcast/CreateBroadcastScreen/index.tsx` | `MediaType.IMAGE` → `'images'` |
+| `components/broadcast/EditBroadcastScreen/index.tsx`   | `MediaType.IMAGE` → `'images'` |
+
+### expo-file-system API Değişikliği
+| Dosya                                                  | Düzeltme                           |
+| ------------------------------------------------------ | ---------------------------------- |
+| `components/broadcast/CreateBroadcastScreen/index.tsx` | `EncodingType.Base64` → `'base64'` |
+
+### LiveKit API Değişikliği
+| Dosya                               | Düzeltme                                            |
+| ----------------------------------- | --------------------------------------------------- |
+| `hooks/live/useKrispNoiseFilter.ts` | Dynamic import, `any` → `unknown`, interface tanımı |
+
+### NodeJS.Timeout → ReturnType Düzeltmeleri
+| Dosya                                                              | Düzeltme                           |
+| ------------------------------------------------------------------ | ---------------------------------- |
+| `hooks/useSessionTimeout.ts`                                       | `checkIntervalRef` type düzeltmesi |
+| `components/broadcast/components/BroadcastVoiceRecorder/index.tsx` | `timerRef` type düzeltmesi         |
+| `components/messaging/ChatScreen/components/AudioRecorder.tsx`     | `timerRef` type düzeltmesi         |
+
+### Type Düzeltmeleri
+| Dosya                                                                 | Düzeltme                                             |
+| --------------------------------------------------------------------- | ---------------------------------------------------- |
+| `hooks/messaging/useMentions.ts`                                      | `let` → `const`                                      |
+| `hooks/messaging/useConversations.ts`                                 | Unused import kaldırıldı, type casting               |
+| `hooks/useTierTemplates.ts`                                           | `any` → `Error` type                                 |
+| `hooks/home-feed/useFeed.ts`                                          | `any` → `FeedParams['vibe']`, `FeedParams['intent']` |
+| `hooks/home-feed/useFeedRealtime.ts`                                  | `any` → `FeedPost` interface                         |
+| `hooks/home-feed/usePostRealtime.ts`                                  | `any` → `PostComment` interface                      |
+| `components/home-feed/FeedItem/index.tsx`                             | `handleLike` parametre düzeltmesi                    |
+| `app/(store)/coins.tsx`                                               | `isPopular` → `popular`, `any` → proper type         |
+| `app/(store)/subscription.tsx`                                        | readonly array fix, Ionicons type fix                |
+| `components/broadcast/BroadcastChannelListScreen/index.tsx`           | Implicit any type                                    |
+| `components/home-feed/CommentSheet/components/CommentLikersSheet.tsx` | Implicit any type                                    |
+
+### ThemeColors Düzeltmeleri
+| Dosya                                                              | Düzeltme                   |
+| ------------------------------------------------------------------ | -------------------------- |
+| `components/broadcast/components/BroadcastVoiceRecorder/index.tsx` | `colors.error` → `#ef4444` |
+
+---
+
 ## 🔄 ActivityIndicator → Skeleton/ButtonLoader Dönüşümleri
 
 | Dosya                     | Değişiklik                                              |
@@ -145,10 +202,11 @@
 ## 📝 Bekleyen İşler
 
 ### Yüksek Öncelik
-- [ ] Kalan ~160 dosyada console.log temizliği
+- [x] ~~Kalan ~160 dosyada console.log temizliği~~ ✅ Tamamlandı
 - [ ] Kalan ~59 dosyada ActivityIndicator → Skeleton dönüşümü
 - [ ] `useAuth` ve `auth.store` birleştirme
 - [ ] Error Boundary implementasyonu
+- [ ] Kalan ~110 TypeScript hatası düzeltmesi (paket API değişiklikleri)
 
 ### Orta Öncelik
 - [ ] FlashList kullanımı (FlatList yerine)
@@ -166,13 +224,15 @@
 
 ## 📊 İstatistikler
 
-| Metrik                     | Değer |
-| -------------------------- | ----- |
-| Oluşturulan dosya          | 3     |
-| Güncellenen dosya          | 19    |
-| Silinen dosya              | 1     |
-| Temizlenen console.log     | ~291  |
-| ActivityIndicator dönüşümü | 3     |
+| Metrik                     | Değer     |
+| -------------------------- | --------- |
+| Oluşturulan dosya          | 3         |
+| Güncellenen dosya          | 40+       |
+| Silinen dosya              | 1         |
+| Temizlenen console.log     | ~577      |
+| ActivityIndicator dönüşümü | 3         |
+| Type/API hata düzeltmesi   | 20+       |
+| TypeScript hata azaltma    | 113 → 110 |
 
 ---
 

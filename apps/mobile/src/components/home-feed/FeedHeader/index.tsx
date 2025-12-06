@@ -12,7 +12,7 @@
 
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import { Bell, MessageCircle, Sparkles } from "lucide-react-native";
+import { Bell, MessageCircle, Sparkles, Coins } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -57,6 +57,11 @@ export function FeedHeader() {
         {/* Creator Discovery */}
         <Pressable style={styles.iconButton} onPress={handleCreatorPress}>
           <Sparkles size={24} color={colors.accent} />
+        </Pressable>
+
+        {/* Coin Store */}
+        <Pressable style={styles.iconButton} onPress={() => router.push("/(store)/coins")}>
+          <Coins size={24} color="#FFD700" />
         </Pressable>
       </View>
     </View>

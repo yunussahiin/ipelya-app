@@ -8,6 +8,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "ipelya",
+    "updates": {
+      "enabled": true,
+      "url": "https://u.expo.dev/ef2464e9-74a9-4b09-9ff6-a936e9cdc65a",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "plugins": [
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",

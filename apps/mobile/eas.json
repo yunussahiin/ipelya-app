@@ -47,7 +47,8 @@
       },
       "env": {
         "ENVIRONMENT": "internal"
-      }
+      },
+      "channel": "internal"
     },
     "production": {
       "autoIncrement": true,
